@@ -86,6 +86,21 @@ void re_body_move(const ReWorld *w, ReBody *body, ReVec2 delta, float dt, float 
         bool hit = false;
         for (size_t si = 0; si < w->sector_count; si++) {
             const ReSector *s = &w->sectors[si];
+            /* Dos plantas pueden ocupar el mismo polígono XY. Una pared sólo
+             * puede tocar al cilindro si sus intervalos verticales se cruzan.
+             * Antes se barrían todas las aristas del mapa; por eso las paredes
+             * del ático, aunque empezaban tres metros más arriba, se convertían
+             * en muros invisibles en la planta baja.
+             *
+             * La comparación es abierta: apoyar exactamente los pies sobre el
+             * techo de un volumen inferior o la cabeza bajo otro superior no
+             * constituye penetración. Los desniveles transitables continúan
+             * resolviéndose en portal_clearance_blocks(). */
+            float body_bottom = body->position.z;
+            float body_top = body->position.z + body->height;
+            if (s->ceiling <= body_bottom + RE_EPSILON ||
+                s->floor >= body_top - RE_EPSILON)
+                continue;
             for (size_t e = 0; e < s->count; e++) {
                 ReVec2 a = s->vertices[e], b = s->vertices[(e + 1) % s->count];
                 ReVec2 segment_a[3] = {a, {0, 0}, {0, 0}};

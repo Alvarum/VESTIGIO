@@ -153,6 +153,40 @@ static bool collisions(void) {
     CHECK(NEAR(re_world_raycast(&w, re_v3(4, 3, 1), re_v3(0, 0, -1), 30), 1));
     return true;
 }
+
+/* Regresión de Haunted: el ático comparte exactamente la planta XY del
+ * vestíbulo. Sus paredes comienzan a z=3 y no pueden bloquear un jugador de
+ * 1,70 m que cruza el portal visible entre los sectores 0 y 1. */
+static bool haunted_stacked_portal(void) {
+    char path[1024];
+    CHECK(snprintf(path, sizeof(path), "%s/assets/studio/levels/house.map", RETRO_SOURCE_DIR) > 0);
+    ReWorld world = {0};
+    ReError error = {0};
+    CHECK(re_world_load(path, &world, &error));
+    ReBody player = {.position = {5.35f, 2, 0},
+                     .radius = .26f,
+                     .height = 1.7f,
+                     .step_height = .3f,
+                     .sector = 0,
+                     .grounded = true};
+    for (int tick = 0; tick < 20; tick++)
+        re_body_move(&world, &player, re_v2(.08f, 0), RE_FIXED_DT, 18);
+    CHECK(player.position.x > 6.2f);
+    CHECK(player.sector == 1);
+
+    /* Fuera del intervalo [0.2,0.8] la misma arista sí conserva pared. */
+    player = (ReBody){.position = {5.35f, .35f, 0},
+                      .radius = .26f,
+                      .height = 1.7f,
+                      .step_height = .3f,
+                      .sector = 0,
+                      .grounded = true};
+    for (int tick = 0; tick < 20; tick++)
+        re_body_move(&world, &player, re_v2(.08f, 0), RE_FIXED_DT, 18);
+    CHECK(player.position.x < 5.75f);
+    CHECK(player.sector == 0);
+    return true;
+}
 static bool rendering(void) {
     ReRenderer r = {0};
     ReTexture texture = {0};
@@ -664,6 +698,7 @@ int main(void) {
                  {"input_clock", input_clock},
                  {"maps", maps},
                  {"collisions", collisions},
+                 {"haunted_stacked_portal", haunted_stacked_portal},
                  {"rendering", rendering},
                  {"renderer_contracts", renderer_contracts},
                  {"dynamic_lighting", dynamic_lighting},

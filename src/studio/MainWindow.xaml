@@ -1,0 +1,395 @@
+<Window x:Class="RetroForge.Studio.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ad="clr-namespace:AvalonDock;assembly=AvalonDock"
+        xmlns:layout="clr-namespace:AvalonDock.Layout;assembly=AvalonDock"
+        xmlns:adThemes="clr-namespace:AvalonDock.Themes;assembly=AvalonDock.Themes.Arc"
+        xmlns:local="clr-namespace:RetroForge.Studio"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="RetroForge Studio" Width="1500" Height="920" MinWidth="1080" MinHeight="680"
+        WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="CanResizeWithGrip">
+  <shell:WindowChrome.WindowChrome>
+    <shell:WindowChrome CaptionHeight="42" ResizeBorderThickness="7" CornerRadius="8"
+                        GlassFrameThickness="0" UseAeroCaptionButtons="False" />
+  </shell:WindowChrome.WindowChrome>
+
+  <Window.Resources>
+    <HierarchicalDataTemplate DataType="{x:Type local:SceneGroup}" ItemsSource="{Binding Items}">
+      <Grid Margin="2,5">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="24" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Text="{Binding Symbol}" Foreground="{StaticResource AccentBrush}" />
+        <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold" />
+        <Border Grid.Column="2" Background="{StaticResource SurfaceBrush}" CornerRadius="9" Padding="6,1">
+          <TextBlock Text="{Binding Count}" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+        </Border>
+      </Grid>
+    </HierarchicalDataTemplate>
+    <DataTemplate DataType="{x:Type local:SectorModel}">
+      <local:SceneItemView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type local:MarkerModel}">
+      <local:SceneItemView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type local:BarrierModel}">
+      <local:SceneItemView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type local:CharacterModel}">
+      <local:SceneItemView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type local:RuleModel}">
+      <local:SceneItemView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type local:DialogueModel}">
+      <local:SceneItemView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type local:TriggerModel}">
+      <local:SceneItemView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type local:LightModel}">
+      <local:SceneItemView />
+    </DataTemplate>
+  </Window.Resources>
+
+  <Border BorderBrush="#FF3A3F44" BorderThickness="1" CornerRadius="8"
+          Background="{StaticResource WindowBrush}">
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="42" />
+        <RowDefinition Height="36" />
+        <RowDefinition Height="54" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="28" />
+      </Grid.RowDefinitions>
+
+      <!-- Barra de título propia: conserva una presencia sobria y permite usar
+           el mismo sistema visual en todas las densidades de pantalla. -->
+      <Grid Grid.Row="0" Background="#FF0E1012" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" Margin="14,0" VerticalAlignment="Center">
+          <Border Width="22" Height="22" CornerRadius="6" Background="{StaticResource AccentBrush}">
+            <TextBlock Text="R" Foreground="#FF17120C" FontWeight="Bold" HorizontalAlignment="Center" />
+          </Border>
+          <TextBlock Margin="10,0,0,0" FontWeight="SemiBold" Text="RetroForge Studio" />
+          <TextBlock Margin="12,0,0,0" Foreground="{StaticResource MutedBrush}" Text="{Binding Overview.Name}" />
+          <TextBlock Margin="5,0,0,0" Foreground="{StaticResource AccentBrush}" Text="{Binding DirtyMark}" />
+        </StackPanel>
+        <TextBlock Grid.Column="1" HorizontalAlignment="Center" Foreground="{StaticResource FaintBrush}"
+                   Text="FPS y experiencias narrativas 2.5D" FontSize="12" />
+        <StackPanel Grid.Column="2" Orientation="Horizontal" shell:WindowChrome.IsHitTestVisibleInChrome="True">
+          <Button Style="{StaticResource IconButton}" Content="—" Click="Minimize_Click" ToolTip="Minimizar" />
+          <Button Style="{StaticResource IconButton}" Content="□" Click="Maximize_Click" ToolTip="Maximizar" />
+          <Button Style="{StaticResource IconButton}" Content="×" Click="Close_Click" ToolTip="Cerrar" />
+        </StackPanel>
+      </Grid>
+
+      <Border Grid.Row="1" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}"
+              BorderThickness="0,1,0,1">
+        <DockPanel>
+          <Menu DockPanel.Dock="Left" Margin="8,0">
+            <MenuItem Header="Archivo">
+              <MenuItem Header="Guardar todo" InputGestureText="Ctrl+S" Command="{Binding SaveCommand}" />
+              <Separator />
+              <MenuItem Header="Cerrar" Click="Close_Click" />
+            </MenuItem>
+            <MenuItem Header="Edición">
+              <MenuItem Header="Deshacer" InputGestureText="Ctrl+Z" Command="{Binding UndoCommand}" />
+              <MenuItem Header="Rehacer" InputGestureText="Ctrl+Y" Command="{Binding RedoCommand}" />
+            </MenuItem>
+            <MenuItem Header="Ver">
+              <MenuItem Header="Restablecer espacio de trabajo" Click="ResetLayout_Click" />
+            </MenuItem>
+            <MenuItem Header="Proyecto">
+              <MenuItem Header="Validar ahora" Click="Validate_Click" />
+            </MenuItem>
+            <MenuItem Header="Ayuda">
+              <MenuItem Header="Recorrido de la interfaz" Click="Help_Click" />
+            </MenuItem>
+          </Menu>
+        </DockPanel>
+      </Border>
+
+      <Grid Grid.Row="2" Background="{StaticResource PanelBrush}" Margin="0,0,0,1">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" Margin="12,8">
+          <RadioButton Style="{StaticResource WorkspaceToggle}" Content="Construir" Tag="MapDocument"
+                       IsChecked="True" Click="Workspace_Click" />
+          <RadioButton Style="{StaticResource WorkspaceToggle}" Content="Personajes" Tag="CharacterDocument"
+                       Click="Workspace_Click" />
+          <RadioButton Style="{StaticResource WorkspaceToggle}" Content="Lógica" Tag="LogicDocument"
+                       Click="Workspace_Click" />
+          <RadioButton Style="{StaticResource WorkspaceToggle}" Content="Diálogos" Tag="DialogueDocument"
+                       Click="Workspace_Click" />
+          <RadioButton Style="{StaticResource WorkspaceToggle}" Content="Probar" Tag="TestDocument"
+                       Click="Workspace_Click" />
+        </StackPanel>
+        <Border Grid.Column="1" Width="330" HorizontalAlignment="Center" Margin="0,9"
+                Background="#FF111416" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="7">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Left" Text="⌕" FontSize="18" Foreground="{StaticResource MutedBrush}" Margin="10,0,5,0" />
+            <TextBox BorderThickness="0" Background="Transparent" MinHeight="32" Padding="3,5"
+                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="Buscar objetos y comandos" />
+          </DockPanel>
+        </Border>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="8">
+          <Button Style="{StaticResource IconButton}" Content="↶" Command="{Binding UndoCommand}" ToolTip="Deshacer · Ctrl+Z" />
+          <Button Style="{StaticResource IconButton}" Content="↷" Command="{Binding RedoCommand}" ToolTip="Rehacer · Ctrl+Y" />
+          <Border Width="1" Margin="8,4" Background="{StaticResource BorderBrush}" />
+          <Button Style="{StaticResource PrimaryButton}" Content="▶  Probar" Command="{Binding PlayCommand}" />
+          <Button Margin="6,0,0,0" Content="■  Detener" Command="{Binding StopCommand}" />
+        </StackPanel>
+      </Grid>
+
+      <ad:DockingManager x:Name="DockManager" Grid.Row="3" Background="{StaticResource WindowBrush}"
+                         BorderThickness="0">
+        <ad:DockingManager.Theme>
+          <adThemes:ArcDarkTheme />
+        </ad:DockingManager.Theme>
+        <layout:LayoutRoot>
+          <layout:LayoutPanel Orientation="Horizontal">
+            <layout:LayoutAnchorablePane DockWidth="285">
+              <layout:LayoutAnchorable Title="Escena" ContentId="Scene" CanClose="False" CanHide="False">
+                <Grid Background="{StaticResource PanelBrush}">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                  </Grid.RowDefinitions>
+                  <StackPanel Margin="14,14,14,8">
+                    <TextBlock Style="{StaticResource EyebrowText}" Text="NIVEL ACTIVO" />
+                    <TextBlock Margin="0,4,0,0" FontSize="16" FontWeight="SemiBold" Text="Casa de la niebla" />
+                  </StackPanel>
+                  <TreeView Grid.Row="1" Margin="8" ItemsSource="{Binding SceneGroups}"
+                            SelectedItemChanged="SceneTree_SelectedItemChanged"
+                            VirtualizingPanel.IsVirtualizing="True" />
+                </Grid>
+              </layout:LayoutAnchorable>
+            </layout:LayoutAnchorablePane>
+
+            <layout:LayoutPanel Orientation="Vertical">
+              <layout:LayoutDocumentPane>
+                <layout:LayoutDocument x:Name="MapDocument" Title="Plano de la casa" ContentId="MapDocument"
+                                       IsSelected="True" CanClose="False">
+                  <Grid Background="{StaticResource WindowBrush}" IsEnabled="{Binding EditEnabled}">
+                    <local:MapViewport x:Name="MapView" />
+                    <Border VerticalAlignment="Top" HorizontalAlignment="Left" Margin="16"
+                            Background="#E6171A1D" BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="12,8">
+                      <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="Vista de planta" />
+                        <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="12"
+                                   Text="Rueda: zoom · botón central: desplazar · clic: seleccionar" />
+                      </StackPanel>
+                    </Border>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="16">
+                      <ToggleButton Style="{StaticResource OverlayToggle}" Content="Zonas" IsChecked="True"
+                                    Checked="TriggerOverlay_Changed" Unchecked="TriggerOverlay_Changed" />
+                      <ToggleButton Style="{StaticResource OverlayToggle}" Content="Luces" Margin="6,0,0,0"
+                                    Checked="LightOverlay_Changed" Unchecked="LightOverlay_Changed" />
+                    </StackPanel>
+                  </Grid>
+                </layout:LayoutDocument>
+
+                <layout:LayoutDocument x:Name="CharacterDocument" Title="Personajes" ContentId="CharacterDocument"
+                                       CanClose="False">
+                  <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{StaticResource WindowBrush}">
+                    <StackPanel Margin="28">
+                      <TextBlock Style="{StaticResource EyebrowText}" Text="DEFINICIONES COMPARTIDAS" />
+                      <TextBlock Style="{StaticResource HeadingText}" Margin="0,5,0,3" Text="Personajes y comportamiento" />
+                      <TextBlock Foreground="{StaticResource MutedBrush}" Margin="0,0,0,22"
+                                 Text="Edita una definición una sola vez; todas sus instancias la reutilizan." />
+                      <ItemsControl ItemsSource="{Binding Document.Characters}">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Button Width="260" Height="128" Margin="0,0,12,12" Padding="0"
+                                    Command="{Binding DataContext.SelectCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}">
+                              <Grid Margin="16">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                <TextBlock Style="{StaticResource EyebrowText}" Text="PERSONAJE" />
+                                <StackPanel Grid.Row="1" Margin="0,8">
+                                  <TextBlock FontSize="17" FontWeight="SemiBold" Text="{Binding DisplayName}" />
+                                  <TextBlock Margin="0,3,0,0" Foreground="{StaticResource MutedBrush}" Text="{Binding Subtitle}" />
+                                </StackPanel>
+                                <TextBlock Grid.Row="2" Foreground="{StaticResource AccentBrush}" Text="Editar apariencia y conducta  →" />
+                              </Grid>
+                            </Button>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </ScrollViewer>
+                </layout:LayoutDocument>
+
+                <layout:LayoutDocument x:Name="LogicDocument" Title="Lógica" ContentId="LogicDocument" CanClose="False">
+                  <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{StaticResource WindowBrush}">
+                    <StackPanel Margin="28">
+                      <TextBlock Style="{StaticResource EyebrowText}" Text="CUANDO / SI / HACER" />
+                      <TextBlock Style="{StaticResource HeadingText}" Margin="0,5,0,3" Text="Reglas del juego" />
+                      <TextBlock Foreground="{StaticResource MutedBrush}" Margin="0,0,0,22"
+                                 Text="Cada tarjeta resume el disparador, sus condiciones y las consecuencias." />
+                      <ItemsControl ItemsSource="{Binding Document.Rules}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Button HorizontalContentAlignment="Stretch" Margin="0,0,0,8" Padding="0"
+                                    Command="{Binding DataContext.SelectCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}">
+                              <Grid Margin="15,12">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                  <TextBlock Style="{StaticResource EyebrowText}" Text="CUANDO" />
+                                  <TextBlock Margin="0,4,0,0" Foreground="{StaticResource AccentBrush}" Text="{Binding EventName}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                  <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}" />
+                                  <TextBlock Foreground="{StaticResource MutedBrush}" Text="{Binding Source, StringFormat=Origen: {0}}" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" Foreground="{StaticResource MutedBrush}"
+                                           Text="{Binding Native.ActionCount, StringFormat={}{0} acciones}" />
+                              </Grid>
+                            </Button>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </ScrollViewer>
+                </layout:LayoutDocument>
+
+                <layout:LayoutDocument x:Name="DialogueDocument" Title="Diálogos" ContentId="DialogueDocument" CanClose="False">
+                  <Grid Background="{StaticResource WindowBrush}">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <ListBox x:Name="DialogueList" Margin="18" ItemsSource="{Binding Document.Dialogues}"
+                             SelectionChanged="DialogueList_SelectionChanged" Background="Transparent" BorderThickness="0">
+                      <ListBox.ItemTemplate>
+                        <DataTemplate><local:SceneItemView /></DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+                    <Border Grid.Column="1" Margin="8,24,28,24" Padding="24" Background="{StaticResource PanelBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10">
+                      <StackPanel>
+                        <TextBlock Style="{StaticResource EyebrowText}" Text="VISTA PREVIA DE CONVERSACIÓN" />
+                        <TextBlock Style="{StaticResource HeadingText}" Margin="0,8,0,18" Text="{Binding SelectionTitle}" />
+                        <TextBlock FontSize="17" TextWrapping="Wrap" TextTrimming="None" LineHeight="26"
+                                   Text="{Binding SelectionSubtitle}" />
+                        <Border Margin="0,24,0,0" Padding="14" CornerRadius="7" Background="#FF121518">
+                          <TextBlock Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+                                     Text="Selecciona un nodo para editar hablante, texto, pausa y destino desde el inspector." />
+                        </Border>
+                      </StackPanel>
+                    </Border>
+                  </Grid>
+                </layout:LayoutDocument>
+
+                <layout:LayoutDocument x:Name="TestDocument" Title="Probar" ContentId="TestDocument" CanClose="False">
+                  <Grid Background="{StaticResource WindowBrush}">
+                    <Border Width="620" Padding="34" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="12">
+                      <StackPanel>
+                        <Border Width="56" Height="56" CornerRadius="28" Background="{StaticResource AccentSoftBrush}" HorizontalAlignment="Left">
+                          <TextBlock Text="▶" Foreground="{StaticResource AccentBrush}" FontSize="22" HorizontalAlignment="Center" />
+                        </Border>
+                        <TextBlock Style="{StaticResource HeadingText}" Margin="0,20,0,8" Text="Probar el proyecto real" />
+                        <TextBlock Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" TextTrimming="None" LineHeight="23"
+                                   Text="Studio guarda y abre RetroForge Player con este mismo manifiesto. La prueba usa el renderer, las colisiones, los sprites y las reglas del juego exportado." />
+                        <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
+                          <Button Style="{StaticResource PrimaryButton}" Content="▶  Iniciar prueba" Command="{Binding PlayCommand}" />
+                          <Button Margin="8,0,0,0" Content="■  Terminar" Command="{Binding StopCommand}" />
+                        </StackPanel>
+                      </StackPanel>
+                    </Border>
+                  </Grid>
+                </layout:LayoutDocument>
+              </layout:LayoutDocumentPane>
+
+              <layout:LayoutAnchorablePane DockHeight="190">
+                <layout:LayoutAnchorable Title="Recursos" ContentId="Resources" CanClose="False">
+                  <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                Background="{StaticResource PanelBrush}">
+                    <ItemsControl ItemsSource="{Binding Resources}" Margin="12">
+                      <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Border Width="180" Margin="0,0,8,0" Padding="12" Background="{StaticResource SurfaceBrush}"
+                                  BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="7">
+                            <StackPanel>
+                              <TextBlock Style="{StaticResource EyebrowText}" Text="{Binding Kind}" />
+                              <TextBlock Margin="0,5,0,0" FontWeight="SemiBold" Text="{Binding Name}" />
+                              <TextBlock Margin="0,3,0,0" Foreground="{StaticResource FaintBrush}" FontSize="11" Text="{Binding Path}" />
+                            </StackPanel>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </layout:LayoutAnchorable>
+                <layout:LayoutAnchorable Title="Problemas" ContentId="Problems" CanClose="False">
+                  <ListBox ItemsSource="{Binding Problems}" Background="{StaticResource PanelBrush}" BorderThickness="0" Padding="10" />
+                </layout:LayoutAnchorable>
+              </layout:LayoutAnchorablePane>
+            </layout:LayoutPanel>
+
+            <layout:LayoutAnchorablePane DockWidth="340">
+              <layout:LayoutAnchorable Title="Inspector" ContentId="Inspector" CanClose="False" CanHide="False">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{StaticResource PanelBrush}">
+                  <StackPanel Margin="18">
+                    <TextBlock Style="{StaticResource EyebrowText}" Text="SELECCIÓN" />
+                    <TextBlock Margin="0,5,0,0" FontSize="18" FontWeight="SemiBold" Text="{Binding SelectionTitle}" />
+                    <TextBlock Margin="0,4,0,18" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+                               TextTrimming="None" Text="{Binding SelectionSubtitle}" />
+                    <ItemsControl ItemsSource="{Binding InspectorFields}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <StackPanel Margin="0,0,0,13">
+                            <DockPanel Margin="1,0,1,5">
+                              <TextBlock DockPanel.Dock="Right" Foreground="{StaticResource FaintBrush}" FontSize="11" Text="{Binding Suffix}" />
+                              <TextBlock FontSize="12" Foreground="{StaticResource MutedBrush}" Text="{Binding Label}" />
+                            </DockPanel>
+                            <TextBox Text="{Binding Value}" Tag="{Binding}" LostKeyboardFocus="InspectorField_LostKeyboardFocus"
+                                     KeyDown="InspectorField_KeyDown" ToolTip="{Binding Help}" />
+                          </StackPanel>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Border Margin="0,10,0,0" Padding="12" Background="#FF121518" CornerRadius="7"
+                            Visibility="{Binding SelectedItem, Converter={x:Static local:PresenceConverter.Instance}}">
+                      <StackPanel>
+                        <TextBlock Style="{StaticResource EyebrowText}" Text="CONEXIONES" />
+                        <TextBlock Margin="0,5,0,0" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+                                   Text="Las reglas relacionadas aparecerán aquí a medida que selecciones orígenes y destinos." />
+                      </StackPanel>
+                    </Border>
+                  </StackPanel>
+                </ScrollViewer>
+              </layout:LayoutAnchorable>
+            </layout:LayoutAnchorablePane>
+          </layout:LayoutPanel>
+        </layout:LayoutRoot>
+      </ad:DockingManager>
+
+      <Grid Grid.Row="4" Background="#FF0E1012">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" Margin="10,0">
+          <Ellipse Width="7" Height="7" Fill="#FF6FC39A" Margin="0,0,7,0" />
+          <TextBlock FontSize="12" Foreground="{StaticResource MutedBrush}" Text="{Binding Status}" />
+        </StackPanel>
+        <TextBlock Grid.Column="2" Margin="12,0" FontSize="12" Foreground="{StaticResource FaintBrush}"
+                   Text="{Binding Overview.Revision, StringFormat=Revisión {0}}" />
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

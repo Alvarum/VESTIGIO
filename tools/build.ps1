@@ -17,6 +17,15 @@ try {
     if ($LASTEXITCODE) { throw 'Fallo configurando CMake' }
     & "$toolBin\cmake.exe" --build --preset $Preset --parallel 4
     if ($LASTEXITCODE) { throw 'Fallo compilando' }
+    if ($Preset -in @('debug','release')) {
+        $dotnetConfiguration = if ($Preset -eq 'release') { 'Release' } else { 'Debug' }
+        # Studio comparte el directorio bin con la DLL C y Player. --locked-mode
+        # impide que una compilación normal cambie versiones restauradas.
+        & dotnet build 'src/studio/RetroForge.Studio.csproj' -c $dotnetConfiguration `
+            --no-restore -p:RestorePackagesPath='.nuget/packages' -p:RestoreLockedMode=true `
+            -o "build/$Preset/bin"
+        if ($LASTEXITCODE) { throw 'Fallo compilando RetroForge Studio' }
+    }
     if ($Test) {
         & "$toolBin\ctest.exe" --preset $Preset
         if ($LASTEXITCODE) { throw 'Fallo de pruebas' }

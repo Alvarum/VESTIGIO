@@ -40,3 +40,8 @@ coverage/
 *.profdata
 *.pdb
 *.ilk
+
+# Salidas intermedias de MSBuild y paquetes NuGet restaurados.
+**/bin/
+**/obj/
+/.nuget/

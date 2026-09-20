@@ -42,6 +42,17 @@ add_library(retro_gameplay STATIC src/gameplay/gameplay.c src/gameplay/interacti
 retro_target(retro_gameplay)
 target_link_libraries(retro_gameplay PUBLIC retro_core)
 
+# Fachada ABI estable para RetroForge Studio. La interfaz WPF nunca accede a
+# las estructuras internas del motor ni comparte asignaciones entre C y C#.
+add_library(retro_editor SHARED src/editor/editor.c)
+retro_target(retro_editor)
+target_compile_definitions(retro_editor PRIVATE RETRO_EDITOR_BUILD)
+target_link_libraries(retro_editor PRIVATE retro_gameplay)
+set_target_properties(retro_editor PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    PREFIX ""
+    WINDOWS_EXPORT_ALL_SYMBOLS YES)
+
 add_library(fps_game STATIC src/fps/game.c src/fps/art.c src/fps/view.c)
 retro_target(fps_game)
 target_link_libraries(fps_game PUBLIC retro_core retro_gameplay)
@@ -70,13 +81,6 @@ if(RETRO_BUILD_APPS)
     FetchContent_MakeAvailable(raylib)
     # raygui es header-only. La implementación vive en un target de tercero para
     # que sus avisos no relajen -Werror en nuestro Studio.
-    set(raygui_dir "${PROJECT_SOURCE_DIR}/.deps/raygui-020a61bebcbe288b4414de3416e219ef40af847a")
-    if(NOT EXISTS "${raygui_dir}/src/raygui.h")
-        message(FATAL_ERROR "Falta raygui 5.0 exacta; ejecuta tools/bootstrap.ps1")
-    endif()
-    add_library(raygui_vendor STATIC src/studio/raygui_impl.c)
-    target_include_directories(raygui_vendor SYSTEM PUBLIC "${raygui_dir}/src" "${raylib_SOURCE_DIR}/src")
-    target_link_libraries(raygui_vendor PUBLIC raylib)
     add_library(retro_platform STATIC src/platform/raylib_platform.c)
     retro_target(retro_platform)
     target_link_libraries(retro_platform PUBLIC retro_core PRIVATE raylib)
@@ -97,11 +101,7 @@ if(RETRO_BUILD_APPS)
     add_executable(retro_player src/player/main.c)
     retro_target(retro_player)
     target_link_libraries(retro_player PRIVATE retro_gameplay retro_platform)
-    add_executable(retro_studio src/studio/main.c)
-    retro_target(retro_studio)
-    target_link_libraries(retro_studio PRIVATE retro_gameplay raygui_vendor raylib)
-    target_include_directories(retro_studio SYSTEM PRIVATE "${raygui_dir}/src" "${raylib_SOURCE_DIR}/src")
-    foreach(app retro_fps retro_lab retro_player retro_studio)
+    foreach(app retro_fps retro_lab retro_player)
         set_target_properties(${app} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
         install(TARGETS ${app} RUNTIME DESTINATION . COMPONENT Runtime)
     endforeach()
@@ -110,11 +110,10 @@ if(RETRO_BUILD_APPS)
     add_dependencies(retro_fps retro_assets)
     add_dependencies(retro_lab retro_assets)
     add_dependencies(retro_player retro_assets)
-    add_dependencies(retro_studio retro_assets)
+    install(TARGETS retro_editor RUNTIME DESTINATION . COMPONENT Runtime)
     install(DIRECTORY assets DESTINATION . COMPONENT Runtime)
     install(FILES README.md THIRD_PARTY.md DESTINATION . COMPONENT Runtime)
     install(FILES "${raylib_SOURCE_DIR}/LICENSE" DESTINATION licenses COMPONENT Runtime RENAME raylib.txt)
-    install(FILES "${raygui_dir}/LICENSE" DESTINATION licenses COMPONENT Runtime RENAME raygui.txt)
     install(FILES "${raylib_SOURCE_DIR}/src/external/glfw/LICENSE.md" DESTINATION licenses COMPONENT Runtime RENAME glfw.txt)
     # Se conservan los avisos en sus fuentes originales, sin extraer fragmentos
     # ambiguos de licencias embebidas (stb, miniaudio, cargadores, etc.).

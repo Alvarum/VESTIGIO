@@ -42,10 +42,10 @@ try {
     if ($LASTEXITCODE) { throw 'Fallo preparando certificados Java' }
     & '.\.tools\msys64\usr\bin\pacman.exe' -Q | Set-Content '.tools/toolchain-packages.txt' -Encoding utf8
     Get-VerifiedArchive 'https://github.com/raysan5/raylib/archive/dbc56a87da87d973a9c5baa4e7438a9d20121d28.tar.gz' '.deps/raylib-6.0.tar.gz' '81B06CE7C19CF3B634B0271C23C361BA6AD8BF45FB8B036ABBFEB4260EC1E126'
-    Get-VerifiedArchive 'https://github.com/raysan5/raygui/archive/020a61bebcbe288b4414de3416e219ef40af847a.tar.gz' '.deps/raygui-5.0.tar.gz' '8327EE8EC254ABABFD76908CF39857384AD311E4EF43F9C2C7D94BEC6E4A6389'
-    if (!(Test-Path -LiteralPath '.deps/raygui-020a61bebcbe288b4414de3416e219ef40af847a/src/raygui.h')) {
-        & tar.exe -xf '.deps/raygui-5.0.tar.gz' -C '.deps'
-        if ($LASTEXITCODE) { throw 'No se pudo extraer raygui' }
+    if (!(Get-Command dotnet -ErrorAction SilentlyContinue)) {
+        throw 'RetroForge Studio requiere el SDK de .NET 10 para Windows.'
     }
+    & dotnet restore 'src/studio/RetroForge.Studio.csproj' --packages '.nuget/packages'
+    if ($LASTEXITCODE) { throw 'Fallo restaurando las dependencias fijadas de Studio' }
     Write-Output 'Herramientas listas. Siguiente: ./tools/build.ps1 -Preset debug -Test'
 } finally { Pop-Location }

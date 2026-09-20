@@ -1,0 +1,31 @@
+<Window x:Class="RetroForge.Studio.OnboardingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Recorrido de RetroForge Studio" Width="720" Height="520"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+  <Grid Margin="34">
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <StackPanel>
+      <TextBlock Style="{StaticResource EyebrowText}" Text="PRIMEROS PASOS" />
+      <TextBlock Style="{StaticResource HeadingText}" Margin="0,6,0,8" Text="Una ruta clara para construir" />
+      <TextBlock Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" TextTrimming="None"
+                 Text="RetroForge organiza el trabajo por intención. Selecciona algo en la escena, modifica sus propiedades y comprueba el resultado con el mismo Player que exportarás." />
+    </StackPanel>
+    <StackPanel Grid.Row="1" Margin="0,28,0,0">
+      <Border Style="{x:Null}" Margin="0,0,0,10" Padding="16" Background="{StaticResource SurfaceBrush}" CornerRadius="8">
+        <TextBlock TextWrapping="Wrap" TextTrimming="None"><Run Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold">1 · Construir  </Run><Run>Selecciona habitaciones y objetos directamente en el plano. El inspector muestra sólo las propiedades pertinentes.</Run></TextBlock>
+      </Border>
+      <Border Margin="0,0,0,10" Padding="16" Background="{StaticResource SurfaceBrush}" CornerRadius="8">
+        <TextBlock TextWrapping="Wrap" TextTrimming="None"><Run Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold">2 · Conectar  </Run><Run>Las reglas describen CUANDO ocurre algo y qué debe HACER el juego. Los diálogos conservan sus ramas en una vista propia.</Run></TextBlock>
+      </Border>
+      <Border Margin="0,0,0,10" Padding="16" Background="{StaticResource SurfaceBrush}" CornerRadius="8">
+        <TextBlock TextWrapping="Wrap" TextTrimming="None"><Run Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold">3 · Probar  </Run><Run>El botón Probar guarda y abre Player con el proyecto actual. Detener devuelve el control al editor sin copiar estado de la partida.</Run></TextBlock>
+      </Border>
+      <Border Padding="16" Background="{StaticResource SurfaceBrush}" CornerRadius="8">
+        <TextBlock TextWrapping="Wrap" TextTrimming="None"><Run Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold">Varios monitores  </Run><Run>Arrastra cualquier pestaña o panel fuera de la ventana. Su posición se recordará y se recuperará si desconectas una pantalla.</Run></TextBlock>
+      </Border>
+    </StackPanel>
+    <Button Grid.Row="2" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" Width="110"
+            Content="Entendido" Click="Close_Click" />
+  </Grid>
+</Window>
