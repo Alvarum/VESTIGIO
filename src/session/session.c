@@ -935,8 +935,13 @@ static void wrap_text(const char *source, char *destination, size_t capacity, si
         const char *word = cursor;
         while (*cursor && *cursor != ' ')
             cursor++;
-        size_t length = (size_t)(cursor - word);
-        if (line && line + 1u + length > columns && output + 1u < capacity) {
+        size_t bytes = (size_t)(cursor - word);
+        size_t characters = 0;
+        for (const unsigned char *p = (const unsigned char *)word;
+             p < (const unsigned char *)cursor; p++)
+            if ((*p & 0xC0u) != 0x80u)
+                characters++;
+        if (line && line + 1u + characters > columns && output + 1u < capacity) {
             destination[output++] = '\n';
             line = 0;
         } else if (line && output + 1u < capacity) {
@@ -944,10 +949,10 @@ static void wrap_text(const char *source, char *destination, size_t capacity, si
             line++;
         }
         size_t available = capacity - output - 1u;
-        size_t copy = length < available ? length : available;
+        size_t copy = bytes < available ? bytes : available;
         memcpy(destination + output, word, copy);
         output += copy;
-        line += copy;
+        line += characters;
     }
     destination[output] = '\0';
 }

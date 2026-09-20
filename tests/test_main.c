@@ -337,6 +337,24 @@ static bool renderer_contracts(void) {
     return true;
 }
 
+static bool utf8_text(void) {
+    ReRenderer renderer = {0};
+    CHECK(re_renderer_init(&renderer, 60, 7));
+    re_text(&renderer, 0, 0, "ÁÉÍÓÚÑÜ¿?¡", 1, re_rgba(255, 255, 255, 255));
+    /* Cada carácter Unicode ocupa una celda de seis píxeles. Dibujar cada
+     * byte UTF-8 por
+     * separado crearía huecos y expulsaría los últimos glifos. */
+    for (int glyph_index = 0; glyph_index < 10; glyph_index++) {
+        bool visible = false;
+        for (int y = 0; y < 7; y++)
+            for (int x = glyph_index * 6; x < glyph_index * 6 + 5; x++)
+                visible |= renderer.pixels[(size_t)y * 60u + (size_t)x].r != 0;
+        CHECK(visible);
+    }
+    re_renderer_destroy(&renderer);
+    return true;
+}
+
 static bool dynamic_lighting(void) {
     ReRenderer renderer = {0};
     ReTexture texture = {0};
@@ -500,7 +518,8 @@ static bool studio_world(void) {
     *project = (ReProject){0};
     ReError error = {0};
     CHECK(re_project_load(RETRO_SOURCE_DIR "/assets/studio/haunted.retro", project, &error));
-    CHECK(project->world.sector_count == 19 && project->world.barrier_count == 6);
+    CHECK(project->world.sector_count == 19 && project->world.barrier_count == 6 &&
+          project->world.marker_count == 8);
     CHECK(project->character_count == 4 && project->format_version == 2);
     CHECK(project->interactions.rule_count >= 10 && project->interactions.dialogue_count == 3);
     /* Mismo XY, distinta Z: la consulta volumétrica distingue las dos plantas. */
@@ -526,7 +545,7 @@ static bool studio_world(void) {
     CHECK(re_world_save_v4("roundtrip-v4-world.map", &project->world, &error));
     ReWorld loaded = {0};
     CHECK(re_world_load("roundtrip-v4-world.map", &loaded, &error));
-    CHECK(loaded.sector_count == 19 && loaded.marker_count == 9 && loaded.format_version == 4);
+    CHECK(loaded.sector_count == 19 && loaded.marker_count == 8 && loaded.format_version == 4);
     CHECK(remove("roundtrip-v4-world.map") == 0);
     return true;
 }
@@ -704,7 +723,10 @@ static bool interaction_journey(void) {
     CHECK(re_interaction_item_count(runtime, "brass_key") == 1);
     CHECK(re_interaction_objective(runtime, "find_key") == RE_OBJECTIVE_COMPLETE);
 
-    CHECK(logic_event(runtime, RE_LOGIC_INTERACT, "stair_panel", player.position));
+    /* La llave se usa sobre la puerta visible. El panel escondido dejaba al
+     * jugador con
+     * LLAVE 1, pero sin una interacción alcanzable. */
+    CHECK(logic_event(runtime, RE_LOGIC_INTERACT, "stair-door", player.position));
     re_interaction_tick(runtime, &player, RE_FIXED_DT);
     CHECK(project->world.barriers[2].open_fraction == 1);
     CHECK(re_interaction_item_count(runtime, "brass_key") == 0);
@@ -754,7 +776,7 @@ static bool interaction_journey(void) {
 
 /* Recorre el arco completo de Haunted sin ventana. No sustituye una partida
  * humana: protege la
- * conexiÃ³n entre objetivo, llave, persecuciÃ³n, compuertas,
+ * conexión entre objetivo, llave, persecución, compuertas,
  * jefe y salida para que el
  * showcase nunca vuelva a quedar bloqueado. */
 static bool haunted_showcase_journey(void) {
@@ -784,7 +806,7 @@ static bool haunted_showcase_journey(void) {
     re_interaction_tick(&runtime, &player, RE_FIXED_DT);
     re_interaction_tick(&runtime, &player, RE_FIXED_DT);
     CHECK(re_interaction_item_count(&runtime, "brass_key") == 1);
-    CHECK(logic_event(&runtime, RE_LOGIC_INTERACT, "stair_panel", player.position));
+    CHECK(logic_event(&runtime, RE_LOGIC_INTERACT, "stair-door", player.position));
     re_interaction_tick(&runtime, &player, RE_FIXED_DT);
     CHECK(project.world.barriers[2].open_fraction == 1);
 
@@ -1013,6 +1035,7 @@ int main(void) {
                  {"haunted_all_portals", haunted_all_portals},
                  {"rendering", rendering},
                  {"renderer_contracts", renderer_contracts},
+                 {"utf8_text", utf8_text},
                  {"dynamic_lighting", dynamic_lighting},
                  {"game_journey", game_journey},
                  {"shooting_blocked", shooting_blocked},

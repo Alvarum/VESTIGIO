@@ -140,3 +140,16 @@ de presentación. La GPU no calcula la perspectiva del mundo.
 El escalado usa el mayor entero que cabe. Una ventana 1000×700 muestra 960×540
 centrados, con bandas. Si una superficie resultara menor que la resolución
 interna, se conserva la proporción mediante escala fraccionaria nearest.
+
+## Texto pixelado y UTF-8
+
+El canvas interpreta cada cadena como UTF-8. Su decodificador consume un punto
+de código completo antes de avanzar la posición horizontal; por eso una letra
+acentuada ocupa la misma celda de 6 píxeles que una letra ASCII. Una secuencia
+inválida produce `?` y consume un byte para poder continuar sin ocultar el resto
+de la frase.
+
+La fuente 5×7 incorpora `á`, `é`, `í`, `ó`, `ú`, `ñ`, `ü`, `¿` y `¡` en ambas
+variantes de mayúsculas/minúsculas. El ajuste de líneas cuenta caracteres
+visuales y conserva por separado la cantidad de bytes necesaria para copiar la
+cadena, evitando cortes prematuros al aparecer tildes.

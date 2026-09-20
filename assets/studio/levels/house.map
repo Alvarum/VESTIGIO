@@ -1,12 +1,12 @@
 # Casa de la Niebla: recorrido completo del showcase Haunted.
 #
-# La planta baja forma tres alas legibles alrededor del vestÃ­bulo. La escalera
-# sube en seis peldaÃ±os al circuito superior. Ese circuito tiene cuatro
-# conexiones, de modo que la perseguidora se puede despistar rompiendo lÃ­nea
-# de visiÃ³n; el jugador nunca queda atrapado en un pasillo sin alternativa.
+# La planta baja forma tres alas legibles alrededor del vestíbulo. La escalera
+# sube en seis peldaños al circuito superior. Ese circuito tiene cuatro
+# conexiones, de modo que la perseguidora se puede despistar rompiendo línea
+# de visión; el jugador nunca queda atrapado en un pasillo sin alternativa.
 retro_map 4
 
-# 0: vestÃ­bulo central.
+# 0: vestíbulo central.
 sector 0 0 3.2 0.82 0 1 2
 v 0 0
 v 8 0
@@ -16,7 +16,7 @@ link 1 3 3 0.25 0.75
 link 2 2 0 0.25 0.75
 link 3 1 1 0.20 0.80
 
-# 1: refugio de Elena y tablero elÃ©ctrico.
+# 1: refugio de Elena y tablero eléctrico.
 sector 1 0 3.2 0.64 3 1 2
 v -8 0
 v 0 0
@@ -24,7 +24,7 @@ v 0 8
 v -8 8
 link 1 0 3 0.20 0.80
 
-# 2: patio del cuidador, visible a travÃ©s del vidrio rompible.
+# 2: patio del cuidador, visible a través del vidrio rompible.
 sector 2 0 3.2 0.46 4 1 2
 v 0 8
 v 8 8
@@ -32,7 +32,7 @@ v 8 16
 v 0 16
 link 0 0 2 0.25 0.75
 
-# 3: ala de servicio, botiquÃ­n y cerradura de la escalera.
+# 3: ala de servicio, botiquín y cerradura de la escalera.
 sector 3 0 3.2 0.70 0 1 2
 v 8 0
 v 14 0
@@ -41,7 +41,7 @@ v 8 8
 link 1 4 3 0.125 0.875
 link 3 0 1 0.25 0.75
 
-# 4..9: escalera recta. Cada peldaÃ±o es un volumen transitable; Studio los
+# 4..9: escalera recta. Cada peldaño es un volumen transitable; Studio los
 # presenta como una sola escalera para el autor.
 sector 4 0.25 3.45 0.68 0 1 2
 v 14 1
@@ -92,7 +92,7 @@ link 1 10 3 0 1
 link 3 8 1 0 1
 
 # 10..13: circuito superior. Las cuatro conexiones forman dos rutas entre la
-# antesala y la galerÃ­a, requisito esencial para una persecuciÃ³n justa.
+# antesala y la galería, requisito esencial para una persecución justa.
 sector 10 1.50 4.70 0.76 3 1 2
 v 20 0
 v 26 0
@@ -127,7 +127,7 @@ link 0 10 2 0 1
 link 1 12 3 0 1
 link 2 16 0 0 1
 
-# 14: arena del GuardiÃ¡n.
+# 14: arena del Guardián.
 sector 14 1.50 5.20 0.40 5 1 2
 v 34 0
 v 44 0
@@ -135,7 +135,7 @@ v 44 10
 v 34 10
 link 2 15 0 0 1
 
-# 15: salida, inaccesible narrativamente hasta derrotar al GuardiÃ¡n.
+# 15: salida, inaccesible narrativamente hasta derrotar al Guardián.
 sector 15 1.50 4.70 0.88 6 1 2
 v 34 10
 v 44 10
@@ -144,8 +144,8 @@ v 34 14
 link 0 14 2 0 1
 link 2 18 0 0 1
 
-# 16..18: pasarela segura. Al completar la persecuciÃ³n se cierran las dos
-# compuertas del circuito y este camino conduce al control del GuardiÃ¡n.
+# 16..18: pasarela segura. Al completar la persecución se cierran las dos
+# compuertas del circuito y este camino conduce al control del Guardián.
 sector 16 1.50 4.70 0.68 6 1 2
 v 20 16
 v 26 16
@@ -175,7 +175,6 @@ spawn survivor npc survivor 1 -4 4 0 90
 spawn fuse-box interact fuse_box 1 -6.5 2 0 90
 spawn caretaker-main actor caretaker 2 4 13 0 180
 spawn medkit pickup bandage 3 10.5 2 0 0
-spawn stair-panel interact stair_panel 3 12.5 4 0 90
 spawn kidnapper-main actor kidnapper 12 30 13 1.5 180
 spawn boss-panel interact boss_panel 13 22 13 1.5 0
 spawn warden-main actor warden 14 40 5 1.5 180

@@ -1,7 +1,7 @@
 /* UI de píxeles: mismas coordenadas internas que el mundo, independiente de
  * ventana/GPU. Fuente monoespaciada 5x7 dibujada con máscaras originales. */
 #include "retro/render.h"
-#include <ctype.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 static void pixel(ReRenderer *r, int x, int y, RePixel color) {
@@ -60,8 +60,84 @@ static const uint8_t alphabet[36][7] = {
     {4, 12, 4, 4, 4, 4, 14},      {14, 17, 1, 2, 4, 8, 31},     {30, 1, 1, 14, 1, 1, 30},
     {2, 6, 10, 18, 31, 2, 2},     {31, 16, 16, 30, 1, 1, 30},   {14, 16, 16, 30, 17, 17, 14},
     {31, 1, 2, 4, 8, 8, 8},       {14, 17, 17, 14, 17, 17, 14}, {14, 17, 17, 15, 1, 1, 14}};
-static uint8_t glyph(char ch, int row) {
-    int c = toupper((unsigned char)ch);
+/* Decodifica un punto de código UTF-8 y avanza exactamente una unidad visual.
+ * Ante una secuencia dañada consume un byte y dibuja '?': así el texto sigue
+ * siendo legible y nunca interpretamos un byte de continuación como otro
+ * carácter ni desplazamos todo lo que viene después. */
+static uint32_t utf8_next(const char **cursor) {
+    const unsigned char *s = (const unsigned char *)*cursor;
+    uint32_t codepoint = '?';
+    size_t length = 1;
+    if (s[0] < 0x80u) {
+        codepoint = s[0];
+    } else if (s[0] >= 0xC2u && s[0] <= 0xDFu && (s[1] & 0xC0u) == 0x80u) {
+        codepoint = ((uint32_t)(s[0] & 0x1Fu) << 6u) | (uint32_t)(s[1] & 0x3Fu);
+        length = 2;
+    } else if (s[0] >= 0xE0u && s[0] <= 0xEFu && s[1] && s[2] && (s[1] & 0xC0u) == 0x80u &&
+               (s[2] & 0xC0u) == 0x80u) {
+        uint32_t candidate = ((uint32_t)(s[0] & 0x0Fu) << 12u) | ((uint32_t)(s[1] & 0x3Fu) << 6u) |
+                             (uint32_t)(s[2] & 0x3Fu);
+        if (candidate >= 0x800u && !(candidate >= 0xD800u && candidate <= 0xDFFFu)) {
+            codepoint = candidate;
+            length = 3;
+        }
+    } else if (s[0] >= 0xF0u && s[0] <= 0xF4u && s[1] && s[2] && s[3] && (s[1] & 0xC0u) == 0x80u &&
+               (s[2] & 0xC0u) == 0x80u && (s[3] & 0xC0u) == 0x80u) {
+        uint32_t candidate = ((uint32_t)(s[0] & 0x07u) << 18u) | ((uint32_t)(s[1] & 0x3Fu) << 12u) |
+                             ((uint32_t)(s[2] & 0x3Fu) << 6u) | (uint32_t)(s[3] & 0x3Fu);
+        if (candidate >= 0x10000u && candidate <= 0x10FFFFu) {
+            codepoint = candidate;
+            length = 4;
+        }
+    }
+    *cursor += length;
+    return codepoint;
+}
+
+static uint8_t glyph(uint32_t codepoint, int row) {
+    static const uint8_t spanish[][7] = {
+        {4, 2, 14, 17, 31, 17, 17},  /* Á */
+        {4, 2, 31, 16, 30, 16, 31},  /* É */
+        {4, 2, 14, 4, 4, 4, 14},     /* Í */
+        {4, 2, 14, 17, 17, 17, 14},  /* Ó */
+        {4, 2, 17, 17, 17, 17, 14},  /* Ú */
+        {10, 5, 17, 25, 21, 19, 17}, /* Ñ */
+        {10, 0, 17, 17, 17, 17, 14}, /* Ü */
+        {4, 0, 4, 2, 1, 17, 14},     /* ¿ */
+        {4, 0, 4, 4, 4, 4, 4},       /* ¡ */
+    };
+    int c = (int)codepoint;
+    if (c >= 'a' && c <= 'z')
+        c -= 'a' - 'A';
+    switch (codepoint) {
+    case 0x00C1u:
+    case 0x00E1u:
+        return spanish[0][row];
+    case 0x00C9u:
+    case 0x00E9u:
+        return spanish[1][row];
+    case 0x00CDu:
+    case 0x00EDu:
+        return spanish[2][row];
+    case 0x00D3u:
+    case 0x00F3u:
+        return spanish[3][row];
+    case 0x00DAu:
+    case 0x00FAu:
+        return spanish[4][row];
+    case 0x00D1u:
+    case 0x00F1u:
+        return spanish[5][row];
+    case 0x00DCu:
+    case 0x00FCu:
+        return spanish[6][row];
+    case 0x00BFu:
+        return spanish[7][row];
+    case 0x00A1u:
+        return spanish[8][row];
+    default:
+        break;
+    }
     if (c >= 'A' && c <= 'Z')
         return alphabet[c - 'A'][row];
     if (c >= '0' && c <= '9')
@@ -87,6 +163,16 @@ static uint8_t glyph(char ch, int row) {
         return row == 0 || row == 6 ? 14 : 2;
     case '!':
         return row < 4 || row == 6 ? 4 : 0;
+    case '?':
+        return (const uint8_t[7]){14, 17, 1, 2, 4, 0, 4}[row];
+    case ',':
+        return row == 5 ? 4 : (row == 6 ? 8 : 0);
+    case ';':
+        return row == 2 ? 4 : (row == 5 ? 4 : (row == 6 ? 8 : 0));
+    case '\'':
+        return row <= 1 ? 4 : 0;
+    case '"':
+        return row <= 1 ? 10 : 0;
     case '%':
         return row == 0 || row == 1
                    ? 17
@@ -98,17 +184,19 @@ static uint8_t glyph(char ch, int row) {
     }
 }
 void re_text(ReRenderer *r, int x, int y, const char *text, int scale, RePixel color) {
-    if (scale < 1 || scale > 8)
+    if (!r || !text || scale < 1 || scale > 8)
         return;
     int start = x;
-    for (const char *p = text; *p; p++) {
-        if (*p == '\n') {
+    const char *cursor = text;
+    while (*cursor) {
+        uint32_t codepoint = utf8_next(&cursor);
+        if (codepoint == '\n') {
             x = start;
             y += 9 * scale;
             continue;
         }
         for (int row = 0; row < 7; row++) {
-            uint8_t bits = glyph(*p, row);
+            uint8_t bits = glyph(codepoint, row);
             for (int col = 0; col < 5; col++)
                 if (bits & (1u << (unsigned int)(4 - col)))
                     re_rect(r, x + col * scale, y + row * scale, scale, scale, color);

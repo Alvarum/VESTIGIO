@@ -21,6 +21,7 @@ Los ejemplos se compilan como C23; los warnings del código propio son errores.
 | `collisions` | Sliding, esquina, movimiento rápido, escalón, techo bajo, puerta cerrada/abierta, salto y BFS. |
 | `rendering` | Recursos, profundidad, transparencia, cruce del near plane, valores válidos y exportación. |
 | `renderer_contracts` | Oráculo UV que detecta interpolación afín, diagonal sin grietas y sprite parcialmente oculto. |
+| `utf8_text` | Decodificación UTF-8, glifos españoles y una única celda por carácter visible. |
 | `game_journey` | Menú → combate → llave → puerta → salida, reinicio, pausa, pérdida de foco lógica, derrota y nuevo intento. |
 | `shooting_blocked` | La puerta bloquea disparos; al abrirla el mismo tiro daña al guardia. |
 | `solid_actors` | Un guardia vivo bloquea al jugador; su cadáver permite pasar. |
