@@ -69,6 +69,13 @@ representativo; no certifica todavía el presupuesto de todo el juego ni mide
 por separado simulación, audio y presentación. Las cifras anteriores de otros
 ejecutables no sustituyen esta verificación de la sesión compartida.
 
+Exportación de `9381de9`: la carpeta `artifacts/Creator 9381de9 export/haunted`
+ejecutó 60 fotogramas y capturó una imagen con código 0, desde `C:\Windows` y
+con PATH limitado al sistema. Se incluyó la DLL de sesión junto al ejecutable.
+La primera compresión encontró un bloqueo transitorio sobre una licencia;
+repetir sólo la compresión produjo el ZIP. Esto verifica la carpeta exportada
+en esta máquina, no una instalación limpia en un segundo equipo.
+
 Siguen pendientes los demás sistemas del plan: polígonos, plantas explícitas,
 escaleras editables como grupo, creación completa de contenido y eventos,
 música/voces, superficies animadas, combate ampliado, campañas, autosave completo
