@@ -269,6 +269,14 @@ static void save_game(PlayerApp *app, size_t index, const char *label) {
     if (index >= 5 || !app->save_paths[index][0] ||
         !re_save_write(app->save_paths[index], app->project.id, &app->interaction, &app->player,
                        &error)) {
+        /* El autoguardado no debe reemplazar un mensaje narrativo ni arrancar
+         * el showcase con un error en pantalla. El fallo sigue siendo visible
+         * en stderr para diagnostico; guardados pedidos por el jugador si se
+         * comunican en el HUD porque requieren una accion correctiva. */
+        if (index == 3) {
+            (void)fprintf(stderr, "Autoguardado: %s\n", error.message);
+            return;
+        }
         (void)snprintf(app->interaction.state.message, sizeof(app->interaction.state.message),
                        "No se pudo guardar: %.120s", error.message);
         app->interaction.state.message_time = 4;
