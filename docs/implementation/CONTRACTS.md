@@ -1,12 +1,12 @@
 # Contratos de integración que F01 debe fijar
 
-Estado inicial: **propuesta pendiente de materializar en F01**. Se deriva de investigación 06–11. No afirma que exista un header `vg_*`, un renderer GPU ni alguno de los directorios nuevos. F01 elige nombres concretos, declara archivos/propietarios y publica contrato v0.1. Los agentes implementan contra esa versión.
+Estado: **contrato v0.1 materializado por F01** para vocabulario mínimo, ownership y fronteras; implementación funcional se añade en sus tickets. `include/vestigio/vestigio.h` existe y se compila como C11/C++11. `src/render/render_contract.h` es privado y tampoco implica que exista todavía un renderer GPU. Los agentes implementan contra esta versión y registran cualquier revisión necesaria.
 
 ## C01 — Frontera pública y distribución
 
 Runtime interno C23; header público consumible C11/C++ sin tipos privados/raylib/WPF. Contextos opacos, handles tipados y descriptores POD con tamaño/versión. `create`/`get` por punteros de salida y `Result` explícito; enums/flags de ABI con ancho fijo. UTF-8 con ownership y unidades documentados. Librería estática primero; DLL de tooling con exports explícitos. SDK no incluye una Game DLL como requisito.
 
-F01 fija convención de llamada x64, versión inicial, errores, nombres de targets/headers y mínimo de consumidor externo. R03 añade paquete CMake y lifecycle; G03 incorpora draw de modelo al consumidor. No someter headers de consumidor C11/C++ a la función CMake interna que fuerza flags C23 y avisos sólo válidos para C.
+F01 fija Windows x64 como primera ABI, C calling convention por defecto, `VG_API_VERSION=0.1`, `VgResult`, `VgContext` opaco, handles de 64 bits, descriptores con `struct_size/api_version`, target `Vestigio::Headers` y `#include <vestigio/vestigio.h>`. R03 añade paquete CMake y lifecycle; G03 incorpora draw de modelo al consumidor. No someter headers de consumidor C11/C++ a la función CMake interna que fuerza flags C23 y avisos sólo válidos para C.
 
 ## C02 — Identidad, Transform y memoria
 
@@ -20,7 +20,7 @@ Un dueño de ventana/contexto y un hilo gráfico inicial. El contrato interno de
 
 G01 implementa GPU en ventana propia; G02 demuestra integración WPF. `GetWindowHandle` no basta para probar adopción de HWND. Edit/Play se organiza sin dos `InitWindow` simultáneos ni doble destrucción. Frames normales conservan color/depth/postprocess en GPU; readback se etiqueta sólo como captura/thumbnail. Sin GPU apta: error/capacidad declarada, no etiqueta GPU falsa.
 
-F01 fija estructura mínima de draw packet y descriptor de surface; G01/G02 pueden proponer una revisión si su prueba demuestra límites. R03 no promete ABI de embedding definitiva antes de ese resultado.
+F01 fija `VgSurfaceInfo`, `VgDrawPacket`, `VgFrameStats` y `VgRenderContract` como contrato **interno** inicial en `src/render/render_contract.h`; no es API instalada. G01/G02 pueden proponer una revisión si su prueba demuestra límites. R03 no promete ABI de embedding definitiva antes de ese resultado.
 
 ## C04 — Assets e importación
 
@@ -56,10 +56,10 @@ Registro que debe completar F01:
 
 | Frontera | Decisión/archivo definitivo | Owner | Versión | Consumidores verificados |
 |---|---|---|---|---|
-| SDK/context/world | Pendiente F01 | integrator/runtime | Propuesta | Ninguno |
-| Surface/backend/draw packets | Pendiente F01 y evidencia G01/G02 | integrator/gpu | Propuesta | Ninguno |
-| Asset/IR/retenciones | Pendiente F01/R02 | runtime/content/gpu | Propuesta | Ninguno |
-| Documento/schema/Tool API | Pendiente F01/D01 | integrator/content/editor | Propuesta | Ninguno |
-| Input/callbacks/eventos | Pendiente F01/R03/I01 | runtime | Propuesta | Ninguno |
+| SDK/context/world | `include/vestigio/vestigio.h`, `Vestigio::Headers` | integrator/runtime | v0.1 | Tests C11/C++11; lifecycle pendiente R01/R03 |
+| Surface/backend/draw packets | `src/render/render_contract.h` privado | integrator/gpu | v0.1 interno | Test de layout; evidencia GPU pendiente G01/G02 |
+| Asset/IR/retenciones | `VgAsset` público + C04 | runtime/content/gpu | v0.1 vocabulario | Implementación pendiente R02/M01/G03 |
+| Documento/schema/Tool API | C05; sin declaraciones públicas prematuras | integrator/content/editor | v0.1 semántico | Implementación pendiente D01/D02 |
+| Input/callbacks/eventos | C06; sin tabla incompleta en header | runtime | v0.1 semántico | Implementación pendiente R03/I01 |
 
-Estos pendientes son trabajo explícito del primer encargo, no preguntas que impidan empezar F00. No fijar cientos de funciones antes de tener el primer consumidor.
+El header declara sólo `vg_get_version`; su definición llega con el target de runtime de R01/R03. Esta ausencia deliberada evita stubs que aparenten lifecycle funcional. Los demás conceptos se agregan cuando exista su primer consumidor y pruebas, manteniendo las reglas C01–C08.

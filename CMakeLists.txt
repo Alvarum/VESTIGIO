@@ -1,10 +1,18 @@
 # Compilación por targets: las políticas del proyecto no contaminan raylib.
 cmake_minimum_required(VERSION 3.28)
-project(RetroForge VERSION 0.1.0 LANGUAGES C)
+project(RetroForge VERSION 0.1.0 LANGUAGES C CXX)
 include(CTest)
 option(RETRO_BUILD_APPS "Construir aplicaciones con ventana" ON)
 option(RETRO_ANALYZE "Ejecutar el analizador estático de GCC" OFF)
 option(RETRO_SANITIZE "ASan y UBSan donde el compilador los soporte" OFF)
+
+# Frontera pública inicial de VESTIGIO. Es deliberadamente header-only en F01:
+# R01/R03 incorporarán runtime y distribución sin arrastrar tipos RetroForge.
+add_library(vestigio_sdk_headers INTERFACE)
+target_include_directories(vestigio_sdk_headers INTERFACE
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+add_library(Vestigio::Headers ALIAS vestigio_sdk_headers)
 
 function(retro_target target)
     set_target_properties(${target} PROPERTIES C_STANDARD 23 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -160,6 +168,22 @@ if(RETRO_BUILD_APPS)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(vestigio_header_c_test tests/sdk/header_c_test.c)
+    target_link_libraries(vestigio_header_c_test PRIVATE vestigio_sdk_headers)
+    set_target_properties(vestigio_header_c_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+    add_test(NAME vestigio_header_c11 COMMAND vestigio_header_c_test)
+
+    add_executable(vestigio_header_cpp_test tests/sdk/header_cpp_test.cpp)
+    target_link_libraries(vestigio_header_cpp_test PRIVATE vestigio_sdk_headers)
+    set_target_properties(vestigio_header_cpp_test PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS NO)
+    add_test(NAME vestigio_header_cpp11 COMMAND vestigio_header_cpp_test)
+
+    add_executable(vestigio_render_contract_test tests/sdk/render_contract_test.c)
+    target_link_libraries(vestigio_render_contract_test PRIVATE vestigio_sdk_headers)
+    target_include_directories(vestigio_render_contract_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
+    set_target_properties(vestigio_render_contract_test PROPERTIES C_STANDARD 23 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+    add_test(NAME vestigio_render_contract COMMAND vestigio_render_contract_test)
+
     add_executable(retro_tests tests/test_main.c)
     retro_target(retro_tests)
     target_link_libraries(retro_tests PRIVATE fps_game retro_editor)

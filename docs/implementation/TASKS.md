@@ -6,7 +6,7 @@ Los paths son puntos de entrada; directorios nuevos son propuestas hasta F01. An
 
 ## F00 — Reconciliar baseline y obtener evidencia inicial
 
-Fase: **P0** · Rol: **integrator** · Estado: **VERIFIED**.
+Fase: **P0** · Rol: **integrator** · Estado: **INTEGRATED**.
 
 Dependencias integradas: ninguna; inicio del plan.
 
@@ -32,9 +32,11 @@ Desbloquea: Contratos e implementación sobre una base conocida.
 
 Evidencia: docs/implementation/evidence/F00.md.
 
+Commit integrado: `fe43b83de2f8579ecad715991de5c04252d61dd0`.
+
 ## F01 — Congelar contratos mínimos entre agentes
 
-Fase: **P0** · Rol: **integrator** · Estado: **PLANNED**.
+Fase: **P0** · Rol: **integrator** · Estado: **VERIFIED**.
 
 Dependencias integradas: F00.
 
@@ -57,6 +59,8 @@ Puntos de entrada: `docs/implementation/CONTRACTS.md`, `include/vestigio/`, `src
 Verificación: V-CORE, V-SDK.
 
 Desbloquea: Trabajo paralelo GPU/runtime con integración definida.
+
+Evidencia: docs/implementation/evidence/F01.md.
 
 ## G01 — Primer frame de geometría GPU en ventana propia
 

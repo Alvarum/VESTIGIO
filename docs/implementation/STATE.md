@@ -2,12 +2,12 @@
 
 Fecha de preparación del plan: 2026-09-20.
 
-- Estado global: **IMPLEMENTACIÓN_EN_CURSO — F00 VERIFICADO**.
+- Estado global: **IMPLEMENTACIÓN_EN_CURSO — F00 INTEGRADO / F01 VERIFICADO**.
 - HEAD observado para redactar: `28dafa949ff68ed3dc52bf93d287863037bf8578`.
 - Checkout observado limpio antes de crear `docs/implementation/`.
 - Cambios de código desde `ae48d31` hasta esa base: ninguno; se incorporó la investigación.
-- F00 está VERIFIED en el worktree; se marcará INTEGRATED al registrar su commit. Los demás tickets siguen PLANNED. El engine legacy existente no equivale a haber implementado esos tickets nuevos.
-- Próximo ticket tras integrar F00: **F01**. Después de F01: G01 y R01, si sus escrituras no se solapan.
+- F00 está INTEGRATED en `fe43b83`. F01 materializó y verificó contratos v0.1/header público; espera registrar su commit integrado. Los demás tickets siguen PLANNED.
+- Después de registrar F01 como INTEGRATED serán elegibles G01 y R01, con escrituras disjuntas.
 - Encargo de inicio recomendado: **ARRANQUE**. Los prompts permiten seleccionar COMPLETO de forma explícita.
 - GPU objetivo: backend principal confirmado por el usuario; G01/G02 pendientes de implementación y evidencia.
 - Builds/pruebas del engine durante esta planificación: **no ejecutados**. La verificación de este paquete sólo valida documentos y DAG.
@@ -16,11 +16,12 @@ Verificación del paquete: **PASS**, 31 tickets, 61 dependencias, 15 oleadas te�
 
 ## Registro del coordinador
 
-F00 ejecutado por el integrador. No hay workers ni locks concurrentes.
+F00 integrado; F01 verificado por el integrador. Locks public-api/build/contracts se liberan al registrar el commit.
 
 | Ticket | Responsable / checkout | Base y resultado | Locks / archivos compartidos | Evidencia / siguiente paso |
 |---|---|---|---|---|
-| F00 | integrador / checkout principal | `28dafa9` / commit pendiente | integration | [evidence/F00.md](evidence/F00.md); integrar y comenzar F01 |
+| F00 | integrador / checkout principal | `28dafa9` / `fe43b83` | liberado | [evidence/F00.md](evidence/F00.md); PASS baseline |
+| F01 | integrador / checkout principal | `fe43b83` / commit pendiente | public-api, build, contracts | [evidence/F01.md](evidence/F01.md); matriz completa PASS |
 
 ## Bloqueos y decisiones pendientes
 
