@@ -2,6 +2,8 @@
 
 Estado: planificación derivada de investigación; **no se implementaron features del engine en esta entrega**. La GPU es requisito principal confirmado por el usuario. Los hitos son resultados revisables, no promesas de fechas ni estimaciones de rendimiento sin hardware definido.
 
+Este roadmap se concreta en el [plan ejecutable para agentes](../implementation/README.md). Para asignar trabajo, usar sus tickets y dependencias; este documento explica las fases y decisiones que los motivan.
+
 ## Dependencias
 
 ```mermaid

@@ -4,6 +4,8 @@ Investigación realizada el 2026-09-20. **VESTIGIO debería ser un runtime retro
 
 La propuesta incorpora la aclaración explícita de usar GPU. Preserva el valor del motor/editor existentes y sitúa el renderer CPU como laboratorio/regresión, sin limitar las capacidades GPU.
 
+Para comenzar a implementar con uno o varios agentes, usar el [paquete de ejecución](../implementation/README.md): tickets, dependencias, contratos, pruebas y prompts de delegación. El roadmap de esta investigación conserva la justificación arquitectónica.
+
 ## Ruta de lectura
 
 1. [Auditoría del engine actual](01-current-engine-audit.md): baseline, dependencias, ownership, deuda y partes a conservar.

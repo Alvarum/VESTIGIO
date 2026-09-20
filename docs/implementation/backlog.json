@@ -1,0 +1,229 @@
+{
+  "schema_version": 1,
+  "project": "VESTIGIO",
+  "created": "2026-09-20",
+  "planning_head": "28dafa949ff68ed3dc52bf93d287863037bf8578",
+  "status": "PLANNED_NOT_IMPLEMENTED",
+  "default_scope": ["F00", "F01", "G01", "G02", "R01", "R02", "R03", "I01"],
+  "roles": ["integrator", "gpu", "runtime", "content", "editor"],
+  "validation_profiles": ["V-CORE", "V-APP", "V-SDK", "V-GPU", "V-WPF", "V-ASSET", "V-DATA", "V-SPATIAL", "V-AUDIO", "V-PERF", "V-DELIVERY"],
+  "tasks": [
+    {
+      "id": "F00", "phase": "P0", "title": "Reconciliar baseline y obtener evidencia inicial", "role": "integrator", "dependencies": [], "locks": ["integration"], "status": "PLANNED",
+      "paths": ["docs/implementation/STATE.md", "docs/implementation/evidence/", "tools/build.ps1", "tools/check.ps1", "CMakePresets.json"],
+      "steps": ["Registrar HEAD, git status y diff del código desde ae48d31; mapear A01-A14 del informe a vigente, corregido o pendiente de reproducción. No reaplicar correcciones ya existentes.", "Comprobar toolchain/dependencias y ejecutar la matriz baseline de VALIDATION.md en un checkout aislado o sin escritores concurrentes; registrar fallos previos sin expandir el alcance de reparación.", "Seleccionar corpus Haunted, portales parciales, sesión/editor y escenas sintéticas futuras; fijar ruta de evidencia, hardware y propietario de integración."],
+      "acceptance": ["Baseline exacto y comandos/resultados registrados; ninguna afirmación PASS sin ejecución.", "Los fallos que impiden validar la futura vertical se resuelven con un ticket acotado o se identifican como bloqueo; fallos ajenos se preservan y documentan.", "Todos los agentes pueden reproducir el checkout y las herramientas; no comparten build/bin/obj ni editan una rama de integración simultáneamente."],
+      "validation": ["V-CORE", "V-APP"], "unlocks": "Contratos e implementación sobre una base conocida."
+    },
+    {
+      "id": "F01", "phase": "P0", "title": "Congelar contratos mínimos entre agentes", "role": "integrator", "dependencies": ["F00"], "locks": ["public-api", "build", "contracts"], "status": "PLANNED",
+      "paths": ["docs/implementation/CONTRACTS.md", "include/vestigio/", "src/runtime/", "src/render/", "CMakeLists.txt", "tests/sdk/"],
+      "steps": ["Convertir C01-C08 de CONTRACTS.md en declaraciones mínimas de tipos, responsabilidades y errores; fijar nombres y export macros sin implementar toda la API hipotética del informe.", "Preparar límites de targets Runtime/Tooling/backend y lugar de pruebas; preservar targets actuales. Definir qué crea/posee ventana y contexto y cómo se integra código nuevo.", "Versionar contrato v0.1 y acordar con los responsables de GPU/runtime los puntos que el spike puede ajustar. Añadir consumidores mínimos de header C11/C++ sin arrastrar tipos internos."],
+      "acceptance": ["Header público mínimo compilable en C11 y C++; sin raylib, ReProject, HWND ni dependencias WPF en la API de juego.", "Ownership, IDs, convención espacial, superficie y documento tienen un único contrato publicado; los nombres de directorios nuevos se registran.", "G01 y R01 pueden avanzar en archivos disjuntos; la incertidumbre de embedding está explícita y no se declara resuelta."],
+      "validation": ["V-CORE", "V-SDK"], "unlocks": "Trabajo paralelo GPU/runtime con integración definida."
+    },
+    {
+      "id": "G01", "phase": "P1", "title": "Primer frame de geometría GPU en ventana propia", "role": "gpu", "dependencies": ["F01"], "locks": ["gpu-backend", "platform-window"], "status": "PLANNED",
+      "paths": ["src/render/gpu_raylib/", "src/platform/raylib_platform.c", "src/lab/", "tests/gpu/"],
+      "steps": ["Crear backend raylib/rlgl con un dueño de contexto y recursos mesh, textura, shader y render target; escena sintética independiente del juego incorporado.", "Dibujar malla y billboard en color/depth GPU; upscale nearest/letterbox configurable sin readback normal; conservar renderer CPU existente.", "Añadir contadores uploads/readbacks/draws/recursos y captura solicitada; probar fallos de shader/target y cleanup parcial."],
+      "acceptance": ["Captura o inspección de comandos acredita draw de geometría en GPU; UpdateTexture del framebuffer CPU no satisface el ticket.", "Resize, depth, alpha-cutout y aspecto funcionan con 320x180 y 640x360; una captura puntual es distinta del camino normal sin readbacks.", "Abrir/cerrar y errores liberan recursos propios; escenario y hardware quedan registrados."],
+      "validation": ["V-CORE", "V-APP", "V-GPU"], "unlocks": "Backend real para modelos y prueba WPF."
+    },
+    {
+      "id": "R01", "phase": "P2", "title": "Contexto, mundo, entidades y Transform con handles", "role": "runtime", "dependencies": ["F01"], "locks": ["runtime-core", "public-api"], "status": "PLANNED",
+      "paths": ["include/vestigio/", "src/runtime/", "src/world/", "src/engine/math.c", "tests/runtime/"],
+      "steps": ["Implementar contexto/mundos y pools por tipo con handles generacionales validados por contexto/mundo; UUID documental separado.", "Implementar TRS local/world y padre opcional, rechazo de ciclos y política explícita de shear/escala; operaciones fallidas transaccionales.", "Añadir creación/destrucción diferida durante iteración y reserva de capacidad; mantener ReWorld/ReEntityId legacy detrás de adaptadores sin renombrado global."],
+      "acceptance": ["Stale handle, tipo/contexto/mundo incorrecto y agotamiento de capacidad devuelven error sin UB ni truncado.", "Reparent preserve-world/local cumple contrato; ciclos y transform no finito se rechazan dejando estado anterior.", "Crear/destruir mundos repetidamente y fallar allocations no deja recursos retenidos; pruebas no necesitan GPU."],
+      "validation": ["V-CORE", "V-SDK"], "unlocks": "Recursos, game callbacks y documentos genéricos."
+    },
+    {
+      "id": "G02", "phase": "P1", "title": "Resolver superficie GPU de Studio mediante spike", "role": "gpu", "dependencies": ["G01"], "locks": ["gpu-backend", "platform-window", "wpf-viewport"], "status": "PLANNED",
+      "paths": ["src/studio/Controls/GameViewport.cs", "src/studio/Controls/", "src/studio/Native/", "src/platform/", "tests/studio/", "docs/implementation/CONTRACTS.md"],
+      "steps": ["Probar HwndHost/superficie nativa con el backend G01 y fijar lifecycle/foco/DPI/contexto; no asumir que GetWindowHandle permite adoptar cualquier HWND.", "Mantener una superficie/contexto inicial y documentar relación con Edit/Play, docking y ventana Player; dibujar overlays de viewport en GPU.", "Si raylib impide hosting correcto, comparar adaptación acotada de plataforma frente a otra superficie y documentar decisión. No reescribir Studio ni introducir D3D/Vulkan completos por defecto."],
+      "acceptance": ["50 ciclos abrir/cerrar, resize/minimizar, foco/Tab/Escape, DPI y docking cuentan con evidencia según entorno disponible; capacidades sin probar se declaran.", "El camino normal embebido presenta GPU sin copia por frame a WriteableBitmap; ventana externa sola no cierra este ticket.", "Decisión de superficie y límites está publicada; si no hay vía viable, ticket BLOCKED y continuidad de runtime/modelos independiente, nunca PASS ficticio."],
+      "validation": ["V-APP", "V-GPU", "V-WPF"], "unlocks": "Autoría 3D integrada; gate arquitectónico de WPF."
+    },
+    {
+      "id": "R02", "phase": "P2", "title": "Registro de assets y ownership CPU/GPU mínimo", "role": "runtime", "dependencies": ["R01"], "locks": ["asset-core", "public-api"], "status": "PLANNED",
+      "paths": ["src/assets/", "include/vestigio/", "tests/assets/"],
+      "steps": ["Implementar AssetId, handles y estados loading/ready/failed para Texture/Mesh; catálogo fuente/meta separado de residente.", "Definir acquire/release y retenciones de componentes; deduplicar por identidad/versión/opciones, no por cada instancia o alias de ruta.", "Separar decode CPU de upload/release del hilo gráfico y definir reemplazo candidato; contabilidad RAM/VRAM estimada, purge y errores."],
+      "acceptance": ["Dos usuarios comparten un recurso y destruir uno no invalida otro; refcounts no liberan objetos de GPU fuera de su contexto.", "Fallo de parse/allocation/upload no publica un asset medio válido y conserva versión anterior si existe.", "Tras descargar mundos y purgar caché no quedan retenciones propias inesperadas; counters distinguen caché evictable de fuga."],
+      "validation": ["V-CORE", "V-ASSET"], "unlocks": "Importer y residencia GPU compartida."
+    },
+    {
+      "id": "R03", "phase": "P2", "title": "Game callbacks y primer SDK instalable externo", "role": "runtime", "dependencies": ["R02"], "locks": ["runtime-core", "public-api", "session-bridge", "build"], "status": "PLANNED",
+      "paths": ["include/vestigio/", "src/api/", "src/runtime/", "src/session/session.c", "src/player/main.c", "cmake/", "tests/sdk/"],
+      "steps": ["Implementar init/world_ready/fixed_update/event/draw_ui/shutdown y stepping embebido; separar composición de juego de lifecycle en un cambio acotado.", "Instalar SDK estático con headers y paquete CMake; exports explícitos de tooling al tocar su frontera, conservando ABI necesaria para Studio actual.", "Crear consumidor C externo que cree mundo/cámara/entidades y lógica propia sin ReProject ni headers internos; backend GPU se conectará al integrar G03."],
+      "acceptance": ["find_package y enlace desde fuera del repo funcionan sin Studio/.NET ni include de src; el ejemplo es un consumidor real, no target con acceso privilegiado al árbol.", "Orden/reentrancia de callbacks, init fallido, eventos limitados y shutdown parcial se prueban; no hay game DLL/hot reload implícitos.", "Juego legacy y pruebas de sesión siguen funcionando; diferencias de input se resuelven en I01, no con un segundo loop divergente."],
+      "validation": ["V-CORE", "V-APP", "V-SDK"], "unlocks": "Juego code-first sobre el mismo runtime."
+    },
+    {
+      "id": "I01", "phase": "P2", "title": "Acciones de input y settings comunes mínimos", "role": "runtime", "dependencies": ["R03"], "locks": ["input-settings", "session-bridge", "public-api", "platform-window", "wpf-viewport"], "status": "PLANNED",
+      "paths": ["src/input/", "src/config/", "src/engine/input.c", "src/platform/raylib_platform.c", "src/player/main.c", "src/studio/Controls/GameViewport.cs", "src/studio/Native/", "tests/input/"],
+      "steps": ["Definir pressed/held/released por acción y adaptar Player/Studio al mismo acumulador de tick, con clear al perder foco.", "Implementar esquema/defaults proyecto/usuario/sesión y validación; campos mínimos de video, bindings y sensibilidad, preservando extensión para audio/perfiles.", "Guardar preferencias con versión y reemplazo seguro; declarar settings inmediatos o aplicables tras recreación de superficie."],
+      "acceptance": ["Mantener tecla/ratón en Studio y Player genera acciones equivalentes a través de múltiples ticks; pausa/foco no deja acciones pegadas.", "Archivo corrupto/version futura/conflicto de binding tiene diagnóstico y no sobrescritura destructiva.", "Overrides de CLI/sesión no contaminan defaults persistidos; VSync/cap no alteran dt de simulación."],
+      "validation": ["V-CORE", "V-APP", "V-WPF"], "unlocks": "Controlador, preferencias y paridad entre hosts."
+    },
+    {
+      "id": "D01", "phase": "P4", "title": "Formato canónico y validadores de contenido", "role": "content", "dependencies": ["R01"], "locks": ["document-schema"], "status": "PLANNED",
+      "paths": ["src/content/", "docs/formats/", "tests/content/", "docs/implementation/CONTRACTS.md"],
+      "steps": ["Especificar e implementar parse/validate project/level JSON versionados usando un parser de procedencia revisada; fijar límites de lectura y tipos de componentes iniciales.", "Definir UUIDs, referencias, TRS quaternion, environment, geometry legacy y extensiones; campos desconocidos optional se retienen y required se rechazan.", "Añadir corpus de datos inválidos y diagnósticos con archivo/ruta/ID; no crear serializer C# paralelo ni representar todos los tipos futuros como implementados."],
+      "acceptance": ["Validación rechaza duplicados, refs inexistentes, NaN/inf y versiones/capacidades incompatibles sin instanciar parcialmente mundo.", "Representación canónica de transforms/colores coincide con CONTRACTS y SDK; precisión y locale son explícitos.", "Round-trip estructural de componentes soportados y preservación de campos opcionales desconocidos tienen pruebas."],
+      "validation": ["V-CORE", "V-DATA"], "unlocks": "Documento transaccional, migraciones y formatos de agentes."
+    },
+    {
+      "id": "M01", "phase": "P3", "title": "Importación GLB/glTF estática a representación propia", "role": "content", "dependencies": ["R02"], "locks": ["asset-import"], "status": "PLANNED",
+      "paths": ["src/assets/import/", "tests/assets/fixtures/", "THIRD_PARTY.md"],
+      "steps": ["Integrar cgltf fijado con avisos correspondientes, sin exponer sus structs ni Model de raylib; parse, load buffers, validate y normalizar a IR propia.", "Soportar malla indexada/no indexada, nodos/submeshes, UV/normales/texturas y materiales retro definidos; aplicar cambio de base Y-up a Z-up sin recenter de pivots.", "Crear fixtures propias o con licencia registrada para GLB y glTF externo; declarar rechazo de skins/morphs/extensiones no soportadas en esta etapa."],
+      "acceptance": ["Escala, ejes, jerarquía/pivot, winding, normales y alpha se validan con geometría de referencia numérica.", "Archivos truncados, índices/accesores fuera de rango y required extension no soportada devuelven error, sin crash ni lectura fuera de límite.", "Importar no necesita GPU; mismo source/opciones produce la misma IR y dependencias/fingerprint reproducibles."],
+      "validation": ["V-CORE", "V-ASSET"], "unlocks": "Modelos 3D reales, sin parser glTF artesanal."
+    },
+    {
+      "id": "G03", "phase": "P3", "title": "Renderables y materiales GPU compartidos desde SDK", "role": "gpu", "dependencies": ["G01", "R03", "M01"], "locks": ["gpu-backend", "asset-gpu", "public-api"], "status": "PLANNED",
+      "paths": ["src/render/", "src/assets/", "src/api/", "tests/gpu/", "tests/sdk/"],
+      "steps": ["Conectar IR importada al registro de assets y backend; render packets mesh/material/transform/bounds, sprites y cámara desde World.", "Añadir materiales básicos opaque/mask/blend y error material, culling/frustum y contadores; uploads únicos para meshes/texturas compartidas.", "Extender consumidor C externo para cargar modelo y crear 100 instancias; destrucción y reload respetan versiones y contexto."],
+      "acceptance": ["100 instancias comparten mesh/textura; contador prueba una carga/upload por recurso residente, no una por entidad.", "Modelo y sprite delante/detrás, alpha y wireframe se verifican visualmente; renderer CPU no genera el frame final.", "Fallo de upload y descargar una instancia conservan las demás; dispose/purge libera recursos propios."],
+      "validation": ["V-APP", "V-SDK", "V-ASSET", "V-GPU"], "unlocks": "Primer juego C con modelos GPU; asset browser y mundo mixto."
+    },
+    {
+      "id": "G04", "phase": "P3", "title": "Adaptador GPU de sectores y sprites legacy", "role": "gpu", "dependencies": ["G03"], "locks": ["gpu-backend", "legacy-adapter", "session-bridge"], "status": "PLANNED",
+      "paths": ["src/render/", "src/content/legacy/", "src/session/session.c", "src/engine/map.c", "tests/gpu/"],
+      "steps": ["Convertir sectores/portales/aberturas a mallas derivadas al cargar o editar, con invalidación por revisión; materiales de imagen y sprites actuales alimentan recursos nuevos.", "Mantener reglas/colisión legacy en su contrato existente y geometría dinámica de barreras actualizada sin retessellar todo cada frame.", "Comparar corpus Haunted/portales parciales en ambos backends por invariantes geométricas/visuales, no por igualdad pixel-perfect de shading."],
+      "acceptance": ["Pisos, techos, portales parciales y huecos no quedan cerrados por mallas nuevas; sprites/atlas y materiales se conservan.", "Geometría estática no se sube por frame; editar una región invalida sólo datos necesarios según política documentada.", "Player usa el nuevo camino GPU con gameplay legacy preservado y opción de laboratorio CPU acotada."],
+      "validation": ["V-CORE", "V-APP", "V-GPU"], "unlocks": "Transición incremental sin perder niveles existentes."
+    },
+    {
+      "id": "D02", "phase": "P4", "title": "Documento nativo, transacciones y Tool API", "role": "content", "dependencies": ["D01", "R02"], "locks": ["document-core", "tool-api"], "status": "PLANNED",
+      "paths": ["src/content/", "src/editor/editor.c", "src/gameplay/transaction.c", "include/vestigio/", "tests/content/"],
+      "steps": ["Implementar documento/instanciador con mismos constructores/validadores de componentes del runtime y assets por ID; mantener blobs y GPU fuera del historial.", "Implementar begin(expected revision), comandos tipados, validate/commit/cancel, mapping de IDs y save transaccional recuperable.", "Conservar semántica undo/redo actual, duplicación con remap y unknown fields; autosave separado del guardado manual."],
+      "acceptance": ["Lote inválido no cambia documento ni destruye redo; conflicto de revisión no pisa edición concurrente.", "Crear/duplicar/reparentar/guardar/reabrir conserva campos y refs; asset pesado no se copia por cada undo.", "Fallo entre archivos de commit tiene recuperación reproducible y no sobrescribe una versión futura."],
+      "validation": ["V-CORE", "V-DATA"], "unlocks": "Editor y automatización sobre una autoridad documental."
+    },
+    {
+      "id": "D03", "phase": "P4", "title": "Migración legacy y round-trip de proyecto completo", "role": "content", "dependencies": ["D02", "G04"], "locks": ["document-core", "legacy-adapter"], "status": "PLANNED",
+      "paths": ["src/content/legacy/", "src/gameplay/project.c", "tests/content/", "assets/studio/"],
+      "steps": ["Implementar migración sobre copia de mapas/proyecto/actores/reglas/diálogos; generar UUID determinístico y preservar portales/etiquetas/referencias.", "Resolver catálogo y subrecursos importados sin depender de cwd; contenido legado se representa como adaptador, no reinterpretación destructiva.", "Probar proyecto migrado mediante instanciador y GPU; no sobrescribir assets de ejemplo originales durante pruebas."],
+      "acceptance": ["Haunted y fixtures de portales/reglas migran, se guardan, reabren y juegan sin pérdida semántica declarada.", "Mover proyecto a ruta con espacios/Unicode conserva resolución de recursos; referencia perdida informa ID/ruta.", "Migración repetida es estable y conserva originales; versión nueva no se escribe como si fuera formato legacy."],
+      "validation": ["V-CORE", "V-APP", "V-DATA", "V-GPU"], "unlocks": "Base de contenido migrable y utilizable."
+    },
+    {
+      "id": "E01", "phase": "P5", "title": "Viewport editorial GPU conectado al documento", "role": "editor", "dependencies": ["G02", "G03", "D02", "I01"], "locks": ["wpf-viewport", "tool-api"], "status": "PLANNED",
+      "paths": ["src/studio/Controls/", "src/studio/Native/", "src/studio/Models/EditorDocument.cs", "src/editor/", "tests/studio/"],
+      "steps": ["Integrar superficie aprobada en G02 con EditWorld, cámara libre/orbit/ortográfica, frame seleccionado y renderables de G03.", "Actualizar EditWorld desde revisiones/eventos del documento; Play crea copia aislada y Stop vuelve a edición sin guardar mutaciones de juego.", "Implementar selección por UUID y picking editorial por ray/bounds con máscara para luces/triggers/cámaras, independiente de colisión de gameplay."],
+      "acceptance": ["Abrir documento/importar recurso y verlo en viewport comparte runtime/validadores con consumidor C.", "Editar cámara/selección no marca contenido dirty; Play/Stop no modifica documento ni partida del usuario.", "Foco, held input, resize y GPU sin readback normal siguen pasando al integrarse con Studio real."],
+      "validation": ["V-APP", "V-GPU", "V-WPF", "V-DATA"], "unlocks": "Edición directa sobre la escena real."
+    },
+    {
+      "id": "E02", "phase": "P5", "title": "Gizmos, multiselección y comandos de transformación", "role": "editor", "dependencies": ["E01"], "locks": ["wpf-viewport", "document-commands"], "status": "PLANNED",
+      "paths": ["src/studio/Controls/", "src/editor/", "src/render/overlays/", "tests/studio/", "tests/content/"],
+      "steps": ["Implementar move/rotate/scale, local/world, pivots y snapping compartido; preview efímero con commit al terminar gesto.", "Añadir duplicar/borrar/reparentar en lote con UUIDs/remap; validar parent cycles/shear antes del commit.", "Dibujar gizmos GPU y mantener selección válida al cambiar índices/revisión; Escape cancela y un drag equivale a un undo."],
+      "acceptance": ["Undo/redo restaura gesto y refs completos; fallo o Escape no borra redo ni ensucia documento.", "Multiselección y pivots producen mismo resultado por Tool API y UI, incluida jerarquía rotada.", "Guardar/reabrir reproduce transforms; tests de datos más revisión visual real del gizmo."],
+      "validation": ["V-CORE", "V-DATA", "V-WPF"], "unlocks": "Autoría de objetos con edición fiable."
+    },
+    {
+      "id": "E03", "phase": "P5", "title": "Inspector, jerarquía y biblioteca de assets", "role": "editor", "dependencies": ["E02", "M01"], "locks": ["wpf-inspector", "document-commands"], "status": "PLANNED",
+      "paths": ["src/studio/ViewModels/StudioViewModel.cs", "src/studio/Models/", "src/studio/MainWindow.xaml", "src/studio/Services/", "src/editor/", "tests/studio/"],
+      "steps": ["Generar campos desde esquemas tipados con unidades/rangos/referencias y mensajes de error; multiedición conserva valores no modificados.", "Separar layers/grupos editoriales de parent runtime; browser importa, coloca y muestra estado/diagnóstico/fingerprint de recursos.", "Añadir flujo importación-modelo a documento con preview/thumbnail y placeholder, sin que vista sea propietaria de la textura compartida."],
+      "acceptance": ["Importar→colocar→transformar→guardar→reabrir recupera modelo/material/IDs sin duplicar recursos.", "Renombrar/reimportar recursos mantiene identidad prevista; errores se muestran junto al campo y en Problems/log.", "Ocultar capa de editor no altera visibilidad de juego; propiedades soportadas tienen round-trip y una acción undo por lote."],
+      "validation": ["V-APP", "V-ASSET", "V-DATA", "V-WPF"], "unlocks": "Flujo editorial de contenido completo."
+    },
+    {
+      "id": "E04", "phase": "P5", "title": "Herramientas de habitaciones, aberturas y organización", "role": "editor", "dependencies": ["E03", "D03", "S01"], "locks": ["wpf-viewport", "document-commands", "legacy-adapter"], "status": "PLANNED",
+      "paths": ["src/editor/", "src/content/", "src/studio/Controls/", "tests/content/", "tests/studio/"],
+      "steps": ["Añadir recetas acotadas de habitación/pared y abertura con preview; conservar herramientas sectoriales existentes y adaptar geometría derivada.", "Implementar grid/cotas/capas/plantas como organización de autoría y ghosting opcional; no ocultar plantas automáticamente en runtime.", "Conectar operaciones al mismo historial/validadores y recalcular bounds/malla/collider invalidado; evitar construir un modelador 3D general."],
+      "acceptance": ["Crear habitación y abertura, deshacer/rehacer, guardar/reabrir mantiene geometría y portales.", "Receta es autoridad y mesh derivada se regenera sin duplicación divergente; no hay hueco visual con collider viejo al integrarse con S01.", "Preview/cancel no deja objetos huérfanos; edificio con atrio no pierde pisos visibles por regla editorial."],
+      "validation": ["V-CORE", "V-DATA", "V-WPF", "V-GPU"], "unlocks": "World building recuperado de js-game sin portar sus errores."
+    },
+    {
+      "id": "S01", "phase": "P6", "title": "Consultas espaciales 3D y colliders compartidos", "role": "runtime", "dependencies": ["G03", "D02"], "locks": ["spatial-core", "public-api"], "status": "PLANNED",
+      "paths": ["src/physics/", "src/world/", "src/api/", "tests/spatial/"],
+      "steps": ["Implementar raycast/sweep/overlap con máscaras, ignored entity y resultados entidad/normal/distancia/fracción; static mesh con aceleración acotada y colliders dinámicos simples.", "Mantener fuente de geometría/collider/transform común con runtime; adaptar consultas legacy sin exigir BSP/navmesh nuevos a todos los niveles.", "Definir escala/colliders admitidos, límites numéricos y actualización tras transform/edición; no simular rigid bodies generales."],
+      "acceptance": ["Ray/movimiento/visión/proyectil usan máscaras coherentes y no atraviesan props sólidos por falta silenciosa de collider.", "Pruebas reproducen contacto tangencial, esquina, malla fina, rotación/padre y escala admitida con tolerancias documentadas.", "Editar/reimportar collider invalida estructura espacial; overlays muestran geometría de colisión real."],
+      "validation": ["V-CORE", "V-SPATIAL"], "unlocks": "Espacio 3D jugable y picking preciso opcional."
+    },
+    {
+      "id": "S02", "phase": "P6", "title": "Controlador 3D y navegación mínima", "role": "runtime", "dependencies": ["S01", "I01"], "locks": ["spatial-core", "gamekit", "session-bridge"], "status": "PLANNED",
+      "paths": ["src/gamekit/", "src/physics/", "src/session/session.c", "tests/spatial/", "tests/gamekit/"],
+      "steps": ["Construir controlador cinemático de cápsula/volumen admitido con suelo, pendiente, escalón, techo y dt fijo; configuración expuesta al SDK.", "Integrar cámara/jugador opt-in sin asumir armas; preservar navegación BFS legacy y añadir waypoints/consultas mínimos para actores fuera de sectores.", "Crear recorrido de prueba con props, escalera y pasillo estrecho; registrar límites admitidos y comportamiento ante penetración inicial."],
+      "acceptance": ["Movimiento estable con render a distintas frecuencias; no atraviesa suelo/techo/esquinas bajo velocidad máxima admitida.", "Jugador cabe/no cabe conforme a volumen, pendiente/escalón válidos y plataformas definidas; FPS no es dependencia del core.", "Actor legacy conserva recorrido; navegación 3D no afirma cobertura navmesh que no existe."],
+      "validation": ["V-CORE", "V-APP", "V-SPATIAL"], "unlocks": "Exploración 3D y colisión de puertas."
+    },
+    {
+      "id": "S03", "phase": "P6", "title": "Puertas con bisagra, triggers e interacción", "role": "runtime", "dependencies": ["S02", "D02", "R03"], "locks": ["gamekit", "document-schema"], "status": "PLANNED",
+      "paths": ["src/gamekit/", "src/gameplay/interaction.c", "src/content/", "tests/gamekit/", "tests/spatial/"],
+      "steps": ["Implementar raíz/bisagra/panel con eje/pivot/ángulos/speed, estados closed/opening/open/closing/blocked/locked y obstrucción segura.", "Mover collider con misma transform del panel, incluso totalmente abierto; sweep angular/substeps con límites derivados de dimensiones/velocidad.", "Conectar key/lock/auto-close, Interactable y Trigger enter/exit/once/cooldown a eventos/reglas; emitir eventos de audio, reproducidos al integrar A01."],
+      "acceptance": ["Puerta gira en ambos sentidos y con padre rotado; cierre sobre cuerpo bloquea/revierte sin aplastar por defecto ni tunneling dentro de límites probados.", "Raycast/visión/proyectil/movimiento coinciden con panel y collider abierto sigue sólido.", "Definición de puerta/triggers sobrevive round-trip; estado mutable serializable queda listo para P01. Sonido sólo se acepta como conectado después de A01/E05."],
+      "validation": ["V-CORE", "V-DATA", "V-SPATIAL"], "unlocks": "Interacción física de horror/exploración."
+    },
+    {
+      "id": "V01", "phase": "P7", "title": "Materiales, shaders editables, luces y fog GPU", "role": "gpu", "dependencies": ["G03", "I01", "D02"], "locks": ["gpu-backend", "shader-schema"], "status": "PLANNED",
+      "paths": ["src/render/", "src/assets/", "src/content/", "assets/shaders/", "tests/gpu/"],
+      "steps": ["Implementar ShaderAsset/material params tipados y metadata de inspector; reload candidato con dependencias y log de compilación.", "Añadir forward simple, luces por draw limitadas/priorizadas y fog lineal/exp con distancia definida, alpha y sky coherentes.", "Registrar light/material/environment schemas para documento/SDK sin escribir UI paralela; budgets/overlays muestran límites excedidos."],
+      "acceptance": ["Shader inválido conserva el anterior; primer fallo tiene error material/diagnóstico explícito y no mata sesión.", "Luces/fog se ejecutan en GPU y sus parámetros sobreviven save/load; no se atribuyen sombras geométricas inexistentes.", "Entradas/espacio de color/unidades y límites son probados; no se incorpora PBR/volumétricos como dependencia del hito."],
+      "validation": ["V-APP", "V-GPU", "V-ASSET", "V-DATA"], "unlocks": "Estilo visual editable sin bifurcar renderer."
+    },
+    {
+      "id": "V02", "phase": "P7", "title": "Perfiles Neo-PSX, upscale y settings de vídeo", "role": "gpu", "dependencies": ["V01"], "locks": ["gpu-backend", "input-settings", "shader-schema"], "status": "PLANNED",
+      "paths": ["src/render/", "src/config/", "assets/shaders/", "tests/gpu/", "tests/config/"],
+      "steps": ["Implementar presets clean/retro/PSX/custom con snapping, UV affine opcional, Bayer/dither y cuantización después de fog/lighting a resolución interna.", "Resolver ping-pong postprocess, HUD pixelado/nítido, filtro, escala entera/fraccional/aspecto, fullscreen/borderless y rollback de targets/settings.", "Separar capacidades de backend de perfil; ningún perfil GPU fuerza readback ni exige paridad de custom shaders con renderer CPU."],
+      "acceptance": ["Cambiar perfil en el mismo nivel funciona; snapping cerca del near plane no rompe clipping y affine no es un efecto de ruido de pantalla.", "320x180/426x240/640x360 conservan aspecto en resize/DPI; barras y dither permanecen ligados a píxel interno.", "Settings persisten con overrides correctos, targets viejos se liberan y efectos pueden desactivarse sin editar assets."],
+      "validation": ["V-CORE", "V-APP", "V-GPU", "V-DATA"], "unlocks": "Neo-PSX como perfil del mismo runtime."
+    },
+    {
+      "id": "A01", "phase": "P7", "title": "Audio de proyecto, voces, música y emisores", "role": "runtime", "dependencies": ["R02", "I01", "D02"], "locks": ["audio-core", "public-api"], "status": "PLANNED",
+      "paths": ["src/audio/", "src/assets/", "src/platform/raylib_platform.c", "src/api/", "src/content/", "tests/audio/"],
+      "steps": ["Separar Sound compartido, Voice mutable y Music streaming; buses master/music/SFX/ambience y listener/emisor espacial.", "Conectar eventos de interacción al playback sin repetir sonidos por frame; límites de voces y política de prioridad explícitos.", "Exponer configuración al SDK y esquema documental, lifecycle de streaming y pausa/foco/cambio de mundo; registrar contratos reales de pan/volumen de backend."],
+      "acceptance": ["Dos emisores comparten Sound pero tienen voces independientes; descargar mundo detiene sus voces sin invalidar otros usuarios.", "Música se actualiza sin cargar todo como PCM y buses persisten; dispositivo ausente/fallo se comunica sin crash.", "Escucha real confirma posición/volumen/evento y pausa; pruebas automatizadas cubren ownership y límites, no sustituyen audición."],
+      "validation": ["V-CORE", "V-APP", "V-ASSET", "V-AUDIO", "V-DATA"], "unlocks": "Puertas audibles, ambiente y música de juego."
+    },
+    {
+      "id": "A02", "phase": "P7", "title": "Animación rígida y skeletal con pose por instancia", "role": "content", "dependencies": ["G03", "D02"], "locks": ["asset-import", "gpu-skinning", "gpu-backend", "document-schema"], "status": "PLANNED",
+      "paths": ["src/assets/import/", "src/world/", "src/render/", "src/content/", "tests/assets/", "tests/gpu/"],
+      "steps": ["Extender importer/IR con clips de nodos y después skins/joints/inverse bind matrices; definir interpolaciones soportadas y rechazar el resto explícitamente.", "Separar asset de animación/mesh compartido de tiempo/pose por instancia; skinning GPU dentro de capacidades/budgets definidos.", "Mantener billboards/atlas legacy y serializar parámetros de instancia; coordinar layout de atributos/uniforms con responsable GPU antes de modificar backend."],
+      "acceptance": ["Dos instancias del mismo asset animan con tiempos diferentes sin duplicar mesh ni pose compartida accidental.", "Pose de reposo/ejes/normales y jerarquía coinciden con fixtures numéricas/visuales; error de skin inválido no publica recurso parcial.", "GPU ejecuta skinning en perfil soportado, recursos se liberan y clip/velocidad/default persisten; morph targets no se anuncian si no se implementan."],
+      "validation": ["V-CORE", "V-ASSET", "V-GPU", "V-DATA"], "unlocks": "Personajes/modelos animados reales."
+    },
+    {
+      "id": "E05", "phase": "P5-P7", "title": "Cerrar el recorrido editorial completo", "role": "editor", "dependencies": ["E04", "S03", "V02", "A01", "A02", "D03"], "locks": ["wpf-inspector", "wpf-viewport", "tool-api"], "status": "PLANNED",
+      "paths": ["src/studio/", "src/editor/", "tests/studio/", "tests/journeys/"],
+      "steps": ["Integrar campos/gizmos de luz/fog/material/shader/audio/trigger/interactable/puerta/spawn/actor/cámara/animación sobre esquemas reales; bridge para tipos de juego registrados.", "Cerrar crear habitación→importar modelo→poner puerta/luces/audio/trigger→guardar→cerrar→reabrir→jugar→detener; incluir undo y recuperación.", "Sincronizar colliders de edición, mensajes de validación, logs y debug overlays; verificar accesibilidad de teclado, DPI/docking y separación de Play."],
+      "acceptance": ["Todos los datos editables del recorrido sobreviven round-trip y producen comportamiento en Player, incluida puerta con audio y bloqueo físico.", "Cambios de juego durante preview no alteran documento/partida; selección y foco vuelven correctamente al detener.", "Evidencia visual y ejecución integrada verifican UI/runtime/archivo; un widget o screenshot aislado no cierra el ticket."],
+      "validation": ["V-APP", "V-WPF", "V-DATA", "V-SPATIAL", "V-AUDIO", "V-GPU"], "unlocks": "Creator 3D completo según alcance confirmado."
+    },
+    {
+      "id": "Q01", "phase": "P7-P8", "title": "Instrumentación y presupuesto de rendimiento medido", "role": "gpu", "dependencies": ["E05"], "locks": ["profiling", "gpu-backend"], "status": "PLANNED",
+      "paths": ["src/debug/", "src/render/", "src/runtime/", "tests/perf/", "docs/implementation/evidence/"],
+      "steps": ["Consolidar consola/overlays, CPU simulation/prepare/submit/present, GPU por pass cuando soportado, p50/p95/p99, draw calls, uploads/readbacks, entidades/assets y RAM/VRAM estimada.", "Medir corpus integrado en hardware registrado, con warmup/duración/configuración reproducible; separar integrado/dedicado si se dispone de ambos.", "Optimizar sólo cuellos medidos y revalidar; fijar límites operativos y degradación explícita de luces/efectos, sin inventar 60 FPS garantizados."],
+      "acceptance": ["Reportes distinguen estimación de memoria de medición driver y coste CPU de GPU; queries de tiempo no bloquean cada frame.", "Recargar mundo/shader/assets repetidamente no presenta crecimiento sostenido de recursos propios; capturas no contaminan cifras del frame normal.", "Presupuesto aceptado y limitaciones quedan documentados para hardware realmente probado; ausencia de otro equipo queda pendiente explícita."],
+      "validation": ["V-APP", "V-GPU", "V-PERF"], "unlocks": "Criterio de rendimiento de producto con evidencia."
+    },
+    {
+      "id": "P01", "phase": "P8", "title": "Savegame versionado por componente", "role": "content", "dependencies": ["S03", "A01", "A02", "R03", "D02"], "locks": ["savegame", "document-core", "gamekit"], "status": "PLANNED",
+      "paths": ["src/content/", "src/gamekit/", "src/gameplay/interaction.c", "src/session/session.c", "tests/content/", "tests/gamekit/"],
+      "steps": ["Separar nivel/autosave/partida y definir persistencia de jugador, puertas, actores, variables, inventario, RNG, triggers y estado de módulo C.", "Resolver transitorios: proyectiles/timers/animación/música se persisten o reinician según contrato explícito; nunca snapshot de punteros/memoria arbitraria.", "Restaurar candidato contra ProjectId/LevelId/content revision con migración o error; guardar de forma recuperable."],
+      "acceptance": ["Guardar a mitad de apertura y restaurar conserva ángulo/lock/timer admitidos; actores/variables y transitorios siguen política declarada.", "Save corrupto/incompatible no aplica estado a otras entidades ni destruye partida anterior.", "Juego C puede aportar estado versionado sin modificar core; lifecycle de recursos/voces tras restore queda verificado."],
+      "validation": ["V-CORE", "V-APP", "V-DATA", "V-SPATIAL", "V-AUDIO"], "unlocks": "Persistencia de partida y entrega independiente."
+    },
+    {
+      "id": "P02", "phase": "P8", "title": "Dos juegos y exportación independiente del repositorio", "role": "integrator", "dependencies": ["E05", "P01", "Q01"], "locks": ["integration", "build", "public-api", "packaging"], "status": "PLANNED",
+      "paths": ["examples/", "cmake/", "tools/export-project.ps1", "CMakeLists.txt", "THIRD_PARTY.md", "tests/sdk/", "tests/export/"],
+      "steps": ["Crear FPS/editor y exploración C sin armas con mismo runtime; registrar tipos/acciones propios visibles en Studio y generar habitación/entidades/luces por Tool API.", "Completar SDK instalable y build/export por cierre transitivo de dependencias, avisos, host y game module compilado; excluir caché/src/autosaves salvo inclusión explícita.", "Probar paquetes fuera del repo con cwd arbitrario/rutas Unicode; preservar mejoras previas del exportador y evitar borrados fuera de destino verificado."],
+      "acceptance": ["Ambos juegos se construyen/juegan sin tocar internals y Player exportado no requiere Studio/.NET ni carpetas del desarrollador.", "Dependencia ausente impide export con diagnóstico; ningún asset queda omitido por depender sólo de strings no declarados.", "Inventario/licencias de código y fixtures permite distribuir lo seleccionado; licencia del código propio no se inventa: la decisión del titular se registra antes de publicación pública."],
+      "validation": ["V-CORE", "V-APP", "V-SDK", "V-DATA", "V-DELIVERY"], "unlocks": "Prueba de engine/SDK utilizable por dos juegos distintos."
+    },
+    {
+      "id": "T01", "phase": "P8", "title": "CLI sobre Tool API con cambios revisables", "role": "content", "dependencies": ["P02"], "locks": ["tool-api", "cli"], "status": "PLANNED",
+      "paths": ["src/cli/", "src/editor/", "tests/cli/", "docs/"],
+      "steps": ["Implementar project/level validate, asset inspect/import, level apply y build mediante servicios existentes; códigos de salida y JSON de diagnósticos documentados.", "Ofrecer dry-run, expected revision, lote atómico y mapping de IDs para generación procedural; no ejecutar C arbitrario para validar datos.", "Añadir ejemplo de automatización que genere contenido abrible/editable por Studio; no implementar servidor MCP, RPC o binding extra en este ticket."],
+      "acceptance": ["Mismo lote aplicado por CLI y Studio produce contenido equivalente; conflicto deja archivos intactos.", "Validaciones/documentos funcionan sin GPU; comandos que requieren render declaran capacidad y no fallan de forma opaca en headless.", "Comandos y errores se prueban como procesos reales con paths espacios/Unicode y códigos de salida útiles."],
+      "validation": ["V-CORE", "V-DATA", "V-DELIVERY"], "unlocks": "Automatización por agentes sobre un contrato estable."
+    },
+    {
+      "id": "Z01", "phase": "P8", "title": "Aceptación integrada y cierre de implementación", "role": "integrator", "dependencies": ["P02", "T01"], "locks": ["integration", "build", "packaging"], "status": "PLANNED",
+      "paths": ["docs/implementation/STATE.md", "docs/implementation/evidence/", "docs/", "tests/"],
+      "steps": ["Construir candidato único con todos los tickets integrados y ejecutar matriz completa y recorridos editor-first/code-first/export/restore.", "Auditar backlog/contratos/documentación frente a implementación, marcar límites reales, registrar revisiones de evidencia y defectos abiertos.", "Entregar instrucciones de uso/SDK/build/diagnóstico, artifacts y rollback; no desplegar/publicar remotamente por el solo hecho de completar el plan."],
+      "acceptance": ["Gates de VALIDATION pasan en el candidato integrado o el producto permanece explícitamente incompleto; no sumar PASS de ramas incompatibles.", "No quedan requisitos obligatorios representados por stubs, tests omitidos o simples capturas; aceptación humana se registra separada si no disponible.", "Resumen final identifica qué se implementó, pruebas reales, hardware, límites, archivos/commits y trabajo restante."],
+      "validation": ["V-CORE", "V-APP", "V-SDK", "V-GPU", "V-WPF", "V-ASSET", "V-DATA", "V-SPATIAL", "V-AUDIO", "V-PERF", "V-DELIVERY"], "unlocks": "Cierre verificable del alcance; extensiones futuras quedan fuera."
+    }
+  ]
+}
