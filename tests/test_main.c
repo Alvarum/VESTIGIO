@@ -1,6 +1,7 @@
 /* Pruebas ejecutables en Debug y Release. CHECK no desaparece con NDEBUG.
  * Los fixtures usan el mapa real; no abren ventana, audio ni GPU. */
 #include "game.h"
+#include "retro/editor.h"
 #include "retro/gameplay.h"
 #include "retro/project.h"
 #include <stdio.h>
@@ -690,6 +691,50 @@ static bool rule_cycle_guard(void) {
     CHECK(runtime.state.cycle_limited && runtime.state.event_count == 0);
     return true;
 }
+
+/* Verifica el contrato usado por WPF sin escribir los fixtures. La edición
+ * permanece en memoria; cerrar el documento descarta deliberadamente el redo
+ * final y demuestra que consultar datos anidados no depende de estructuras C. */
+static bool editor_document(void) {
+    ReEditorDocument *document = nullptr;
+    ReError error = {0};
+    CHECK(re_editor_open(RETRO_SOURCE_DIR "/assets/studio/haunted.retro", &document, &error));
+    CHECK(document != nullptr);
+
+    ReEditorOverview overview = {0};
+    CHECK(re_editor_overview(document, &overview));
+    CHECK(overview.sector_count > 0 && overview.character_count > 0 && overview.rule_count > 0);
+    CHECK(!overview.dirty && !overview.can_undo);
+
+    ReEditorCharacterView character = {0};
+    CHECK(re_editor_character(document, 0, &character));
+    if (character.animation_count > 0) {
+        ReEditorAnimationView animation = {0};
+        CHECK(re_editor_animation(document, 0, 0, &animation));
+        CHECK(animation.frame_count > 0 && animation.name[0] != '\0');
+        ReEditorAnimationFrameView frame = {0};
+        CHECK(re_editor_animation_frame(document, 0, 0, 0, &frame));
+        CHECK(frame.duration > 0);
+    }
+
+    ReEditorSectorView original = {0}, changed = {0}, restored = {0};
+    CHECK(re_editor_sector(document, 0, &original));
+    CHECK(re_editor_set_property(document, RE_EDITOR_SECTOR, 0, "light", "0.123", &error));
+    CHECK(re_editor_sector(document, 0, &changed) && NEAR(changed.light, 0.123f));
+    CHECK(re_editor_overview(document, &overview) && overview.dirty && overview.can_undo);
+    CHECK(re_editor_undo(document));
+    CHECK(re_editor_sector(document, 0, &restored) && NEAR(restored.light, original.light));
+    CHECK(re_editor_redo(document));
+    CHECK(re_editor_sector(document, 0, &changed) && NEAR(changed.light, 0.123f));
+
+    uint64_t revision = overview.revision;
+    CHECK(!re_editor_set_property(document, RE_EDITOR_SECTOR, 0, "unknown", "1", &error));
+    CHECK(error.message[0] != '\0');
+    CHECK(re_editor_overview(document, &overview));
+    CHECK(overview.revision >= revision);
+    re_editor_close(document);
+    return true;
+}
 int main(void) {
     const struct {
         const char *name;
@@ -710,7 +755,8 @@ int main(void) {
                  {"reusable_gameplay", reusable_gameplay},
                  {"safe_door", safe_door},
                  {"interaction_journey", interaction_journey},
-                 {"rule_cycle_guard", rule_cycle_guard}};
+                 {"rule_cycle_guard", rule_cycle_guard},
+                 {"editor_document", editor_document}};
     int failures = 0;
     for (size_t i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
         bool ok = tests[i].run();

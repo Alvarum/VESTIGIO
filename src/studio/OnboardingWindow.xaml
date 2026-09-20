@@ -6,8 +6,8 @@
   <Grid Margin="34">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <StackPanel>
-      <TextBlock Style="{StaticResource EyebrowText}" Text="PRIMEROS PASOS" />
-      <TextBlock Style="{StaticResource HeadingText}" Margin="0,6,0,8" Text="Una ruta clara para construir" />
+      <TextBlock Style="{StaticResource RfEyebrowText}" Text="PRIMEROS PASOS" />
+      <TextBlock Style="{StaticResource RfHeadingText}" Margin="0,6,0,8" Text="Una ruta clara para construir" />
       <TextBlock Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" TextTrimming="None"
                  Text="RetroForge organiza el trabajo por intención. Selecciona algo en la escena, modifica sus propiedades y comprueba el resultado con el mismo Player que exportarás." />
     </StackPanel>

@@ -93,18 +93,66 @@ public sealed class EditorDocument : IDisposable
         EditorNative.re_editor_barrier(_handle, index, out EditorNative.Barrier item) != 0
             ? new BarrierModel(index, item)
             : null;
-    private CharacterModel? TryCharacter(uint index) =>
-        EditorNative.re_editor_character(_handle, index, out EditorNative.Character item) != 0
-            ? new CharacterModel(index, item)
-            : null;
-    private RuleModel? TryRule(uint index) =>
-        EditorNative.re_editor_rule(_handle, index, out EditorNative.Rule item) != 0
-            ? new RuleModel(index, item)
-            : null;
-    private DialogueModel? TryDialogue(uint index) =>
-        EditorNative.re_editor_dialogue(_handle, index, out EditorNative.Dialogue item) != 0
-            ? new DialogueModel(index, item)
-            : null;
+    private CharacterModel? TryCharacter(uint index)
+    {
+        if (EditorNative.re_editor_character(_handle, index, out EditorNative.Character item) == 0)
+            return null;
+        var animations = new List<AnimationModel>();
+        for (uint animation = 0; animation < item.AnimationCount; animation++)
+        {
+            if (EditorNative.re_editor_animation(_handle, index, animation, out EditorNative.Animation clip) == 0)
+                continue;
+            var frames = new List<AnimationFrameModel>();
+            for (uint frame = 0; frame < clip.FrameCount; frame++)
+                if (EditorNative.re_editor_animation_frame(_handle, index, animation, frame,
+                        out EditorNative.AnimationFrame value) != 0)
+                    frames.Add(new AnimationFrameModel(value.Cell, value.Duration,
+                        value.Event switch { 1 => "sonido", 2 => "ataque", _ => "—" }));
+            animations.Add(new AnimationModel(clip.Name, clip.Directions, clip.Loop != 0, frames));
+        }
+        var phases = new List<BossPhaseModel>();
+        for (uint phase = 0; phase < item.PhaseCount; phase++)
+            if (EditorNative.re_editor_boss_phase(_handle, index, phase, out EditorNative.BossPhase value) != 0)
+                phases.Add(new BossPhaseModel(value.Name, value.HealthThreshold,
+                    value.Tracking == 0 ? "percepción" : "seguimiento constante",
+                    BossActionName(value.Action), value.SpeedMultiplier, value.Cooldown, value.SummonLimit));
+        return new CharacterModel(index, item) { Animations = animations, Phases = phases };
+    }
+
+    private RuleModel? TryRule(uint index)
+    {
+        if (EditorNative.re_editor_rule(_handle, index, out EditorNative.Rule item) == 0)
+            return null;
+        string[] comparisons = ["=", "≠", "<", "≤", ">", "≥"];
+        string[] conditionKinds = ["Variable", "Inventario", "Objetivo", "Salud", "Vidas"];
+        var conditions = new List<RuleConditionModel>();
+        for (uint condition = 0; condition < item.ConditionCount; condition++)
+            if (EditorNative.re_editor_rule_condition(_handle, index, condition,
+                    out EditorNative.RuleCondition value) != 0)
+                conditions.Add(new RuleConditionModel(
+                    NameAt(conditionKinds, value.Kind, "Condición"), value.Key,
+                    NameAt(comparisons, value.Comparison, "?"), value.Value));
+        var actions = new List<RuleActionModel>();
+        for (uint action = 0; action < item.ActionCount; action++)
+            if (EditorNative.re_editor_rule_action(_handle, index, action,
+                    out EditorNative.RuleAction value) != 0)
+                actions.Add(new RuleActionModel(ActionName(value.Kind), value.Target, value.Value));
+        return new RuleModel(index, item) { Conditions = conditions, Actions = actions };
+    }
+
+    private DialogueModel? TryDialogue(uint index)
+    {
+        if (EditorNative.re_editor_dialogue(_handle, index, out EditorNative.Dialogue item) == 0)
+            return null;
+        var choices = new List<DialogueChoiceModel>();
+        for (uint choice = 0; choice < item.ChoiceCount; choice++)
+            if (EditorNative.re_editor_dialogue_choice(_handle, index, choice,
+                    out EditorNative.DialogueChoice value) != 0)
+                choices.Add(new DialogueChoiceModel(value.Id, value.Text, value.Next,
+                    string.IsNullOrWhiteSpace(value.ConditionVariable) || value.ConditionVariable == "-"
+                        ? string.Empty : $"{value.ConditionVariable} = {(value.ConditionValue != 0 ? "true" : "false")}"));
+        return new DialogueModel(index, item) { Choices = choices };
+    }
     private TriggerModel? TryTrigger(uint index) =>
         EditorNative.re_editor_trigger(_handle, index, out EditorNative.Trigger item) != 0
             ? new TriggerModel(index, item)
@@ -131,6 +179,19 @@ public sealed class EditorDocument : IDisposable
         string line = error.Line == 0 ? string.Empty : $" (línea {error.Line})";
         return new InvalidOperationException($"{error.Message}{line}");
     }
+
+    private static string NameAt(string[] names, int index, string fallback) =>
+        index >= 0 && index < names.Length ? names[index] : fallback;
+
+    private static string ActionName(int action) => NameAt(
+        ["Asignar variable", "Sumar variable", "Dar objeto", "Quitar objeto", "Cambiar objetivo",
+         "Mostrar mensaje", "Abrir barrera", "Cerrar barrera", "Dañar jugador", "Curar jugador",
+         "Cambiar vidas", "Crear checkpoint", "Iniciar diálogo", "Cambiar luz", "Crear pickup",
+         "Emitir evento", "Victoria", "Game over"], action, "Acción");
+
+    private static string BossActionName(int action) => NameAt(
+        ["Esperar", "Ataque cuerpo a cuerpo", "Proyectil", "Capturar", "Invocar", "Activar objeto"],
+        action, "Acción");
 
     private void EnsureOpen()
     {

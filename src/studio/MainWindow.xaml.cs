@@ -38,6 +38,15 @@ public partial class MainWindow : Window
 
         _defaultLayout = SerializeLayout();
         RestoreLayout();
+        /* Una sesión nueva empieza siempre en Construir. Los paneles conservan
+         * su monitor y tamaño, pero el selector y el documento no divergen. */
+        LayoutContent? map = DockManager.Layout.Descendents().OfType<LayoutContent>()
+            .FirstOrDefault(item => item.ContentId == "MapDocument");
+        if (map is not null)
+        {
+            map.IsSelected = true;
+            map.IsActive = true;
+        }
     }
 
     private void SceneTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
@@ -70,6 +79,15 @@ public partial class MainWindow : Window
         ApplyInspectorText(textBox);
         Keyboard.ClearFocus();
         e.Handled = true;
+    }
+
+    private void InspectorBoolean_Changed(object sender, RoutedEventArgs e)
+    {
+        if (sender is not CheckBox { Tag: InspectorField field } checkBox)
+            return;
+        string value = checkBox.IsChecked == true ? "true" : "false";
+        if (field.Value != value)
+            _viewModel.ApplyFieldCommand.Execute(new InspectorEdit(field, value));
     }
 
     private void ApplyInspectorText(TextBox? textBox)

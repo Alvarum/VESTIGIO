@@ -1,97 +1,143 @@
 # 09 · RetroForge Studio
 
-## Qué problema resuelve
+## Propósito
 
-El motor sigue siendo una biblioteca C, pero un juego basado en las reglas
-incluidas ya no necesita declarar cada habitación o enemigo en código. Studio
-edita el manifiesto, mapa, personajes, reglas y diálogos versionados. **Probar**
-entrega una copia de esos datos a la misma
-biblioteca `retro_gameplay` que usa `retro_player`.
+RetroForge Studio es el editor de escritorio del motor. Está escrito con .NET
+10 y WPF; el mapa, las reglas y el renderizador siguen viviendo en C23. La
+interfaz nunca modifica directamente las estructuras internas del motor: usa
+la biblioteca `retro_editor`, una frontera C con handles opacos, tamaños
+explícitos y errores estructurados.
 
 ```text
-archivos editables -> validación -> copia de prueba -> simulación a 60 Hz
-        |                                  |
-        +----------- guardar <------------+
-                     (sólo por acción explícita)
+Studio WPF -> retro_editor.dll -> retro_gameplay -> retro_core
+                                      |
+                                      +-> proyecto, mapa, reglas y diálogos
 ```
 
-Detener una prueba descarta posiciones de enemigos, puertas abiertas, vidrios
-rotos y fases activas. El documento del editor nunca se contamina con estado de
-una partida.
+Esta división importa por dos motivos: Player y Studio interpretan los mismos
+archivos, y una asignación creada en C siempre se libera en C.
 
-## Recorrido recomendado
+## Inicio
 
-1. Ejecuta `retro_studio.exe`. Se abre `assets/studio/haunted.retro`.
-2. Elige una planta con `+` y `-`. La lista muestra la altura de cada volumen.
-3. Pulsa una habitación para editarla. Los círculos de sus esquinas son
-   vértices; arrástralos y se ajustarán a una cuadrícula de 25 cm.
-4. Usa **+ SALA** para una habitación rectangular, **DUPLICAR** para otra
-   habitación al lado o **APILAR** para una planta superior con el mismo plano.
-5. Para unir dos habitaciones, selecciona el vértice inicial de una arista,
-   pulsa **CONECTAR**, selecciona la arista coincidente en sentido opuesto y
-   vuelve a pulsar **CONECTAR**.
-6. **PELDAÑO** crea y conecta un volumen un metro hacia fuera y 25 cm más alto.
-   Repite sobre su arista exterior para construir una escalera.
-7. Elige un personaje y una habitación; **ACTOR** coloca una instancia en el
-   centro. **PUERTA** y **VENTANA** actúan sobre una arista ya conectada.
-8. Selecciona un personaje y arrastra un PNG sobre la ventana: Studio lo copia
-   a `art/` y lo asigna a esa definición. Un WAV sólo se importa. Las referencias
-   son rutas relativas, así que mover el proyecto no las rompe.
-9. Pulsa **PROBAR**. WASD mueve, botón derecho mira, E abre puertas y el botón
-   izquierdo rompe vidrios. Esc vuelve a edición.
-10. Guarda con Ctrl+S. Ctrl+Z y Ctrl+Y recorren hasta 32 estados completos.
+Después de compilar el preset `debug`, abre:
+
+```powershell
+build\debug\bin\retro_studio.exe
+```
+
+Sin argumentos carga el Haunted copiado junto al ejecutable. También acepta un
+manifiesto directo o la forma explícita:
+
+```powershell
+build\debug\bin\retro_studio.exe --project "C:\Mis juegos\Casa\project.retro"
+```
+
+Studio crea un bloqueo local por proyecto. Un segundo proceso puede abrir otro
+proyecto, pero no puede obtener un segundo historial editable para el mismo
+manifiesto.
+
+## Estructura de la ventana
+
+- **Barra superior:** guardar, deshacer, rehacer, validar, ayuda, probar y
+  detener.
+- **Escena:** árbol buscable de habitaciones, instancias, barreras, triggers,
+  luces, definiciones, reglas y conversaciones.
+- **Documento central:** espacios Construir, Personajes, Lógica, Diálogos y
+  Probar.
+- **Inspector:** propiedades editables y conexiones navegables del elemento
+  seleccionado.
+- **Panel inferior:** recursos utilizados y problemas de validación.
+
+Los paneles AvalonDock se pueden redimensionar, agrupar y desacoplar a otro
+monitor. El layout se guarda en `%LOCALAPPDATA%\RetroForge\Studio`. Si un layout
+queda incómodo, usa **Ver > Restablecer espacio de trabajo**.
 
 ## Espacios de trabajo
 
-La barra superior separa cinco tareas para reducir densidad:
+### Construir
 
-- **Mapa:** planta, alturas, conexiones, puertas, ventanas y overlays de
-  triggers y luces.
-- **Entidades:** instancias, personajes y edición de animaciones.
-- **Lógica:** tarjetas CUANDO/SI/HACER, prioridad, ejecución única y cooldown.
-- **Diálogo:** nodos, ramas y modo de pausa.
-- **Prueba:** framebuffer 480×270, actores, pickups e iluminación real.
+La planta dibuja la geometría real leída por el motor. La rueda cambia el zoom,
+el botón central desplaza y un clic selecciona. Los overlays de zonas y luces
+se activan por separado para evitar que oculten el mapa. El inspector permite
+editar cotas, alturas, luz y materiales mediante unidades visibles.
 
-Los archivos de reglas y diálogos se escriben junto al mapa al guardar. Mientras
-hay cambios, Studio crea cada 30 segundos una copia en `.retroforge/autosave`.
-Al iniciar, **RECUPERAR** carga esa copia en memoria y la marca como pendiente;
-el proyecto real sólo cambia tras pulsar **GUARDAR**.
+La versión actual permite inspeccionar y ajustar los elementos existentes. Las
+herramientas de creación directa de polígonos, puertas, ventanas y escaleras se
+incorporarán sobre la misma API de comandos; Studio no muestra botones para
+operaciones que todavía no ejecuta.
 
-**? AYUDA** o F1 abre siete recorridos dentro de Studio: habitación/escalera,
-sprite/animación, conversación, drop de llave, llave/puerta/objetivo,
-perseguidora/checkpoint/jefe y exportación/guardado.
+### Personajes
 
-## Animaciones
+Cada tarjeta representa una **definición compartida**, no una instancia del
+nivel. Al seleccionarla aparecen sus clips de animación y sus fases de jefe.
+El inspector edita atlas, tamaño de celda, movimiento, percepción, vida, daño,
+invulnerabilidad y consecuencia de captura. En **Conexiones** se enumeran las
+instancias que usan esa definición.
 
-Cada personaje lista clips y fotogramas. Las flechas recorren ambos niveles; los
-botones **CELDA -**, **CELDA +** y **+ FRAME** permiten montar la secuencia y el
-slider cambia su duración. **+ PERSONAJE** duplica una definición como punto de
-partida. La hoja se divide mediante `cell_width` y `cell_height`; `directions`
-puede ser 1, 4 u 8. Las celdas de una dirección son contiguas y luego se repite
-la misma cantidad para la dirección siguiente.
+Los clips muestran número de fotogramas, direcciones y repetición. Cada
+fotograma conserva celda, duración y evento; el atlas completo no se usa como
+un único sprite durante la partida.
 
-El tiempo avanza en simulación, no en dibujo. Por eso pausar el juego congela
-la animación y dibujar dos veces nunca duplica un evento de ataque.
+### Lógica
+
+Las reglas se presentan como **CUANDO / SI / HACER**. Seleccionar una tarjeta
+expande su evento, origen, condiciones tipadas y acciones reales. El inspector
+edita prioridad, cooldown y ejecución única. Las conexiones permiten saltar
+entre una regla, su origen y los destinos que reciben acciones.
+
+### Diálogos
+
+La columna izquierda contiene los nodos. La vista previa muestra hablante,
+texto, opciones, condiciones y destinos. El inspector modifica el nodo
+seleccionado. Los destinos inexistentes se consideran un error de proyecto y
+deben corregirse antes de exportar.
+
+### Probar
+
+**Probar** guarda primero si hay cambios y abre `retro_player.exe` con el mismo
+manifiesto. Si el guardado falla, Player no se inicia. **Detener** cierra
+solamente el proceso iniciado por esa sesión de Studio; cerrar Player también
+reactiva automáticamente la edición.
+
+La simulación de Player no escribe posiciones, enemigos o puertas de vuelta en
+el documento. Guardar una partida y guardar el proyecto son operaciones
+distintas.
+
+## Historial y guardado
+
+Toda edición del inspector entra por `re_editor_set_property`. Antes de aplicar
+el cambio, C valida el valor y conserva un estado para deshacer. Una operación
+inválida no cambia la revisión ni el historial. Deshacer y rehacer actualizan
+el árbol, el mapa, el inspector y las conexiones desde la nueva revisión.
+
+El guardado explícito escribe los formatos del proyecto mediante las rutinas de
+`retro_gameplay`. El autosave transaccional completo y las herramientas visuales
+de creación siguen pendientes; por eso esta documentación no promete aún
+recuperación automática de cambios no guardados.
+
+## Archivos del editor
+
+| Archivo | Responsabilidad |
+|---|---|
+| `include/retro/editor.h` | Contrato C estable consumido por .NET. |
+| `src/editor/editor.c` | Documento autorizado, consultas, validación e historial. |
+| `src/studio/App.xaml.cs` | Inicio, resolución y bloqueo del proyecto. |
+| `src/studio/MainWindow.xaml` | Composición visual y espacios de trabajo. |
+| `src/studio/ViewModels/StudioViewModel.cs` | Selección, comandos, conexiones y Player. |
+| `src/studio/Models/EditorDocument.cs` | Dueño administrado del handle nativo. |
+| `src/studio/Native/EditorNative.cs` | Firmas de interoperabilidad C/C#. |
+| `src/studio/Themes/Graphite.xaml` | Colores, tipografía, foco y controles. |
 
 ## Exportación
 
-**EXPORTAR** guarda primero y ejecuta `tools/export-project.ps1`. El resultado
-incluye el reproductor genérico renombrado, `project.retro`, niveles, actores,
-arte, avisos y licencias. El ejecutable busca `project.retro` junto a sí mismo y resuelve
-todas las rutas desde allí, incluso si la carpeta contiene espacios.
+El empaquetado sigue disponible por línea de comandos mientras se completa su
+asistente visual:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/export-project.ps1 `
   -Project assets/studio/haunted.retro -Output dist/Games
 ```
 
-Las extensiones con acciones C nuevas sí necesitan compilar un reproductor
-propio; las acciones incluidas funcionan con el binario genérico.
-
-## Límite actual de varias ventanas
-
-`--workspace 0..4` permite abrir Studio directamente en un espacio concreto y
-es útil para capturas o una segunda vista de sólo lectura. La sincronización
-editable por named pipes y el bloqueo de un host único todavía no forman parte
-del ejecutable entregado. Abrir el mismo proyecto en dos procesos y guardar en
-ambos puede sobrescribir cambios; usa un único proceso editable.
+El resultado incluye Player, proyecto, recursos necesarios y licencias. Las
+rutas se resuelven desde el manifiesto, por lo que una carpeta con espacios no
+debe cambiar el funcionamiento.

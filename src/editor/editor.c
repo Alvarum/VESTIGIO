@@ -314,6 +314,112 @@ int re_editor_light(const ReEditorDocument *document, uint32_t index, ReEditorLi
     return 1;
 }
 
+static void value_text(ReValue value, char *out, size_t capacity) {
+    switch (value.kind) {
+    case RE_VALUE_BOOL:
+        (void)snprintf(out, capacity, "%s", value.as.boolean ? "true" : "false");
+        break;
+    case RE_VALUE_INT:
+        (void)snprintf(out, capacity, "%d", value.as.integer);
+        break;
+    case RE_VALUE_FLOAT:
+        (void)snprintf(out, capacity, "%.3g", (double)value.as.real);
+        break;
+    case RE_VALUE_TEXT:
+        (void)snprintf(out, capacity, "%s", value.as.text);
+        break;
+    default:
+        (void)snprintf(out, capacity, "-");
+        break;
+    }
+}
+
+int re_editor_animation(const ReEditorDocument *document, uint32_t character, uint32_t animation,
+                        ReEditorAnimationView *out) {
+    const ReProject *p = current_const(document);
+    if (!p || !out || character >= p->character_count ||
+        animation >= p->characters[character].animation_count)
+        return 0;
+    const ReAnimationClip *clip = &p->characters[character].animations[animation];
+    *out = (ReEditorAnimationView){.directions = clip->directions,
+                                   .frame_count = (uint32_t)clip->frame_count,
+                                   .loop = clip->loop};
+    (void)copy_text(out->name, sizeof(out->name), clip->name);
+    return 1;
+}
+
+int re_editor_animation_frame(const ReEditorDocument *document, uint32_t character,
+                              uint32_t animation, uint32_t frame, ReEditorAnimationFrameView *out) {
+    const ReProject *p = current_const(document);
+    if (!p || !out || character >= p->character_count ||
+        animation >= p->characters[character].animation_count ||
+        frame >= p->characters[character].animations[animation].frame_count)
+        return 0;
+    const ReAnimationFrame *value = &p->characters[character].animations[animation].frames[frame];
+    *out = (ReEditorAnimationFrameView){
+        .cell = value->cell, .duration = value->duration, .event = value->event};
+    return 1;
+}
+
+int re_editor_boss_phase(const ReEditorDocument *document, uint32_t character, uint32_t phase,
+                         ReEditorBossPhaseView *out) {
+    const ReProject *p = current_const(document);
+    if (!p || !out || character >= p->character_count ||
+        phase >= p->characters[character].phase_count)
+        return 0;
+    const ReBossPhase *value = &p->characters[character].phases[phase];
+    *out = (ReEditorBossPhaseView){.health_threshold = value->health_threshold,
+                                   .speed_multiplier = value->speed_multiplier,
+                                   .cooldown = value->cooldown,
+                                   .tracking = value->tracking,
+                                   .action = value->action,
+                                   .summon_limit = value->summon_limit};
+    (void)copy_text(out->name, sizeof(out->name), value->name);
+    return 1;
+}
+
+int re_editor_rule_condition(const ReEditorDocument *document, uint32_t rule, uint32_t condition,
+                             ReEditorRuleConditionView *out) {
+    const ReProject *p = current_const(document);
+    if (!p || !out || rule >= p->interactions.rule_count ||
+        condition >= p->interactions.rules[rule].condition_count)
+        return 0;
+    const ReRuleCondition *value = &p->interactions.rules[rule].conditions[condition];
+    *out = (ReEditorRuleConditionView){.kind = value->kind, .comparison = value->comparison};
+    (void)copy_text(out->key, sizeof(out->key), value->key);
+    value_text(value->value, out->value, sizeof(out->value));
+    return 1;
+}
+
+int re_editor_rule_action(const ReEditorDocument *document, uint32_t rule, uint32_t action,
+                          ReEditorRuleActionView *out) {
+    const ReProject *p = current_const(document);
+    if (!p || !out || rule >= p->interactions.rule_count ||
+        action >= p->interactions.rules[rule].action_count)
+        return 0;
+    const ReRuleAction *value = &p->interactions.rules[rule].actions[action];
+    *out = (ReEditorRuleActionView){.kind = value->kind};
+    (void)copy_text(out->target, sizeof(out->target), value->target);
+    value_text(value->value, out->value, sizeof(out->value));
+    return 1;
+}
+
+int re_editor_dialogue_choice(const ReEditorDocument *document, uint32_t dialogue, uint32_t choice,
+                              ReEditorDialogueChoiceView *out) {
+    const ReProject *p = current_const(document);
+    if (!p || !out || dialogue >= p->interactions.dialogue_count ||
+        choice >= p->interactions.dialogues[dialogue].choice_count)
+        return 0;
+    const ReDialogueChoice *value = &p->interactions.dialogues[dialogue].choices[choice];
+    *out = (ReEditorDialogueChoiceView){.condition_value = value->condition_value};
+    (void)copy_text(out->id, sizeof(out->id), value->id);
+    (void)copy_text(out->text, sizeof(out->text), value->text);
+    (void)copy_text(out->next, sizeof(out->next), value->next);
+    (void)copy_text(out->condition_variable, sizeof(out->condition_variable),
+                    value->condition_variable);
+    return 1;
+}
+
 static bool set_project(ReProject *p, const char *key, const char *value) {
     if (strcmp(key, "name") == 0)
         return copy_text(p->name, sizeof(p->name), value);

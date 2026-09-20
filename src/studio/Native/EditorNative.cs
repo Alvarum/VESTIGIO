@@ -119,6 +119,57 @@ public static class EditorNative
         public float X, Y, Z, Red, Green, Blue, Radius, Intensity, Yaw, Cone, Flicker;
     }
 
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct Animation
+    {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 24)] public string Name;
+        public uint Directions, FrameCount;
+        public int Loop;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct AnimationFrame
+    {
+        public uint Cell;
+        public float Duration;
+        public int Event;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct BossPhase
+    {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 24)] public string Name;
+        public float HealthThreshold, SpeedMultiplier, Cooldown;
+        public int Tracking, Action;
+        public uint SummonLimit;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct RuleCondition
+    {
+        public int Kind, Comparison;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string Key;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 96)] public string Value;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct RuleAction
+    {
+        public int Kind;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string Target;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 96)] public string Value;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct DialogueChoice
+    {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 24)] public string Id;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 96)] public string Text;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string Next;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string ConditionVariable;
+        public int ConditionValue;
+    }
+
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     internal static extern int re_editor_open(string manifest, out nint document, out Error error);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
@@ -141,6 +192,24 @@ public static class EditorNative
     internal static extern int re_editor_trigger(nint document, uint index, out Trigger trigger);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int re_editor_light(nint document, uint index, out Light light);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int re_editor_animation(nint document, uint character, uint animation,
+        out Animation value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int re_editor_animation_frame(nint document, uint character, uint animation,
+        uint frame, out AnimationFrame value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int re_editor_boss_phase(nint document, uint character, uint phase,
+        out BossPhase value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int re_editor_rule_condition(nint document, uint rule, uint condition,
+        out RuleCondition value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int re_editor_rule_action(nint document, uint rule, uint action,
+        out RuleAction value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int re_editor_dialogue_choice(nint document, uint dialogue, uint choice,
+        out DialogueChoice value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     internal static extern int re_editor_set_property(nint document, ObjectKind kind, uint index,
         string property, string value, out Error error);

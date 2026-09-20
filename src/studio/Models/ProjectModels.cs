@@ -89,6 +89,8 @@ public sealed record CharacterModel(uint Index, EditorNative.Character Native) :
     public string Subtitle => Native.PhaseCount > 0 ? $"Jefe · {Native.PhaseCount} fases" :
         Native.CaptureGameOver != 0 ? "Perseguidor · captura" : "Personaje";
     public string Sprite => Native.Sprite;
+    public IReadOnlyList<AnimationModel> Animations { get; init; } = [];
+    public IReadOnlyList<BossPhaseModel> Phases { get; init; } = [];
     public string? SpritePath(string root) => string.IsNullOrWhiteSpace(Sprite)
         ? null : Path.GetFullPath(Path.Combine(root, Sprite.Replace('/', Path.DirectorySeparatorChar)));
 }
@@ -108,6 +110,8 @@ public sealed record RuleModel(uint Index, EditorNative.Rule Native) : IEditorIt
     public string Subtitle => $"CUANDO {EventName} · {Native.ActionCount} acciones";
     public string EventName => Native.Event >= 0 && Native.Event < Events.Length ? Events[Native.Event] : "Evento";
     public string Source => Native.Source;
+    public IReadOnlyList<RuleConditionModel> Conditions { get; init; } = [];
+    public IReadOnlyList<RuleActionModel> Actions { get; init; } = [];
 }
 
 public sealed record DialogueModel(uint Index, EditorNative.Dialogue Native) : IEditorItem
@@ -118,6 +122,7 @@ public sealed record DialogueModel(uint Index, EditorNative.Dialogue Native) : I
     public string Subtitle => Native.Text;
     public string Text => Native.Text;
     public string Next => Native.Next;
+    public IReadOnlyList<DialogueChoiceModel> Choices { get; init; } = [];
 }
 
 public sealed record TriggerModel(uint Index, EditorNative.Trigger Native) : IEditorItem
@@ -147,3 +152,31 @@ public sealed class SceneGroup(string name, string symbol, IEnumerable<IEditorIt
 public sealed record InspectorField(string Label, string Property, string Value,
     string Suffix = "", bool IsBoolean = false, string Help = "");
 
+public sealed record AnimationFrameModel(uint Cell, float Duration, string EventName);
+public sealed record AnimationModel(string Name, uint Directions, bool Loop,
+    IReadOnlyList<AnimationFrameModel> Frames)
+{
+    public string Summary => $"{Frames.Count} fotogramas · {Directions} dirección{(Directions == 1 ? "" : "es")} · {(Loop ? "bucle" : "una vez")}";
+}
+
+public sealed record BossPhaseModel(string Name, float HealthThreshold, string Tracking,
+    string Action, float SpeedMultiplier, float Cooldown, uint SummonLimit)
+{
+    public string Summary => $"≤ {HealthThreshold:P0} de vida · {Tracking} · {Action}";
+}
+
+public sealed record RuleConditionModel(string Kind, string Key, string Comparison, string Value)
+{
+    public string Summary => $"{Kind}: {Key} {Comparison} {Value}";
+}
+
+public sealed record RuleActionModel(string Kind, string Target, string Value)
+{
+    public string Summary => string.IsNullOrWhiteSpace(Target) || Target == "-"
+        ? $"{Kind} {Value}" : $"{Kind} → {Target}  {Value}";
+}
+
+public sealed record DialogueChoiceModel(string Id, string Text, string Next, string Condition)
+{
+    public string Summary => string.IsNullOrWhiteSpace(Condition) ? $"→ {Next}" : $"SI {Condition}  → {Next}";
+}

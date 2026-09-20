@@ -8,13 +8,16 @@ namespace RetroForge.Studio;
 /// </summary>
 public partial class App : Application
 {
+    private ProjectLock? _projectLock;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         StudioLog.Write("Inicio de RetroForge Studio");
-        string manifest = ProjectLocator.Resolve(e.Args.FirstOrDefault());
+        string manifest = ProjectLocator.Resolve(e.Args);
         try
         {
+            _projectLock = ProjectLock.Acquire(manifest);
             var document = new EditorDocument(manifest);
             StudioLog.Write($"Documento abierto: {manifest}");
             MainWindow = new MainWindow(new StudioViewModel(document));
@@ -32,5 +35,11 @@ public partial class App : Application
                 MessageBoxImage.Error);
             Shutdown(1);
         }
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _projectLock?.Dispose();
+        base.OnExit(e);
     }
 }

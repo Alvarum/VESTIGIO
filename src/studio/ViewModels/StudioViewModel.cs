@@ -13,12 +13,13 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
     private string _status = "Proyecto cargado y validado";
     private string _searchText = string.Empty;
     private bool _isPlaying;
+    private Process? _playerProcess;
 
     public StudioViewModel(EditorDocument document)
     {
         Document = document;
         Document.Changed += DocumentChanged;
-        SaveCommand = new RelayCommand(Save);
+        SaveCommand = new RelayCommand(() => Save());
         UndoCommand = new RelayCommand(Undo, () => Document.Overview.CanUndo && !IsPlaying);
         RedoCommand = new RelayCommand(Redo, () => Document.Overview.CanRedo && !IsPlaying);
         PlayCommand = new RelayCommand(Play, () => !IsPlaying);
@@ -35,6 +36,7 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
     public ObservableCollection<InspectorField> InspectorFields { get; } = [];
     public ObservableCollection<string> Problems { get; } = [];
     public ObservableCollection<ResourceItem> Resources { get; } = [];
+    public ObservableCollection<ConnectionItem> Connections { get; } = [];
 
     public ICommand SaveCommand { get; }
     public RelayCommand UndoCommand { get; }
@@ -53,13 +55,24 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
             if (!Set(ref _selectedItem, value))
                 return;
             BuildInspector();
+            BuildConnections();
             Raise(nameof(SelectionTitle));
             Raise(nameof(SelectionSubtitle));
+            Raise(nameof(SelectedCharacter));
+            Raise(nameof(SelectedRule));
+            Raise(nameof(SelectedDialogue));
+            Raise(nameof(ConnectionsMessage));
         }
     }
 
     public string SelectionTitle => SelectedItem?.DisplayName ?? "Nada seleccionado";
     public string SelectionSubtitle => SelectedItem?.Subtitle ?? "Selecciona un elemento en la escena o en el mapa.";
+    public CharacterModel? SelectedCharacter => SelectedItem as CharacterModel;
+    public RuleModel? SelectedRule => SelectedItem as RuleModel;
+    public DialogueModel? SelectedDialogue => SelectedItem as DialogueModel;
+    public string ConnectionsMessage => Connections.Count == 0
+        ? "Este elemento todavía no tiene conexiones directas."
+        : $"{Connections.Count} conexión{(Connections.Count == 1 ? string.Empty : "es")} encontrada{(Connections.Count == 1 ? string.Empty : "s")}.";
 
     public string Workspace
     {
@@ -80,7 +93,11 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
     public string SearchText
     {
         get => _searchText;
-        set => Set(ref _searchText, value);
+        set
+        {
+            if (Set(ref _searchText, value))
+                BuildSceneGroups();
+        }
     }
 
     public bool IsPlaying
@@ -105,15 +122,7 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
 
     private void RefreshPresentation()
     {
-        SceneGroups.Clear();
-        SceneGroups.Add(new SceneGroup("Habitaciones", "▱", Document.Sectors));
-        SceneGroups.Add(new SceneGroup("Objetos y personajes", "◇", Document.Markers));
-        SceneGroups.Add(new SceneGroup("Puertas y ventanas", "□", Document.Barriers));
-        SceneGroups.Add(new SceneGroup("Zonas de evento", "⌁", Document.Triggers));
-        SceneGroups.Add(new SceneGroup("Iluminación", "✦", Document.Lights));
-        SceneGroups.Add(new SceneGroup("Definiciones", "◉", Document.Characters));
-        SceneGroups.Add(new SceneGroup("Reglas", "↳", Document.Rules));
-        SceneGroups.Add(new SceneGroup("Conversaciones", "☰", Document.Dialogues));
+        BuildSceneGroups();
 
         Resources.Clear();
         string[] known = Directory.Exists(Overview.Root)
@@ -138,12 +147,41 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
         if (SelectedItem is not null)
             SelectedItem = FindCurrent(SelectedItem);
         BuildInspector();
+        BuildConnections();
         Raise(nameof(Overview));
         Raise(nameof(DirtyMark));
         Raise(nameof(SelectionTitle));
         Raise(nameof(SelectionSubtitle));
+        Raise(nameof(SelectedCharacter));
+        Raise(nameof(SelectedRule));
+        Raise(nameof(SelectedDialogue));
+        Raise(nameof(ConnectionsMessage));
         UndoCommand.Notify();
         RedoCommand.Notify();
+    }
+
+    private void BuildSceneGroups()
+    {
+        SceneGroups.Clear();
+        AddGroup("Habitaciones", "▱", Document.Sectors);
+        AddGroup("Objetos y personajes", "◇", Document.Markers);
+        AddGroup("Puertas y ventanas", "□", Document.Barriers);
+        AddGroup("Zonas de evento", "⌁", Document.Triggers);
+        AddGroup("Iluminación", "✦", Document.Lights);
+        AddGroup("Definiciones", "◉", Document.Characters);
+        AddGroup("Reglas", "↳", Document.Rules);
+        AddGroup("Conversaciones", "☰", Document.Dialogues);
+    }
+
+    private void AddGroup<T>(string name, string symbol, IEnumerable<T> source) where T : IEditorItem
+    {
+        string query = SearchText.Trim();
+        IEditorItem[] matches = source.Where(item => string.IsNullOrEmpty(query) ||
+            item.DisplayName.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+            item.Subtitle.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+            item.Id.Contains(query, StringComparison.OrdinalIgnoreCase)).Cast<IEditorItem>().ToArray();
+        if (matches.Length > 0 || string.IsNullOrEmpty(query))
+            SceneGroups.Add(new SceneGroup(name, symbol, matches));
     }
 
     private IEditorItem? FindCurrent(IEditorItem old) => old.Kind switch
@@ -214,6 +252,70 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Construye enlaces navegables desde los identificadores usados por las
+    /// reglas. El autor ve así la relación entre una instancia, su definición
+    /// y la lógica que la activa sin tener que buscar cadenas manualmente.
+    /// </summary>
+    private void BuildConnections()
+    {
+        Connections.Clear();
+        if (SelectedItem is null)
+            return;
+
+        var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        void Add(string label, IEditorItem target)
+        {
+            string key = $"{target.Kind}:{target.Index}:{label}";
+            if (found.Add(key))
+                Connections.Add(new ConnectionItem(label, target));
+        }
+
+        if (SelectedItem is CharacterModel character)
+            foreach (MarkerModel marker in Document.Markers.Where(marker =>
+                         string.Equals(marker.Definition, character.Id, StringComparison.OrdinalIgnoreCase)))
+                Add($"Instancia colocada: {marker.DisplayName}", marker);
+
+        if (SelectedItem is RuleModel selectedRule)
+        {
+            IEditorItem? source = FindById(selectedRule.Source);
+            if (source is not null)
+                Add($"Origen: {source.DisplayName}", source);
+            foreach (RuleActionModel action in selectedRule.Actions)
+            {
+                IEditorItem? target = FindById(action.Target);
+                if (target is not null)
+                    Add($"{action.Kind}: {target.DisplayName}", target);
+            }
+        }
+        else
+        {
+            foreach (RuleModel rule in Document.Rules)
+            {
+                if (string.Equals(rule.Source, SelectedItem.Id, StringComparison.OrdinalIgnoreCase))
+                    Add($"Activa la regla: {rule.DisplayName}", rule);
+                if (rule.Actions.Any(action =>
+                        string.Equals(action.Target, SelectedItem.Id, StringComparison.OrdinalIgnoreCase)))
+                    Add($"Recibe acciones de: {rule.DisplayName}", rule);
+            }
+        }
+    }
+
+    private IEditorItem? FindById(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id) || id == "-")
+            return null;
+        return Document.Sectors.Cast<IEditorItem>()
+            .Concat(Document.Markers)
+            .Concat(Document.Barriers)
+            .Concat(Document.Characters)
+            .Concat(Document.Rules)
+            .Concat(Document.Dialogues)
+            .Concat(Document.Triggers)
+            .Concat(Document.Lights)
+            .FirstOrDefault(item => string.Equals(item.Id, id, StringComparison.OrdinalIgnoreCase));
+    }
+
     private void Add(string label, string property, object value, string suffix = "", string help = "")
     {
         string text = value switch
@@ -241,17 +343,19 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void Save()
+    private bool Save()
     {
         try
         {
             Document.Save();
             Status = "Todos los archivos del proyecto fueron guardados";
+            return true;
         }
         catch (Exception exception)
         {
             Status = exception.Message;
             MessageBox.Show(exception.Message, "No se pudo guardar", MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
         }
     }
 
@@ -269,31 +373,63 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
 
     private void Play()
     {
-        if (Overview.Dirty)
-            Save();
+        if (Overview.Dirty && !Save())
+            return;
         string player = Path.Combine(AppContext.BaseDirectory, "retro_player.exe");
         if (!File.Exists(player))
         {
             Status = "Compila retro_player para iniciar la prueba";
             return;
         }
-        Process.Start(new ProcessStartInfo(player)
+        _playerProcess = Process.Start(new ProcessStartInfo(player)
         {
             UseShellExecute = false,
             ArgumentList = { "--project", Overview.Manifest }
         });
+        if (_playerProcess is null)
+        {
+            Status = "Windows no pudo iniciar RetroForge Player";
+            return;
+        }
+        _playerProcess.EnableRaisingEvents = true;
+        _playerProcess.Exited += PlayerExited;
         IsPlaying = true;
         Status = "Prueba iniciada en Player con este proyecto";
     }
 
     private void Stop()
     {
+        Process? process = _playerProcess;
+        if (process is not null && !process.HasExited)
+        {
+            process.CloseMainWindow();
+            if (!process.WaitForExit(1200))
+                process.Kill(entireProcessTree: true);
+        }
+        FinishPlaytest("Prueba terminada; la edición vuelve a estar disponible");
+    }
+
+    private void PlayerExited(object? sender, EventArgs args) =>
+        Application.Current.Dispatcher.BeginInvoke(() =>
+            FinishPlaytest("Player se cerró; la edición vuelve a estar disponible"));
+
+    private void FinishPlaytest(string message)
+    {
+        if (_playerProcess is not null)
+        {
+            _playerProcess.Exited -= PlayerExited;
+            _playerProcess.Dispose();
+            _playerProcess = null;
+        }
         IsPlaying = false;
-        Status = "Edición reactivada; la prueba no modificó el documento";
+        Status = message;
     }
 
     public void Dispose()
     {
+        if (_playerProcess is not null && !_playerProcess.HasExited)
+            _playerProcess.CloseMainWindow();
+        _playerProcess?.Dispose();
         Document.Changed -= DocumentChanged;
         Document.Dispose();
     }
@@ -301,3 +437,4 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
 
 internal sealed record InspectorEdit(InspectorField Field, string Value);
 internal sealed record ResourceItem(string Name, string Kind, string Path);
+internal sealed record ConnectionItem(string Label, IEditorItem Target);

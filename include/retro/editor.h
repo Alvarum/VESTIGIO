@@ -96,6 +96,40 @@ typedef struct ReEditorLightView {
     float x, y, z, red, green, blue, radius, intensity, yaw, cone, flicker;
 } ReEditorLightView;
 
+typedef struct ReEditorAnimationView {
+    char name[24];
+    uint32_t directions, frame_count;
+    int loop;
+} ReEditorAnimationView;
+
+typedef struct ReEditorAnimationFrameView {
+    uint32_t cell;
+    float duration;
+    int event;
+} ReEditorAnimationFrameView;
+
+typedef struct ReEditorBossPhaseView {
+    char name[24];
+    float health_threshold, speed_multiplier, cooldown;
+    int tracking, action;
+    uint32_t summon_limit;
+} ReEditorBossPhaseView;
+
+typedef struct ReEditorRuleConditionView {
+    int kind, comparison;
+    char key[32], value[96];
+} ReEditorRuleConditionView;
+
+typedef struct ReEditorRuleActionView {
+    int kind;
+    char target[32], value[96];
+} ReEditorRuleActionView;
+
+typedef struct ReEditorDialogueChoiceView {
+    char id[24], text[96], next[32], condition_variable[32];
+    int condition_value;
+} ReEditorDialogueChoiceView;
+
 RE_EDITOR_API int re_editor_open(const char *manifest, ReEditorDocument **out, ReError *error);
 RE_EDITOR_API void re_editor_close(ReEditorDocument *document);
 RE_EDITOR_API int re_editor_overview(const ReEditorDocument *document, ReEditorOverview *out);
@@ -115,6 +149,19 @@ RE_EDITOR_API int re_editor_trigger(const ReEditorDocument *document, uint32_t i
                                     ReEditorTriggerView *out);
 RE_EDITOR_API int re_editor_light(const ReEditorDocument *document, uint32_t index,
                                   ReEditorLightView *out);
+RE_EDITOR_API int re_editor_animation(const ReEditorDocument *document, uint32_t character,
+                                      uint32_t animation, ReEditorAnimationView *out);
+RE_EDITOR_API int re_editor_animation_frame(const ReEditorDocument *document, uint32_t character,
+                                            uint32_t animation, uint32_t frame,
+                                            ReEditorAnimationFrameView *out);
+RE_EDITOR_API int re_editor_boss_phase(const ReEditorDocument *document, uint32_t character,
+                                       uint32_t phase, ReEditorBossPhaseView *out);
+RE_EDITOR_API int re_editor_rule_condition(const ReEditorDocument *document, uint32_t rule,
+                                           uint32_t condition, ReEditorRuleConditionView *out);
+RE_EDITOR_API int re_editor_rule_action(const ReEditorDocument *document, uint32_t rule,
+                                        uint32_t action, ReEditorRuleActionView *out);
+RE_EDITOR_API int re_editor_dialogue_choice(const ReEditorDocument *document, uint32_t dialogue,
+                                            uint32_t choice, ReEditorDialogueChoiceView *out);
 
 /* value usa la representación visible del inspector: números con punto como
  * separador y booleanos true/false. Una operación inválida no modifica ni el

@@ -140,7 +140,7 @@
             <TextBlock DockPanel.Dock="Left" Text="⌕" FontSize="18" Foreground="{StaticResource MutedBrush}" Margin="10,0,5,0" />
             <TextBox BorderThickness="0" Background="Transparent" MinHeight="32" Padding="3,5"
                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                     ToolTip="Buscar objetos y comandos" />
+                     ToolTip="Buscar habitaciones, objetos, personajes, reglas y diálogos" />
           </DockPanel>
         </Border>
         <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="8">
@@ -167,8 +167,8 @@
                     <RowDefinition Height="*" />
                   </Grid.RowDefinitions>
                   <StackPanel Margin="14,14,14,8">
-                    <TextBlock Style="{StaticResource EyebrowText}" Text="NIVEL ACTIVO" />
-                    <TextBlock Margin="0,4,0,0" FontSize="16" FontWeight="SemiBold" Text="Casa de la niebla" />
+                    <TextBlock Style="{StaticResource RfEyebrowText}" Text="NIVEL ACTIVO" />
+                    <TextBlock Margin="0,4,0,0" FontSize="16" FontWeight="SemiBold" Text="{Binding Overview.Name}" />
                   </StackPanel>
                   <TreeView Grid.Row="1" Margin="8" ItemsSource="{Binding SceneGroups}"
                             SelectedItemChanged="SceneTree_SelectedItemChanged"
@@ -205,8 +205,8 @@
                                        CanClose="False">
                   <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{StaticResource WindowBrush}">
                     <StackPanel Margin="28">
-                      <TextBlock Style="{StaticResource EyebrowText}" Text="DEFINICIONES COMPARTIDAS" />
-                      <TextBlock Style="{StaticResource HeadingText}" Margin="0,5,0,3" Text="Personajes y comportamiento" />
+                      <TextBlock Style="{StaticResource RfEyebrowText}" Text="DEFINICIONES COMPARTIDAS" />
+                      <TextBlock Style="{StaticResource RfHeadingText}" Margin="0,5,0,3" Text="Personajes y comportamiento" />
                       <TextBlock Foreground="{StaticResource MutedBrush}" Margin="0,0,0,22"
                                  Text="Edita una definición una sola vez; todas sus instancias la reutilizan." />
                       <ItemsControl ItemsSource="{Binding Document.Characters}">
@@ -220,7 +220,7 @@
                                     CommandParameter="{Binding}">
                               <Grid Margin="16">
                                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                                <TextBlock Style="{StaticResource EyebrowText}" Text="PERSONAJE" />
+                                <TextBlock Style="{StaticResource RfEyebrowText}" Text="PERSONAJE" />
                                 <StackPanel Grid.Row="1" Margin="0,8">
                                   <TextBlock FontSize="17" FontWeight="SemiBold" Text="{Binding DisplayName}" />
                                   <TextBlock Margin="0,3,0,0" Foreground="{StaticResource MutedBrush}" Text="{Binding Subtitle}" />
@@ -231,6 +231,47 @@
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
+                      <Border Margin="0,10,0,0" Padding="22" Background="{StaticResource PanelBrush}"
+                              BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10"
+                              Visibility="{Binding SelectedCharacter, Converter={x:Static local:PresenceConverter.Instance}}">
+                        <Grid>
+                          <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                          <StackPanel>
+                            <TextBlock Style="{StaticResource RfEyebrowText}" Text="ANIMACIONES" />
+                            <TextBlock Margin="0,5,0,12" FontSize="18" FontWeight="SemiBold"
+                                       Text="{Binding SelectedCharacter.DisplayName}" />
+                            <ItemsControl ItemsSource="{Binding SelectedCharacter.Animations}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                  <Border Margin="0,0,0,7" Padding="11" Background="{StaticResource SurfaceBrush}" CornerRadius="6">
+                                    <StackPanel>
+                                      <TextBlock FontWeight="SemiBold" Text="{Binding Name}" />
+                                      <TextBlock Margin="0,3,0,0" Foreground="{StaticResource MutedBrush}" Text="{Binding Summary}" />
+                                    </StackPanel>
+                                  </Border>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </StackPanel>
+                          <StackPanel Grid.Column="2">
+                            <TextBlock Style="{StaticResource RfEyebrowText}" Text="FASES Y COMPORTAMIENTO" />
+                            <TextBlock Margin="0,5,0,12" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+                                       Text="Selecciona el personaje para ajustar sus valores desde el inspector." />
+                            <ItemsControl ItemsSource="{Binding SelectedCharacter.Phases}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                  <Border Margin="0,0,0,7" Padding="11" Background="{StaticResource SurfaceBrush}" CornerRadius="6">
+                                    <StackPanel>
+                                      <TextBlock FontWeight="SemiBold" Text="{Binding Name}" />
+                                      <TextBlock Margin="0,3,0,0" Foreground="{StaticResource MutedBrush}" Text="{Binding Summary}" />
+                                    </StackPanel>
+                                  </Border>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </StackPanel>
+                        </Grid>
+                      </Border>
                     </StackPanel>
                   </ScrollViewer>
                 </layout:LayoutDocument>
@@ -238,8 +279,8 @@
                 <layout:LayoutDocument x:Name="LogicDocument" Title="Lógica" ContentId="LogicDocument" CanClose="False">
                   <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{StaticResource WindowBrush}">
                     <StackPanel Margin="28">
-                      <TextBlock Style="{StaticResource EyebrowText}" Text="CUANDO / SI / HACER" />
-                      <TextBlock Style="{StaticResource HeadingText}" Margin="0,5,0,3" Text="Reglas del juego" />
+                      <TextBlock Style="{StaticResource RfEyebrowText}" Text="CUANDO / SI / HACER" />
+                      <TextBlock Style="{StaticResource RfHeadingText}" Margin="0,5,0,3" Text="Reglas del juego" />
                       <TextBlock Foreground="{StaticResource MutedBrush}" Margin="0,0,0,22"
                                  Text="Cada tarjeta resume el disparador, sus condiciones y las consecuencias." />
                       <ItemsControl ItemsSource="{Binding Document.Rules}">
@@ -251,7 +292,7 @@
                               <Grid Margin="15,12">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <StackPanel>
-                                  <TextBlock Style="{StaticResource EyebrowText}" Text="CUANDO" />
+                                  <TextBlock Style="{StaticResource RfEyebrowText}" Text="CUANDO" />
                                   <TextBlock Margin="0,4,0,0" Foreground="{StaticResource AccentBrush}" Text="{Binding EventName}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1">
@@ -265,6 +306,42 @@
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
+                      <Border Margin="0,12,0,0" Padding="20" Background="{StaticResource PanelBrush}"
+                              BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10"
+                              Visibility="{Binding SelectedRule, Converter={x:Static local:PresenceConverter.Instance}}">
+                        <Grid>
+                          <Grid.ColumnDefinitions><ColumnDefinition Width="1.05*"/><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/><ColumnDefinition Width="18"/><ColumnDefinition Width="1.25*"/></Grid.ColumnDefinitions>
+                          <StackPanel>
+                            <TextBlock Style="{StaticResource RfEyebrowText}" Text="CUANDO" />
+                            <TextBlock Margin="0,8,0,0" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"
+                                       Text="{Binding SelectedRule.EventName}" />
+                            <TextBlock Margin="0,5,0,0" Foreground="{StaticResource MutedBrush}"
+                                       Text="{Binding SelectedRule.Source, StringFormat=Origen: {0}}" />
+                          </StackPanel>
+                          <StackPanel Grid.Column="2">
+                            <TextBlock Style="{StaticResource RfEyebrowText}" Text="SI" />
+                            <ItemsControl Margin="0,8,0,0" ItemsSource="{Binding SelectedRule.Conditions}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate><TextBlock Margin="0,0,0,6" TextWrapping="Wrap" Text="{Binding Summary}" /></DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Foreground="{StaticResource FaintBrush}" FontStyle="Italic" Text="Sin condiciones: siempre"
+                                       Visibility="{Binding SelectedRule.Conditions.Count, Converter={x:Static local:ZeroVisibilityConverter.Instance}}" />
+                          </StackPanel>
+                          <StackPanel Grid.Column="4">
+                            <TextBlock Style="{StaticResource RfEyebrowText}" Text="HACER" />
+                            <ItemsControl Margin="0,8,0,0" ItemsSource="{Binding SelectedRule.Actions}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                  <Border Margin="0,0,0,6" Padding="9,7" Background="{StaticResource SurfaceBrush}" CornerRadius="5">
+                                    <TextBlock TextWrapping="Wrap" Text="{Binding Summary}" />
+                                  </Border>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </StackPanel>
+                        </Grid>
+                      </Border>
                     </StackPanel>
                   </ScrollViewer>
                 </layout:LayoutDocument>
@@ -281,13 +358,27 @@
                     <Border Grid.Column="1" Margin="8,24,28,24" Padding="24" Background="{StaticResource PanelBrush}"
                             BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10">
                       <StackPanel>
-                        <TextBlock Style="{StaticResource EyebrowText}" Text="VISTA PREVIA DE CONVERSACIÓN" />
-                        <TextBlock Style="{StaticResource HeadingText}" Margin="0,8,0,18" Text="{Binding SelectionTitle}" />
+                        <TextBlock Style="{StaticResource RfEyebrowText}" Text="VISTA PREVIA DE CONVERSACIÓN" />
+                        <TextBlock Style="{StaticResource RfHeadingText}" Margin="0,8,0,18" Text="{Binding SelectedDialogue.DisplayName}" />
                         <TextBlock FontSize="17" TextWrapping="Wrap" TextTrimming="None" LineHeight="26"
-                                   Text="{Binding SelectionSubtitle}" />
-                        <Border Margin="0,24,0,0" Padding="14" CornerRadius="7" Background="#FF121518">
+                                   Text="{Binding SelectedDialogue.Text}" />
+                        <TextBlock Margin="0,26,0,9" Style="{StaticResource RfEyebrowText}" Text="OPCIONES DEL JUGADOR" />
+                        <ItemsControl ItemsSource="{Binding SelectedDialogue.Choices}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                              <Border Margin="0,0,0,8" Padding="13" CornerRadius="7" Background="{StaticResource SurfaceBrush}">
+                                <Grid>
+                                  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                  <TextBlock FontWeight="SemiBold" TextWrapping="Wrap" Text="{Binding Text}" />
+                                  <TextBlock Grid.Column="1" Margin="16,0,0,0" Foreground="{StaticResource AccentBrush}" Text="{Binding Summary}" />
+                                </Grid>
+                              </Border>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Border Margin="0,18,0,0" Padding="14" CornerRadius="7" Background="#FF121518">
                           <TextBlock Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
-                                     Text="Selecciona un nodo para editar hablante, texto, pausa y destino desde el inspector." />
+                                     Text="Edita el hablante, el texto, la pausa y el destino desde el inspector. Las opciones muestran sus condiciones y el nodo de destino." />
                         </Border>
                       </StackPanel>
                     </Border>
@@ -303,7 +394,7 @@
                         <Border Width="56" Height="56" CornerRadius="28" Background="{StaticResource AccentSoftBrush}" HorizontalAlignment="Left">
                           <TextBlock Text="▶" Foreground="{StaticResource AccentBrush}" FontSize="22" HorizontalAlignment="Center" />
                         </Border>
-                        <TextBlock Style="{StaticResource HeadingText}" Margin="0,20,0,8" Text="Probar el proyecto real" />
+                        <TextBlock Style="{StaticResource RfHeadingText}" Margin="0,20,0,8" Text="Probar el proyecto real" />
                         <TextBlock Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" TextTrimming="None" LineHeight="23"
                                    Text="Studio guarda y abre RetroForge Player con este mismo manifiesto. La prueba usa el renderer, las colisiones, los sprites y las reglas del juego exportado." />
                         <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
@@ -327,7 +418,7 @@
                           <Border Width="180" Margin="0,0,8,0" Padding="12" Background="{StaticResource SurfaceBrush}"
                                   BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="7">
                             <StackPanel>
-                              <TextBlock Style="{StaticResource EyebrowText}" Text="{Binding Kind}" />
+                              <TextBlock Style="{StaticResource RfEyebrowText}" Text="{Binding Kind}" />
                               <TextBlock Margin="0,5,0,0" FontWeight="SemiBold" Text="{Binding Name}" />
                               <TextBlock Margin="0,3,0,0" Foreground="{StaticResource FaintBrush}" FontSize="11" Text="{Binding Path}" />
                             </StackPanel>
@@ -347,7 +438,7 @@
               <layout:LayoutAnchorable Title="Inspector" ContentId="Inspector" CanClose="False" CanHide="False">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{StaticResource PanelBrush}">
                   <StackPanel Margin="18">
-                    <TextBlock Style="{StaticResource EyebrowText}" Text="SELECCIÓN" />
+                    <TextBlock Style="{StaticResource RfEyebrowText}" Text="SELECCIÓN" />
                     <TextBlock Margin="0,5,0,0" FontSize="18" FontWeight="SemiBold" Text="{Binding SelectionTitle}" />
                     <TextBlock Margin="0,4,0,18" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
                                TextTrimming="None" Text="{Binding SelectionSubtitle}" />
@@ -359,18 +450,40 @@
                               <TextBlock DockPanel.Dock="Right" Foreground="{StaticResource FaintBrush}" FontSize="11" Text="{Binding Suffix}" />
                               <TextBlock FontSize="12" Foreground="{StaticResource MutedBrush}" Text="{Binding Label}" />
                             </DockPanel>
-                            <TextBox Text="{Binding Value}" Tag="{Binding}" LostKeyboardFocus="InspectorField_LostKeyboardFocus"
-                                     KeyDown="InspectorField_KeyDown" ToolTip="{Binding Help}" />
+                            <Grid>
+                              <TextBox x:Name="ValueEditor" Text="{Binding Value}" Tag="{Binding}"
+                                       LostKeyboardFocus="InspectorField_LostKeyboardFocus"
+                                       KeyDown="InspectorField_KeyDown" ToolTip="{Binding Help}" />
+                              <CheckBox x:Name="BooleanEditor" Visibility="Collapsed" Tag="{Binding}"
+                                        Checked="InspectorBoolean_Changed" Unchecked="InspectorBoolean_Changed" />
+                            </Grid>
                           </StackPanel>
+                          <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsBoolean}" Value="True">
+                              <Setter TargetName="ValueEditor" Property="Visibility" Value="Collapsed" />
+                              <Setter TargetName="BooleanEditor" Property="Visibility" Value="Visible" />
+                              <Setter TargetName="BooleanEditor" Property="IsChecked"
+                                      Value="{Binding Value, Converter={x:Static local:StringBooleanConverter.Instance}}" />
+                            </DataTrigger>
+                          </DataTemplate.Triggers>
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
                     <Border Margin="0,10,0,0" Padding="12" Background="#FF121518" CornerRadius="7"
                             Visibility="{Binding SelectedItem, Converter={x:Static local:PresenceConverter.Instance}}">
                       <StackPanel>
-                        <TextBlock Style="{StaticResource EyebrowText}" Text="CONEXIONES" />
-                        <TextBlock Margin="0,5,0,0" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
-                                   Text="Las reglas relacionadas aparecerán aquí a medida que selecciones orígenes y destinos." />
+                        <TextBlock Style="{StaticResource RfEyebrowText}" Text="CONEXIONES" />
+                        <TextBlock Margin="0,5,0,8" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+                                   Text="{Binding ConnectionsMessage}" />
+                        <ItemsControl ItemsSource="{Binding Connections}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                              <Button Margin="0,0,0,5" Padding="8,6" HorizontalContentAlignment="Left"
+                                      Command="{Binding DataContext.SelectCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      CommandParameter="{Binding Target}" Content="{Binding Label}" />
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                       </StackPanel>
                     </Border>
                   </StackPanel>
