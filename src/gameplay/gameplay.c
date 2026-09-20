@@ -621,13 +621,16 @@ static void tick_one(ReGameplay *g, size_t index, ReGameplayInput input, float d
                                   .position = c->body.position});
         c->cooldown = phase ? phase->cooldown : 1;
         c->state = RE_CHARACTER_RECOVERY;
-    } else if (selected == RE_ACTION_SUMMON && phase && c->summoned < phase->summon_limit &&
-               c->cooldown <= 0) {
+    } else if (selected == RE_ACTION_SUMMON && phase && c->state == RE_CHARACTER_CHASE &&
+               horizontal <= d->attack_range && vertical_overlap && unobstructed &&
+               c->summoned < phase->summon_limit && c->cooldown <= 0) {
         emit(g, (ReGameplayEvent){
                     .kind = RE_EVENT_SUMMON, .source = id, .position = c->body.position});
         c->summoned++;
         c->cooldown = phase->cooldown;
-    } else if (selected == RE_ACTION_ACTIVATE && c->cooldown <= 0) {
+    } else if (selected == RE_ACTION_ACTIVATE && c->state == RE_CHARACTER_CHASE &&
+               horizontal <= d->attack_range && vertical_overlap && unobstructed &&
+               c->cooldown <= 0) {
         emit(g, (ReGameplayEvent){
                     .kind = RE_EVENT_ACTIVATE, .source = id, .position = c->body.position});
         c->cooldown = phase ? phase->cooldown : 1;

@@ -138,10 +138,12 @@ esa vista con `UnloadImage`, porque no posee los píxeles.
 | `assets/foundry.map` | Nivel de seis sectores con marcadores del FPS. |
 | `assets/lab.map` | Dos sectores y un marcador de cámara para el laboratorio. |
 | `assets/studio/haunted.retro` | Manifiesto del proyecto tutorial. |
-| `assets/studio/levels/house.map` | Casa v3 con dos plantas, rutas, puertas y ventana. |
+| `assets/studio/levels/house.map` | Casa v4 con planta baja, escalera, circuito de persecución, arena y pasarela segura. |
 | `assets/studio/logic/haunted.rules` | Showcase de triggers, drop, inventario, objetivos y luces. |
 | `assets/studio/dialogues/haunted.dialogue` | Conversación ramificada con consecuencias. |
 | `assets/studio/art/haunted-title.png` | Portada original adaptable del juego genérico. |
+| `assets/studio/art/characters/*.png` | Billboards transparentes originales de los cuatro personajes de Haunted. |
+| `assets/studio/README.md` | Recorrido jugable, sistemas demostrados, controles y procedencia del arte. |
 | `assets/studio/actors/kidnapper.actor` | Perseguidora con captura y dos seguimientos. |
 | `assets/studio/actors/warden.actor` | Jefe de dos fases y acciones combinables. |
 | `assets/README.md` | Procedencia y edición de recursos. |

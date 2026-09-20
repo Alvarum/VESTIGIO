@@ -1,35 +1,42 @@
-# Showcase de la capa CUANDO / SI / HACER.
+# Showcase Haunted: reglas CUANDO / SI / HACER completamente editables.
 retro_rules 1
 
 variable power bool false
+variable chase_started bool false
 variable boss_down bool false
 variable survivor_helped bool false
-item brass_key "Llave de latón" 1
+item brass_key "Llave de latÃ³n" 1
 item bandage "Vendaje" 3
 objective restore_power "Restablece la electricidad"
 objective find_key "Consigue la llave de la escalera"
 objective survive_chase "Escapa de la secuestradora"
-objective defeat_warden "Derrota al guardián"
+objective defeat_warden "Derrota al GuardiÃ¡n"
 objective escape "Abandona la casa"
 
 trigger foyer sector 0 true
-trigger chase_hall sector 11 true
-trigger upper_checkpoint box 21 2 2 1 1.5 1.5 true
-trigger final_exit box 23 8 2 1.5 1.5 1.5 false
+trigger upper_checkpoint box 23 4 1.5 1.8 2.5 1.5 true
+trigger chase_gallery sector 11 true
+trigger loop_safe sector 13 false
+trigger final_exit box 39 12 1.5 4 1.4 1.5 false
 
-light foyer_lamp point 2 2 2.4 1.0 0.65 0.35 5 1.3 true
-light survivor_lamp point -3 2 2.1 0.45 0.65 1.0 4 1.0 true
-light stair_emergency point 13 2 2.5 1.0 0.12 0.08 7 1.5 false
-light upper_warning point 22 2 4.1 0.9 0.08 0.05 6 1.4 false
+light foyer_lamp point 4 4 2.5 1.0 0.65 0.35 6 1.25 true
+light survivor_lamp point -4 4 2.2 0.45 0.65 1.0 5 1.0 true
+light patio_moon point 4 13 2.6 0.20 0.38 0.72 7 0.8 true
+light service_lamp point 11 4 2.4 0.95 0.46 0.18 5 1.0 true
+light stair_emergency point 17 4 3.2 1.0 0.12 0.08 8 1.4 false
+light chase_warning point 30 4 4.0 0.9 0.05 0.04 8 1.3 false
+light safe_lamp point 23 13 4.0 0.25 0.85 0.58 6 1.1 false
+light boss_core point 40 5 3.7 1.0 0.16 0.05 8 1.5 true
+light exit_lamp point 39 12 4.0 0.22 1.0 0.52 7 1.4 true
 
 rule begin level_start level 100 true 0
 action set_objective restore_power int 1
 action checkpoint - none -
-action message - text "Habla con Elena y encuentra el tablero eléctrico."
+action message - text "Habla con Elena y restaura la energia."
 end
 
 rule foyer_hint trigger_enter foyer 50 true 0
-action message - text "E interactúa. Clic dispara. F5 guarda y F9 carga."
+action message - text "WASD mueve, E interactua, clic dispara, Espacio salta."
 end
 
 rule talk_survivor interact survivor 100 false 0.4
@@ -38,8 +45,7 @@ end
 
 rule survivor_finished dialogue_finished survivor_thanks 80 true 0
 action set_variable survivor_helped bool true
-action give_item bandage int 1
-action message - text "Elena te entrega un vendaje."
+action message - text "Elena marco el tablero y la salida."
 end
 
 rule restore_power interact fuse_box 100 true 0
@@ -47,23 +53,30 @@ action set_variable power bool true
 action set_objective restore_power int 2
 action set_objective find_key int 1
 action light stair_emergency bool true
-action message - text "Energía restaurada. Algo se mueve tras el vidrio."
+action message - text "Energia activa. Rompe el vidrio con dos disparos."
+end
+
+rule medkit_collected item_picked medkit 120 true 0
+condition item bandage ge int 1
+action take_item bandage int 1
+action heal - int 35
+action message - text "Botiquin usado: recuperaste 35 de vida."
 end
 
 rule caretaker_drops_key entity_died caretaker-main 100 true 0
 action spawn_pickup brass_key int 1
-action message - text "El cuidador dejó caer una llave."
+action message - text "El cuidador dejo caer la llave."
 end
 
 rule key_collected item_picked * 90 true 0
 condition item brass_key ge int 1
 action set_objective find_key int 2
-action message - text "Llave adquirida. Regresa a la escalera."
+action message - text "Llave adquirida. Vuelve al ala de servicio."
 end
 
 rule stair_locked interact stair_panel 100 false 0.5
 condition item brass_key lt int 1
-action message - text "La cerradura requiere una llave de latón."
+action message - text "La cerradura requiere la llave de laton."
 end
 
 rule stair_unlock interact stair_panel 110 true 0
@@ -71,38 +84,59 @@ condition item brass_key ge int 1
 action take_item brass_key int 1
 action open_barrier stair-door none -
 action set_objective survive_chase int 1
-action message - text "La puerta se abre. No estás sola aquí arriba."
+action message - text "Escalera abierta. Arriba podras despistarla."
 end
 
-rule chase_begins trigger_enter chase_hall 100 true 0
-action light upper_warning bool true
-action message - text "La secuestradora te ha visto. Rompe su línea de visión."
-end
-
-rule checkpoint trigger_enter upper_checkpoint 100 true 0
+rule upper_checkpoint trigger_enter upper_checkpoint 100 true 0
 action checkpoint - none -
+action message - text "Checkpoint: antesala del circuito."
+end
+
+rule chase_begins trigger_enter chase_gallery 110 true 0
+action set_variable chase_started bool true
+action light chase_warning bool true
+action message - text "Te ha visto. Rodeala y alcanza la sala verde."
+end
+
+rule chase_escaped trigger_enter loop_safe 100 true 0
+condition variable chase_started eq bool true
+action close_barrier chase-south none -
+action close_barrier chase-east none -
+action light chase_warning bool false
+action light safe_lamp bool true
 action set_objective survive_chase int 2
 action set_objective defeat_warden int 1
-action message - text "Checkpoint: antesala del guardián."
+action checkpoint - none -
+action message - text "Compuertas cerradas. Activa el panel."
 end
 
 rule boss_panel interact boss_panel 100 true 0
-condition variable power eq bool true
+condition objective survive_chase eq int 2
 action open_barrier boss-door none -
-action message - text "La cámara del guardián queda abierta."
+action message - text "Acceso abierto. El Guardian cambia de ataque."
+end
+
+rule boss_panel_early interact boss_panel 90 false 0.5
+condition objective survive_chase lt int 2
+action message - text "Panel bloqueado durante la persecucion."
 end
 
 rule boss_dead entity_died warden-main 100 true 0
 action set_variable boss_down bool true
 action set_objective defeat_warden int 2
 action set_objective escape int 1
-action message - text "El guardián cayó. Busca la salida iluminada."
+action message - text "El Guardian cayo. Regresa a la salida verde."
 end
 
 rule ending trigger_enter final_exit 100 true 0
 condition variable boss_down eq bool true
 action set_objective escape int 2
 action win - none -
+end
+
+rule exit_locked trigger_enter final_exit 20 false 1
+condition variable boss_down eq bool false
+action message - text "La salida espera la derrota del Guardian."
 end
 
 rule caught captured * 200 false 0.5

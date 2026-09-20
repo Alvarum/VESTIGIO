@@ -158,13 +158,13 @@ static bool collisions(void) {
 /* Regresión de Haunted: el ático comparte exactamente la planta XY del
  * vestíbulo. Sus paredes comienzan a z=3 y no pueden bloquear un jugador de
  * 1,70 m que cruza el portal visible entre los sectores 0 y 1. */
-static bool haunted_stacked_portal(void) {
+static bool haunted_entry_portal(void) {
     char path[1024];
     CHECK(snprintf(path, sizeof(path), "%s/assets/studio/levels/house.map", RETRO_SOURCE_DIR) > 0);
     ReWorld world = {0};
     ReError error = {0};
     CHECK(re_world_load(path, &world, &error));
-    ReBody player = {.position = {5.35f, 2, 0},
+    ReBody player = {.position = {7.35f, 4, 0},
                      .radius = .26f,
                      .height = 1.7f,
                      .step_height = .3f,
@@ -172,11 +172,11 @@ static bool haunted_stacked_portal(void) {
                      .grounded = true};
     for (int tick = 0; tick < 20; tick++)
         re_body_move(&world, &player, re_v2(.08f, 0), RE_FIXED_DT, 18);
-    CHECK(player.position.x > 6.2f);
-    CHECK(player.sector == 1);
+    CHECK(player.position.x > 8.2f);
+    CHECK(player.sector == 3);
 
     /* Fuera del intervalo [0.2,0.8] la misma arista sí conserva pared. */
-    player = (ReBody){.position = {5.35f, .35f, 0},
+    player = (ReBody){.position = {7.35f, .45f, 0},
                       .radius = .26f,
                       .height = 1.7f,
                       .step_height = .3f,
@@ -184,7 +184,7 @@ static bool haunted_stacked_portal(void) {
                       .grounded = true};
     for (int tick = 0; tick < 20; tick++)
         re_body_move(&world, &player, re_v2(.08f, 0), RE_FIXED_DT, 18);
-    CHECK(player.position.x < 5.75f);
+    CHECK(player.position.x < 7.75f);
     CHECK(player.sector == 0);
     return true;
 }
@@ -494,34 +494,34 @@ static bool studio_world(void) {
     *project = (ReProject){0};
     ReError error = {0};
     CHECK(re_project_load(RETRO_SOURCE_DIR "/assets/studio/haunted.retro", project, &error));
-    CHECK(project->world.sector_count == 16 && project->world.barrier_count == 4);
+    CHECK(project->world.sector_count == 19 && project->world.barrier_count == 6);
     CHECK(project->character_count == 4 && project->format_version == 2);
     CHECK(project->interactions.rule_count >= 10 && project->interactions.dialogue_count == 3);
     /* Mismo XY, distinta Z: la consulta volumétrica distingue las dos plantas. */
     CHECK(re_world_sector_at(&project->world, re_v3(2, 2, .5f), -1) == 0);
-    CHECK(re_world_sector_at(&project->world, re_v3(2, 2, 3.5f), -1) == 12);
+    CHECK(re_world_sector_at(&project->world, re_v3(30, 12, 2), -1) == 12);
     CHECK(re_world_sector(&project->world, re_v2(2, 2), -1) == 0); /* API v1 estable. */
     ReTraceHit door =
-        re_world_trace(&project->world, re_v3(18, 2, 3), re_v3(1, 0, 0), 10, RE_BLOCK_SIGHT);
+        re_world_trace(&project->world, re_v3(12, 4, 1), re_v3(1, 0, 0), 10, RE_BLOCK_SIGHT);
     CHECK(door.barrier == 2 && NEAR(door.distance, 2));
     project->world.barriers[2].open_fraction = 1;
     CHECK(NEAR(re_world_trace(&project->world, re_v3(18, 2, 3), re_v3(1, 0, 0), 10, RE_BLOCK_SIGHT)
                    .distance,
-               8)); /* La pared exterior de sector 11 está en x=26. */
+               10));
     project->world.barriers[2].open_fraction = 0;
     project->world.barriers[2].kind = RE_BARRIER_WINDOW;
     project->world.barriers[2].blocks = RE_BLOCK_MOVEMENT | RE_BLOCK_PROJECTILE;
     project->world.barriers[2].health = 20;
     CHECK(NEAR(re_world_trace(&project->world, re_v3(18, 2, 3), re_v3(1, 0, 0), 10, RE_BLOCK_SIGHT)
                    .distance,
-               8));
+               10));
     CHECK(re_barrier_damage(&project->world, 2, 20));
     CHECK(project->world.barriers[2].open_fraction == 1 && project->world.barriers[2].blocks == 0);
-    CHECK(re_world_save_v2("roundtrip-v2.map", &project->world, &error));
+    CHECK(re_world_save_v4("roundtrip-v4-world.map", &project->world, &error));
     ReWorld loaded = {0};
-    CHECK(re_world_load("roundtrip-v2.map", &loaded, &error));
-    CHECK(loaded.sector_count == 16 && loaded.marker_count == 10 && loaded.format_version == 2);
-    CHECK(remove("roundtrip-v2.map") == 0);
+    CHECK(re_world_load("roundtrip-v4-world.map", &loaded, &error));
+    CHECK(loaded.sector_count == 19 && loaded.marker_count == 9 && loaded.format_version == 4);
+    CHECK(remove("roundtrip-v4-world.map") == 0);
     return true;
 }
 
@@ -533,21 +533,21 @@ static bool partial_portals(void) {
     CHECK(re_project_load(RETRO_SOURCE_DIR "/assets/studio/haunted.retro", project, &error));
     const ReSector *foyer = &project->world.sectors[0];
     CHECK(project->world.format_version == 4);
-    CHECK(NEAR(foyer->portal_start[1], .2f) && NEAR(foyer->portal_end[1], .8f));
+    CHECK(NEAR(foyer->portal_start[1], .25f) && NEAR(foyer->portal_end[1], .75f));
 
     /* La misma arista tiene mamposteria junto a la esquina y una abertura en
      * el centro. Esta prueba protege la coherencia de rayos y barreras. */
     ReTraceHit jamb =
         re_world_trace(&project->world, re_v3(2, .2f, 1), re_v3(1, 0, 0), 20, RE_BLOCK_SIGHT);
     ReTraceHit opening =
-        re_world_trace(&project->world, re_v3(2, 2, 1), re_v3(1, 0, 0), 20, RE_BLOCK_SIGHT);
-    CHECK(NEAR(jamb.distance, 4) && jamb.barrier == -1);
+        re_world_trace(&project->world, re_v3(2, 4, 1), re_v3(1, 0, 0), 20, RE_BLOCK_SIGHT);
+    CHECK(NEAR(jamb.distance, 6) && jamb.barrier == -1);
     CHECK(opening.distance > jamb.distance + 1);
 
     CHECK(re_world_save_v4("roundtrip-v4.map", &project->world, &error));
     ReWorld loaded = {0};
     CHECK(re_world_load("roundtrip-v4.map", &loaded, &error));
-    CHECK(loaded.format_version == 4 && NEAR(loaded.sectors[0].portal_start[1], .2f));
+    CHECK(loaded.format_version == 4 && NEAR(loaded.sectors[0].portal_start[1], .25f));
     CHECK(remove("roundtrip-v4.map") == 0);
     return true;
 }
@@ -564,13 +564,13 @@ static bool reusable_gameplay(void) {
     ReCharacterDef *kidnapper = &project->characters[0];
     kidnapper->tracking = RE_TRACK_OMNISCIENT;
     re_gameplay_init(gameplay, &project->world, project->characters, project->character_count, 42);
-    ReEntityId pursuer = re_gameplay_spawn(gameplay, 0, re_v3(7, 2, 0), RE_PI * 1.5f, 1);
+    ReEntityId pursuer = re_gameplay_spawn(gameplay, 0, re_v3(30, 13, 1.5f), RE_PI, 12);
     CHECK(pursuer.index != UINT16_MAX);
-    ReBody player = {.position = {23, 2, 2},
+    ReBody player = {.position = {23, 4, 1.5f},
                      .radius = .28f,
                      .height = 1.72f,
                      .step_height = .3f,
-                     .sector = 11,
+                     .sector = 10,
                      .grounded = true};
     bool captured = false;
     for (int tick = 0; tick < 1800 && !captured; tick++) {
@@ -585,25 +585,38 @@ static bool reusable_gameplay(void) {
             captured |= event.kind == RE_EVENT_CAPTURED;
     }
     ReCharacter *actor = re_gameplay_get(gameplay, pursuer);
-    CHECK(actor != nullptr && actor->body.sector == 11 && captured);
-    CHECK(project->world.barriers[2].open_fraction >= .95f); /* Abrió la puerta de escalera. */
+    CHECK(actor != nullptr && actor->body.sector == 10 && captured);
     /* Una captura sólo se emite una vez aunque se procesen más ticks. */
     re_gameplay_tick(gameplay, (ReGameplayInput){.player = &player, .player_eye = player.position},
                      RE_FIXED_DT);
     ReGameplayEvent event;
     CHECK(!re_gameplay_event(gameplay, &event));
-    ReEntityId boss = re_gameplay_spawn(gameplay, 1, re_v3(22, 2, 2), 0, 11);
-    CHECK(re_gameplay_damage(gameplay, boss, 170, 0));
+    player.position = re_v3(36, 5, 1.5f);
+    player.sector = 14;
+    ReEntityId boss = re_gameplay_spawn(gameplay, 1, re_v3(40, 5, 1.5f), -RE_PI * .5f, 14);
     re_gameplay_tick(gameplay, (ReGameplayInput){.player = &player, .player_eye = player.position},
                      RE_FIXED_DT);
-    bool phase = false;
+    bool summoned = false;
     while (re_gameplay_event(gameplay, &event))
-        phase |= event.kind == RE_EVENT_PHASE_CHANGED && event.source.index == boss.index;
-    CHECK(phase);
+        summoned |= event.kind == RE_EVENT_SUMMON && event.source.index == boss.index;
+    CHECK(summoned);
+    CHECK(re_gameplay_damage(gameplay, boss, 170, 0));
+    ReCharacter *damaged_boss = re_gameplay_get(gameplay, boss);
+    CHECK(damaged_boss != nullptr);
+    damaged_boss->cooldown = 0;
+    re_gameplay_tick(gameplay, (ReGameplayInput){.player = &player, .player_eye = player.position},
+                     RE_FIXED_DT);
+    bool phase = false, projectile = false;
+    while (re_gameplay_event(gameplay, &event))
+        if (event.source.index == boss.index) {
+            phase |= event.kind == RE_EVENT_PHASE_CHANGED;
+            projectile |= event.kind == RE_EVENT_PROJECTILE;
+        }
+    CHECK(phase && projectile);
     const ReCharacter *boss_actor = re_gameplay_get(gameplay, boss);
     CHECK(boss_actor != nullptr && boss_actor->phase == 1);
     int cell = re_character_animation_cell(kidnapper, actor, "chase", 0);
-    CHECK(cell >= 4);
+    CHECK(cell == 0);
     return true;
 }
 
@@ -614,10 +627,10 @@ static bool safe_door(void) {
     ReError error = {0};
     CHECK(re_project_load(RETRO_SOURCE_DIR "/assets/studio/haunted.retro", project, &error));
     project->world.barriers[2].open_fraction = 1;
-    ReBody body = {.position = {20, 2, 2}, .radius = .3f, .height = 1.7f, .sector = 10};
+    ReBody body = {.position = {14, 4, 0}, .radius = .3f, .height = 1.7f, .sector = 3};
     CHECK(!re_barrier_tick(&project->world, 2, 0, 2, RE_FIXED_DT, &body, 1));
     CHECK(project->world.barriers[2].open_fraction == 1);
-    body.position.x = 18;
+    body.position.x = 12;
     for (int i = 0; i < 60; i++)
         (void)re_barrier_tick(&project->world, 2, 0, 2, RE_FIXED_DT, &body, 1);
     CHECK(project->world.barriers[2].open_fraction < .01f);
@@ -662,20 +675,23 @@ static bool interaction_journey(void) {
     CHECK(strcmp(re_interaction_dialogue(runtime)->id, "survivor_thanks") == 0);
     CHECK(re_interaction_choose(runtime, 0));
     re_interaction_tick(runtime, &player, RE_FIXED_DT);
-    CHECK(re_interaction_item_count(runtime, "bandage") == 1);
+    const ReValue *helped = re_interaction_variable(runtime, "survivor_helped");
+    CHECK(helped && helped->kind == RE_VALUE_BOOL && helped->as.boolean);
+    CHECK(re_interaction_item_count(runtime, "bandage") == 0);
 
     CHECK(logic_event(runtime, RE_LOGIC_INTERACT, "fuse_box", player.position));
     re_interaction_tick(runtime, &player, RE_FIXED_DT);
     const ReValue *power = re_interaction_variable(runtime, "power");
     CHECK(power && power->kind == RE_VALUE_BOOL && power->as.boolean);
     CHECK(re_interaction_objective(runtime, "restore_power") == RE_OBJECTIVE_COMPLETE);
-    CHECK(runtime->state.light_enabled[2]);
+    CHECK(runtime->state.light_enabled[4]);
 
-    player.position = re_v3(3, 7, 0);
-    player.sector = 13;
+    player.position = re_v3(4, 13, 0);
+    player.sector = 2;
     CHECK(logic_event(runtime, RE_LOGIC_ENTITY_DIED, "caretaker-main", player.position));
     re_interaction_tick(runtime, &player, RE_FIXED_DT);
     CHECK(runtime->state.pickup_count == 2 && runtime->state.pickups[1].active);
+    CHECK(re_interaction_item_count(runtime, "brass_key") == 0);
     re_interaction_tick(runtime, &player, RE_FIXED_DT);
     CHECK(re_interaction_item_count(runtime, "brass_key") == 1);
     CHECK(re_interaction_objective(runtime, "find_key") == RE_OBJECTIVE_COMPLETE);
@@ -690,7 +706,7 @@ static bool interaction_journey(void) {
     runtime->state.player_health = 1;
     player.position = re_v3(0, 0, 0);
     CHECK(re_save_read("interaction-slot.rfs", project->id, runtime, &player, &error));
-    CHECK(runtime->state.player_health == 63 && NEAR(player.position.x, 3) &&
+    CHECK(runtime->state.player_health == 63 && NEAR(player.position.x, 4) &&
           project->world.barriers[2].open_fraction == 1);
     FILE *corrupt = fopen("interaction-slot.rfs", "r+b");
     CHECK(corrupt != nullptr);
@@ -725,6 +741,74 @@ static bool interaction_journey(void) {
           re_interaction_item_count(runtime, "brass_key") == 0);
     CHECK(runtime->state.pickup_count == 1 && !runtime->state.game_over &&
           runtime->state.event_count == 0);
+    return true;
+}
+
+/* Recorre el arco completo de Haunted sin ventana. No sustituye una partida
+ * humana: protege la
+ * conexiÃ³n entre objetivo, llave, persecuciÃ³n, compuertas,
+ * jefe y salida para que el showcase
+ * nunca vuelva a quedar bloqueado. */
+static bool haunted_showcase_journey(void) {
+    static ReProject project;
+    static ReGameplay gameplay;
+    static ReInteractionRuntime runtime;
+    ReError error = {0};
+    project = (ReProject){0};
+    gameplay = (ReGameplay){0};
+    runtime = (ReInteractionRuntime){0};
+    CHECK(re_project_load(RETRO_SOURCE_DIR "/assets/studio/haunted.retro", &project, &error));
+    re_gameplay_init(&gameplay, &project.world, project.characters, project.character_count, 19);
+    ReBody player = {.position = {4, 4, 0},
+                     .radius = .28f,
+                     .height = 1.72f,
+                     .step_height = .3f,
+                     .sector = 0,
+                     .grounded = true};
+    re_interaction_init(&runtime, &project.interactions, &project.world, &gameplay, 100, 3);
+    re_interaction_tick(&runtime, &player, RE_FIXED_DT);
+
+    CHECK(logic_event(&runtime, RE_LOGIC_INTERACT, "fuse_box", player.position));
+    re_interaction_tick(&runtime, &player, RE_FIXED_DT);
+    player.position = re_v3(4, 13, 0);
+    player.sector = 2;
+    CHECK(logic_event(&runtime, RE_LOGIC_ENTITY_DIED, "caretaker-main", player.position));
+    re_interaction_tick(&runtime, &player, RE_FIXED_DT);
+    re_interaction_tick(&runtime, &player, RE_FIXED_DT);
+    CHECK(re_interaction_item_count(&runtime, "brass_key") == 1);
+    CHECK(logic_event(&runtime, RE_LOGIC_INTERACT, "stair_panel", player.position));
+    re_interaction_tick(&runtime, &player, RE_FIXED_DT);
+    CHECK(project.world.barriers[2].open_fraction == 1);
+
+    player.position = re_v3(23, 4, 1.5f);
+    player.sector = 10;
+    re_interaction_tick(&runtime, &player, RE_FIXED_DT);
+    player.position = re_v3(30, 4, 1.5f);
+    player.sector = 11;
+    re_interaction_tick(&runtime, &player, RE_FIXED_DT);
+    const ReValue *chase = re_interaction_variable(&runtime, "chase_started");
+    CHECK(chase && chase->kind == RE_VALUE_BOOL && chase->as.boolean);
+
+    player.position = re_v3(23, 13, 1.5f);
+    player.sector = 13;
+    re_interaction_tick(&runtime, &player, RE_FIXED_DT);
+    CHECK(re_interaction_objective(&runtime, "survive_chase") == RE_OBJECTIVE_COMPLETE);
+    CHECK(project.world.barriers[3].open_fraction == 0 &&
+          project.world.barriers[4].open_fraction == 0);
+    CHECK(runtime.state.checkpoint_valid && runtime.state.checkpoint_player.sector == 13);
+
+    CHECK(logic_event(&runtime, RE_LOGIC_INTERACT, "boss_panel", player.position));
+    re_interaction_tick(&runtime, &player, RE_FIXED_DT);
+    CHECK(project.world.barriers[5].open_fraction == 1);
+    CHECK(logic_event(&runtime, RE_LOGIC_ENTITY_DIED, "warden-main", re_v3(40, 5, 1.5f)));
+    re_interaction_tick(&runtime, &player, RE_FIXED_DT);
+    CHECK(re_interaction_objective(&runtime, "escape") == RE_OBJECTIVE_ACTIVE);
+
+    player.position = re_v3(39, 12, 1.5f);
+    player.sector = 15;
+    re_interaction_tick(&runtime, &player, RE_FIXED_DT);
+    CHECK(runtime.state.won &&
+          re_interaction_objective(&runtime, "escape") == RE_OBJECTIVE_COMPLETE);
     return true;
 }
 
@@ -917,7 +1001,7 @@ int main(void) {
                  {"input_clock", input_clock},
                  {"maps", maps},
                  {"collisions", collisions},
-                 {"haunted_stacked_portal", haunted_stacked_portal},
+                 {"haunted_entry_portal", haunted_entry_portal},
                  {"haunted_all_portals", haunted_all_portals},
                  {"rendering", rendering},
                  {"renderer_contracts", renderer_contracts},
@@ -930,6 +1014,7 @@ int main(void) {
                  {"reusable_gameplay", reusable_gameplay},
                  {"safe_door", safe_door},
                  {"interaction_journey", interaction_journey},
+                 {"haunted_showcase_journey", haunted_showcase_journey},
                  {"rule_cycle_guard", rule_cycle_guard},
                  {"editor_document", editor_document},
                  {"visual_authoring", visual_authoring}};

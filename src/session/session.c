@@ -7,9 +7,23 @@
 #include "retro/character_art.h"
 #include "retro/platform.h"
 #include <errno.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+enum { RE_SESSION_MAX_PROJECTILES = 64 };
+
+/* Los proyectiles son estado transitorio de la sesiÃ³n. Se reservan junto con
+ * el resto del juego para que disparar no asigne memoria dentro del tick. */
+typedef struct ReSessionProjectile {
+    bool active;
+    ReVec3 position;
+    ReVec3 velocity;
+    float radius;
+    float life;
+    int damage;
+} ReSessionProjectile;
 
 struct ReGameSession {
     ReRenderer renderer;
@@ -24,7 +38,9 @@ struct ReGameSession {
     ReTexture materials[RE_MAX_MATERIALS];
     ReTexture sprites[RE_MAX_CHARACTER_DEFS];
     ReTexture pickup_sprites[2]; /* 0: botiquin; 1: llave/objeto de mision. */
+    ReTexture projectile_sprite;
     ReTexture title_art;
+    ReSessionProjectile projectiles[RE_SESSION_MAX_PROJECTILES];
     char actor_ids[RE_MAX_ENTITIES][32];
     /* 0..2: manuales; 3: autosave; 4: guardado rápido. */
     char save_paths[5][1024];
@@ -33,7 +49,8 @@ struct ReGameSession {
     ReInteractionState initial_interaction;
     ReBody initial_player;
     ReCamera initial_camera;
-    float elapsed;
+    float elapsed, weapon_cooldown, weapon_flash, damage_flash;
+    unsigned int summon_serial;
     float frame_ms;
     int menu_selection, pause_selection, save_slot, dialogue_selection;
     bool title, paused, quit, show_stats;
@@ -90,10 +107,29 @@ static void create_pickup_sprites(PlayerApp *app) {
     }
 }
 
+static bool create_projectile_sprite(PlayerApp *app) {
+    if (!re_texture_init(&app->projectile_sprite, 12, 12))
+        return false;
+    for (int y = 0; y < 12; y++)
+        for (int x = 0; x < 12; x++) {
+            int dx = x - 5, dy = y - 5;
+            int radius = dx * dx + dy * dy;
+            if (radius <= 30) {
+                RePixel color = radius <= 5    ? re_rgba(255, 244, 184, 255)
+                                : radius <= 14 ? re_rgba(255, 133, 48, 255)
+                                               : re_rgba(176, 32, 28, 210);
+                app->projectile_sprite.pixels[(size_t)y * 12u + (size_t)x] = color;
+            }
+        }
+    return true;
+}
+
 static bool app_init(PlayerApp *app, const ReProject *project) {
     app->project = *project;
     colors(app);
     create_pickup_sprites(app);
+    if (!create_projectile_sprite(app))
+        return false;
     for (size_t i = 0; i < app->project.character_count; i++) {
         char path[RE_PROJECT_PATH * 2];
         if (strcmp(app->project.characters[i].sprite, "none") == 0 ||
@@ -169,6 +205,11 @@ static void reset_game(PlayerApp *app) {
     app->camera = app->initial_camera;
     app->previous_camera = app->camera;
     app->elapsed = 0;
+    app->weapon_cooldown = 0;
+    app->weapon_flash = 0;
+    app->damage_flash = 0;
+    app->summon_serial = 0;
+    memset(app->projectiles, 0, sizeof(app->projectiles));
     app->dialogue_selection = 0;
     app->paused = false;
 }
@@ -249,6 +290,150 @@ static void shoot(PlayerApp *app) {
         (void)re_barrier_damage(&app->project.world, (size_t)obstacle.barrier, 25);
 }
 
+static void damage_player(PlayerApp *app, int damage) {
+    if (damage <= 0 || app->interaction.state.player_health <= 0)
+        return;
+    app->interaction.state.player_health = app->interaction.state.player_health > damage
+                                               ? app->interaction.state.player_health - damage
+                                               : 0;
+    app->damage_flash = .22f;
+    if (!app->interaction.state.player_health)
+        (void)re_interaction_emit(&app->interaction,
+                                  (ReLogicEvent){.kind = RE_LOGIC_PLAYER_DIED, .source = "player"});
+}
+
+static void spawn_enemy_projectile(PlayerApp *app, const ReGameplayEvent *event) {
+    ReCharacter *source = re_gameplay_get(&app->gameplay, event->source);
+    if (!source)
+        return;
+    const ReCharacterDef *definition = &app->project.characters[source->definition];
+    ReSessionProjectile *projectile = nullptr;
+    for (size_t i = 0; i < RE_SESSION_MAX_PROJECTILES; i++)
+        if (!app->projectiles[i].active) {
+            projectile = &app->projectiles[i];
+            break;
+        }
+    if (!projectile)
+        return;
+
+    ReVec3 origin = re_add3(source->body.position, re_v3(0, 0, definition->height * .62f));
+    ReVec3 target = re_add3(app->player.position, re_v3(0, 0, app->player.height * .52f));
+    ReVec3 direction = re_sub3(target, origin);
+    float length = sqrtf(re_dot3(direction, direction));
+    if (length < RE_EPSILON)
+        return;
+    direction = re_scale3(direction, 1.0f / length);
+    *projectile = (ReSessionProjectile){.active = true,
+                                        .position = origin,
+                                        .velocity = re_scale3(direction, 8.5f),
+                                        .radius = .14f,
+                                        .life = 4,
+                                        .damage = event->value};
+}
+
+static bool projectile_hits_player(ReVec3 start, ReVec3 end, const ReBody *player, float radius,
+                                   float *fraction) {
+    ReVec3 delta = re_sub3(end, start);
+    ReVec2 horizontal = re_v2(delta.x, delta.y);
+    ReVec2 to_player = re_v2(player->position.x - start.x, player->position.y - start.y);
+    float length_squared = re_dot2(horizontal, horizontal);
+    float t = length_squared > RE_EPSILON
+                  ? re_clamp(re_dot2(to_player, horizontal) / length_squared, 0, 1)
+                  : 0;
+    ReVec3 closest = re_add3(start, re_scale3(delta, t));
+    float dx = closest.x - player->position.x, dy = closest.y - player->position.y;
+    float combined = player->radius + radius;
+    bool vertical = closest.z >= player->position.z - radius &&
+                    closest.z <= player->position.z + player->height + radius;
+    if (vertical && dx * dx + dy * dy <= combined * combined) {
+        *fraction = t;
+        return true;
+    }
+    return false;
+}
+
+static void tick_projectiles(PlayerApp *app, float dt) {
+    for (size_t i = 0; i < RE_SESSION_MAX_PROJECTILES; i++) {
+        ReSessionProjectile *projectile = &app->projectiles[i];
+        if (!projectile->active)
+            continue;
+        ReVec3 step = re_scale3(projectile->velocity, dt);
+        float distance = sqrtf(re_dot3(step, step));
+        ReVec3 direction =
+            distance > RE_EPSILON ? re_scale3(step, 1.0f / distance) : re_v3(0, 0, 0);
+        ReTraceHit wall = re_world_trace(&app->project.world, projectile->position, direction,
+                                         distance, RE_BLOCK_PROJECTILE);
+        ReVec3 end = re_add3(projectile->position, step);
+        float player_fraction = 0;
+        bool player_hit = projectile_hits_player(projectile->position, end, &app->player,
+                                                 projectile->radius, &player_fraction);
+        if (player_hit && player_fraction * distance <= wall.distance + .001f) {
+            damage_player(app, projectile->damage);
+            projectile->active = false;
+            continue;
+        }
+        if (wall.distance < distance - .001f) {
+            projectile->active = false;
+            continue;
+        }
+        projectile->position = end;
+        projectile->life -= dt;
+        if (projectile->life <= 0)
+            projectile->active = false;
+    }
+}
+
+static bool spawn_minion(PlayerApp *app, const ReGameplayEvent *event) {
+    ReCharacter *source = re_gameplay_get(&app->gameplay, event->source);
+    if (!source)
+        return false;
+    size_t definition_index = app->project.character_count;
+    for (size_t i = 0; i < app->project.character_count; i++)
+        if (strcmp(app->project.characters[i].id, "caretaker") == 0) {
+            definition_index = i;
+            break;
+        }
+    if (definition_index == app->project.character_count)
+        return false;
+
+    static const ReVec2 offsets[] = {{1.4f, 0},    {-1.4f, 0},    {0, 1.4f},     {0, -1.4f},
+                                     {1.2f, 1.2f}, {-1.2f, 1.2f}, {1.2f, -1.2f}, {-1.2f, -1.2f}};
+    for (size_t candidate = 0; candidate < sizeof(offsets) / sizeof(offsets[0]); candidate++) {
+        ReVec3 position =
+            re_add3(source->body.position, re_v3(offsets[candidate].x, offsets[candidate].y, .05f));
+        int sector = re_world_sector_at(&app->project.world, position, source->body.sector);
+        if (sector < 0)
+            continue;
+        position.z = app->project.world.sectors[sector].floor;
+        ReVec2 player_delta = re_sub2(re_v2(position.x, position.y),
+                                      re_v2(app->player.position.x, app->player.position.y));
+        if (re_length2(player_delta) < 1.2f)
+            continue;
+        bool occupied = false;
+        for (size_t i = 0; i < RE_MAX_ENTITIES; i++) {
+            const ReCharacter *actor = &app->gameplay.characters[i];
+            if (!actor->active || actor->state == RE_CHARACTER_DEAD)
+                continue;
+            ReVec2 delta = re_sub2(re_v2(position.x, position.y),
+                                   re_v2(actor->body.position.x, actor->body.position.y));
+            if (re_length2(delta) < .9f) {
+                occupied = true;
+                break;
+            }
+        }
+        if (occupied)
+            continue;
+        ReEntityId spawned =
+            re_gameplay_spawn(&app->gameplay, definition_index, position, source->yaw, sector);
+        if (spawned.index == UINT16_MAX)
+            return false;
+        (void)snprintf(app->actor_ids[spawned.index], sizeof(app->actor_ids[spawned.index]),
+                       "warden-minion-%u", ++app->summon_serial);
+        return true;
+    }
+    return false;
+}
+
 static void save_game(PlayerApp *app, size_t index, const char *label) {
     if (app->preview)
         return; /* Una prueba nunca escribe partidas del usuario. */
@@ -288,6 +473,7 @@ static bool load_game(PlayerApp *app, size_t index) {
     }
     app->camera.position = re_add3(app->player.position, re_v3(0, 0, 1.55f));
     app->previous_camera = app->camera;
+    memset(app->projectiles, 0, sizeof(app->projectiles));
     (void)snprintf(app->interaction.state.message, sizeof(app->interaction.state.message),
                    "Partida cargada");
     app->interaction.state.message_time = 3;
@@ -351,6 +537,8 @@ static void tick(PlayerApp *app, ReInput input) {
                        app->interaction.state.checkpoint_valid) {
                 re_interaction_checkpoint_restore(&app->interaction, &app->player);
                 app->camera.position = re_add3(app->player.position, re_v3(0, 0, 1.55f));
+                app->previous_camera = app->camera;
+                memset(app->projectiles, 0, sizeof(app->projectiles));
             } else if (app->project.death_policy == RE_DEATH_LIMITED_LIVES &&
                        app->interaction.state.player_lives > 0 &&
                        app->interaction.state.checkpoint_valid) {
@@ -358,6 +546,8 @@ static void tick(PlayerApp *app, ReInput input) {
                 re_interaction_checkpoint_restore(&app->interaction, &app->player);
                 app->interaction.state.player_lives = lives;
                 app->camera.position = re_add3(app->player.position, re_v3(0, 0, 1.55f));
+                app->previous_camera = app->camera;
+                memset(app->projectiles, 0, sizeof(app->projectiles));
             } else {
                 reset_game(app);
                 app->title = true;
@@ -414,6 +604,9 @@ static void tick(PlayerApp *app, ReInput input) {
         (void)load_game(app, 4);
     if (app->interaction.state.dialogue_pauses)
         return;
+    app->weapon_cooldown = fmaxf(0, app->weapon_cooldown - RE_FIXED_DT);
+    app->weapon_flash = fmaxf(0, app->weapon_flash - RE_FIXED_DT);
+    app->damage_flash = fmaxf(0, app->damage_flash - RE_FIXED_DT);
     app->previous_camera = app->camera;
     app->camera.yaw += input.look.x * .0025f;
     app->camera.pitch = re_clamp(app->camera.pitch - input.look.y * .0025f, -85 * RE_PI / 180.0f,
@@ -431,8 +624,11 @@ static void tick(PlayerApp *app, ReInput input) {
     app->camera.position = re_add3(app->player.position, re_v3(0, 0, 1.55f));
     if (input.pressed & RE_INTERACT)
         interact(app);
-    if (input.pressed & RE_PRIMARY)
+    if (((input.pressed | input.held) & RE_PRIMARY) && app->weapon_cooldown <= 0) {
         shoot(app);
+        app->weapon_cooldown = .24f;
+        app->weapon_flash = .07f;
+    }
     re_gameplay_tick(&app->gameplay,
                      (ReGameplayInput){.player = &app->player,
                                        .player_eye = app->camera.position,
@@ -447,17 +643,19 @@ static void tick(PlayerApp *app, ReInput input) {
                                app->actor_ids[event.source.index]);
             (void)re_interaction_emit(&app->interaction, logic);
         }
-        if (event.kind == RE_EVENT_PLAYER_DAMAGE) {
-            app->interaction.state.player_health =
-                app->interaction.state.player_health > event.value
-                    ? app->interaction.state.player_health - event.value
-                    : 0;
-            if (!app->interaction.state.player_health)
-                (void)re_interaction_emit(
-                    &app->interaction,
-                    (ReLogicEvent){.kind = RE_LOGIC_PLAYER_DIED, .source = "player"});
+        if (event.kind == RE_EVENT_PLAYER_DAMAGE)
+            damage_player(app, event.value);
+        if (event.kind == RE_EVENT_PROJECTILE)
+            spawn_enemy_projectile(app, &event);
+        if (event.kind == RE_EVENT_SUMMON && !spawn_minion(app, &event)) {
+            /* Gameplay reserva el cupo al emitir. Si no existe un punto vÃ¡lido
+             * devolvemos el cupo para que una arena llena no anule la fase. */
+            ReCharacter *source = re_gameplay_get(&app->gameplay, event.source);
+            if (source && source->summoned)
+                source->summoned--;
         }
     }
+    tick_projectiles(app, RE_FIXED_DT);
     bool had_checkpoint = app->interaction.state.checkpoint_valid;
     ReVec3 previous_checkpoint = app->interaction.state.checkpoint_player.position;
     int previous_checkpoint_health = app->interaction.state.checkpoint_health;
@@ -476,7 +674,9 @@ static void tick(PlayerApp *app, ReInput input) {
 static void draw_actor(PlayerApp *app, ReRenderer *renderer, const ReCamera *camera,
                        const ReCharacter *actor) {
     const ReCharacterDef *definition = &app->project.characters[actor->definition];
-    const char *clip = actor->state == RE_CHARACTER_CHASE ? "chase" : "idle";
+    const char *clip = actor->state == RE_CHARACTER_RECOVERY ? "attack"
+                       : actor->state == RE_CHARACTER_CHASE  ? "chase"
+                                                             : "idle";
     int cell = re_character_animation_cell(definition, actor, clip, camera->yaw);
     const ReTexture *texture = &app->sprites[actor->definition];
     /* Un atlas nunca se muestra entero como recuperacion de error. Una celda
@@ -546,6 +746,10 @@ static void draw(PlayerApp *app, ReRenderer *renderer, float alpha) {
         if (app->gameplay.characters[i].active &&
             app->gameplay.characters[i].state != RE_CHARACTER_DEAD)
             draw_actor(app, renderer, &camera, &app->gameplay.characters[i]);
+    for (size_t i = 0; i < RE_SESSION_MAX_PROJECTILES; i++)
+        if (app->projectiles[i].active)
+            re_draw_billboard(renderer, &camera, app->projectiles[i].position, .28f, .28f,
+                              &app->projectile_sprite, 1);
     for (size_t i = 0; i < app->interaction.state.pickup_count; i++) {
         const ReRuntimePickup *pickup = &app->interaction.state.pickups[i];
         if (pickup->active) {
@@ -562,6 +766,24 @@ static void draw(PlayerApp *app, ReRenderer *renderer, float alpha) {
     re_apply_lights(renderer, &camera, app->project.interactions.lights,
                     app->interaction.state.light_enabled, app->project.interactions.light_count,
                     app->elapsed);
+    /* RetÃ­cula y arma son feedback del control, no decoraciÃ³n: permiten leer
+     * con claridad la direcciÃ³n del hitscan y su cadencia. */
+    re_rect(renderer, 237, 134, 7, 1, re_rgba(236, 228, 196, 230));
+    re_rect(renderer, 240, 131, 1, 7, re_rgba(236, 228, 196, 230));
+    re_rect(renderer, 218, 236, 44, 18, re_rgba(32, 38, 43, 255));
+    re_rect(renderer, 226, 228, 28, 15, re_rgba(68, 75, 78, 255));
+    re_rect(renderer, 232, 224, 16, 8, re_rgba(132, 106, 70, 255));
+    if (app->weapon_flash > 0) {
+        re_rect(renderer, 235, 214, 10, 12, re_rgba(255, 210, 84, 255));
+        re_rect(renderer, 231, 218, 18, 4, re_rgba(255, 134, 45, 255));
+    }
+    if (app->damage_flash > 0) {
+        RePixel warning = re_rgba(184, 38, 34, 255);
+        re_rect(renderer, 0, 0, 480, 4, warning);
+        re_rect(renderer, 0, 243, 480, 4, warning);
+        re_rect(renderer, 0, 0, 4, 247, warning);
+        re_rect(renderer, 476, 0, 4, 247, warning);
+    }
     /* Una barrera cerrada debe comunicar su intención antes de que el jugador
      * la confunda con un fallo de colisión. El rayo usa exactamente la misma
      * máscara y geometría que los disparos y el movimiento. */
@@ -583,6 +805,13 @@ static void draw(PlayerApp *app, ReRenderer *renderer, float alpha) {
                    app->interaction.state.player_health, app->interaction.state.player_lives,
                    re_interaction_item_count(&app->interaction, "brass_key"));
     re_text(renderer, 12, 255, hud, 1, re_rgba(220, 226, 218, 255));
+    for (size_t i = 0; i < app->project.interactions.objective_count; i++)
+        if (app->interaction.state.objectives[i] == RE_OBJECTIVE_ACTIVE) {
+            re_rect(renderer, 8, 8, 306, 18, re_rgba(5, 9, 13, 235));
+            re_text(renderer, 14, 14, app->project.interactions.objectives[i].title, 1,
+                    re_rgba(240, 178, 86, 255));
+            break;
+        }
     if (app->show_stats) {
         char stats[96];
         float fps = app->frame_ms > .01f ? 1000 / app->frame_ms : 0;
@@ -731,6 +960,7 @@ void re_session_destroy(ReGameSession *session) {
         re_texture_destroy(&session->sprites[i]);
     for (size_t i = 0; i < 2; i++)
         re_texture_destroy(&session->pickup_sprites[i]);
+    re_texture_destroy(&session->projectile_sprite);
     re_texture_destroy(&session->title_art);
     re_renderer_destroy(&session->renderer);
     free(session);
@@ -792,5 +1022,6 @@ size_t re_session_memory(const ReGameSession *session) {
         total += texture_bytes(&session->sprites[i]);
     for (size_t i = 0; i < 2; i++)
         total += texture_bytes(&session->pickup_sprites[i]);
+    total += texture_bytes(&session->projectile_sprite);
     return total;
 }

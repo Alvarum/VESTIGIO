@@ -1,148 +1,188 @@
-# Casa de demostración: ala baja, escalera en peldaños, ala alta y un volumen
-# de ático superpuesto al inicio. Cada conexión enumera aristas recíprocas.
+# Casa de la Niebla: recorrido completo del showcase Haunted.
+#
+# La planta baja forma tres alas legibles alrededor del vestÃ­bulo. La escalera
+# sube en seis peldaÃ±os al circuito superior. Ese circuito tiene cuatro
+# conexiones, de modo que la perseguidora se puede despistar rompiendo lÃ­nea
+# de visiÃ³n; el jugador nunca queda atrapado en un pasillo sin alternativa.
 retro_map 4
 
-sector 0 0 3 0.82 0 1 2
+# 0: vestÃ­bulo central.
+sector 0 0 3.2 0.82 0 1 2
 v 0 0
-v 6 0
-v 6 4
-v 0 4
-link 1 1 3 0.2 0.8
-link 2 13 0 0.3 0.7
-link 3 14 1 0.2 0.8
-
-sector 1 0 3 0.72 0 1 2
-v 6 0
 v 8 0
-v 8 4
-v 6 4
-link 1 2 3 0 1
-link 3 0 1 0.2 0.8
+v 8 8
+v 0 8
+link 1 3 3 0.25 0.75
+link 2 2 0 0.25 0.75
+link 3 1 1 0.20 0.80
 
-sector 2 0.25 3.5 0.70 0 1 2
+# 1: refugio de Elena y tablero elÃ©ctrico.
+sector 1 0 3.2 0.64 3 1 2
+v -8 0
+v 0 0
+v 0 8
+v -8 8
+link 1 0 3 0.20 0.80
+
+# 2: patio del cuidador, visible a travÃ©s del vidrio rompible.
+sector 2 0 3.2 0.46 4 1 2
+v 0 8
+v 8 8
+v 8 16
+v 0 16
+link 0 0 2 0.25 0.75
+
+# 3: ala de servicio, botiquÃ­n y cerradura de la escalera.
+sector 3 0 3.2 0.70 0 1 2
 v 8 0
-v 9 0
-v 9 4
-v 8 4
-link 1 3 3 0 1
-link 3 1 1 0 1
+v 14 0
+v 14 8
+v 8 8
+link 1 4 3 0.125 0.875
+link 3 0 1 0.25 0.75
 
-sector 3 0.5 3.75 0.70 0 1 2
-v 9 0
-v 10 0
-v 10 4
-v 9 4
-link 1 4 3 0 1
-link 3 2 1 0 1
-
-sector 4 0.75 4 0.70 0 1 2
-v 10 0
-v 11 0
-v 11 4
-v 10 4
+# 4..9: escalera recta. Cada peldaÃ±o es un volumen transitable; Studio los
+# presenta como una sola escalera para el autor.
+sector 4 0.25 3.45 0.68 0 1 2
+v 14 1
+v 15 1
+v 15 7
+v 14 7
 link 1 5 3 0 1
 link 3 3 1 0 1
 
-sector 5 1 4.25 0.70 0 1 2
-v 11 0
-v 12 0
-v 12 4
-v 11 4
+sector 5 0.50 3.70 0.68 0 1 2
+v 15 1
+v 16 1
+v 16 7
+v 15 7
 link 1 6 3 0 1
 link 3 4 1 0 1
 
-sector 6 1.25 4.5 0.70 0 1 2
-v 12 0
-v 13 0
-v 13 4
-v 12 4
+sector 6 0.75 3.95 0.68 0 1 2
+v 16 1
+v 17 1
+v 17 7
+v 16 7
 link 1 7 3 0 1
 link 3 5 1 0 1
 
-sector 7 1.5 4.75 0.70 0 1 2
-v 13 0
-v 14 0
-v 14 4
-v 13 4
+sector 7 1.00 4.20 0.68 0 1 2
+v 17 1
+v 18 1
+v 18 7
+v 17 7
 link 1 8 3 0 1
 link 3 6 1 0 1
 
-sector 8 1.75 5 0.70 0 1 2
-v 14 0
-v 15 0
-v 15 4
-v 14 4
+sector 8 1.25 4.45 0.68 0 1 2
+v 18 1
+v 19 1
+v 19 7
+v 18 7
 link 1 9 3 0 1
 link 3 7 1 0 1
 
-sector 9 2 5.25 0.74 0 1 2
-v 15 0
-v 16 0
-v 16 4
-v 15 4
+sector 9 1.50 4.70 0.72 0 1 2
+v 19 1
+v 20 1
+v 20 7
+v 19 7
 link 1 10 3 0 1
 link 3 8 1 0 1
 
-sector 10 2 5.25 0.78 0 1 2
-v 16 0
-v 20 0
-v 20 4
-v 16 4
-link 1 11 3 0.2 0.8
-link 3 9 1 0 1
-
-sector 11 2 5.25 0.62 3 1 2
+# 10..13: circuito superior. Las cuatro conexiones forman dos rutas entre la
+# antesala y la galerÃ­a, requisito esencial para una persecuciÃ³n justa.
+sector 10 1.50 4.70 0.76 3 1 2
 v 20 0
 v 26 0
-v 26 4
-v 20 4
-link 3 10 1 0.2 0.8
-link 2 15 0 0.3 0.7
+v 26 8
+v 20 8
+link 1 11 3 0 1
+link 2 13 0 0 1
+link 3 9 1 0.125 0.875
 
-# Volumen superior superpuesto en planta con sector 0; los interiores no se
-# interpenetran porque comienza exactamente donde termina la planta baja.
-sector 12 3 6 0.55 3 1 2
-v 0 0
-v 6 0
-v 6 4
-v 0 4
+sector 11 1.50 4.70 0.58 3 1 2
+v 26 0
+v 34 0
+v 34 8
+v 26 8
+link 2 12 0 0 1
+link 3 10 1 0 1
 
-# Patio tras una ventana rompible.
-sector 13 0 3 0.42 4 1 2
-v 0 4
-v 6 4
-v 6 10
-v 0 10
-link 0 0 2 0.3 0.7
+sector 12 1.50 4.70 0.48 5 1 2
+v 26 8
+v 34 8
+v 34 16
+v 26 16
+link 0 11 2 0 1
+link 3 13 1 0 1
 
-# Cuarto seguro del superviviente y tablero eléctrico.
-sector 14 0 3 0.58 3 1 2
-v -6 0
-v 0 0
-v 0 4
-v -6 4
-link 1 0 3 0.2 0.8
+sector 13 1.50 4.70 0.54 5 1 2
+v 20 8
+v 26 8
+v 26 16
+v 20 16
+link 0 10 2 0 1
+link 1 12 3 0 1
+link 2 16 0 0 1
 
-# Cámara final del guardián, conectada al piso superior.
-sector 15 2 5.25 0.38 5 1 2
-v 20 4
-v 26 4
-v 26 10
-v 20 10
-link 0 11 2 0.3 0.7
+# 14: arena del GuardiÃ¡n.
+sector 14 1.50 5.20 0.40 5 1 2
+v 34 0
+v 44 0
+v 44 10
+v 34 10
+link 2 15 0 0 1
 
-spawn player-start player player 0 2 2 0 90
-spawn survivor npc survivor 14 -3 2 0 90
-spawn fuse-box interact fuse_box 14 -5 2 0 90
-spawn caretaker-main actor caretaker 13 3 7 0 180
-spawn medkit pickup bandage 1 7 1 0 0
-spawn stair-panel interact stair_panel 10 19 2 2 90
-spawn kidnapper-main actor kidnapper 11 24 2 2 180
-spawn boss-panel interact boss_panel 11 23 3.4 2 0
-spawn warden-main actor warden 15 23 7 2 180
-spawn attic-note trigger attic_message 12 2 2 3 0
+# 15: salida, inaccesible narrativamente hasta derrotar al GuardiÃ¡n.
+sector 15 1.50 4.70 0.88 6 1 2
+v 34 10
+v 44 10
+v 44 14
+v 34 14
+link 0 14 2 0 1
+link 2 18 0 0 1
+
+# 16..18: pasarela segura. Al completar la persecuciÃ³n se cierran las dos
+# compuertas del circuito y este camino conduce al control del GuardiÃ¡n.
+sector 16 1.50 4.70 0.68 6 1 2
+v 20 16
+v 26 16
+v 26 20
+v 20 20
+link 0 13 2 0 1
+link 1 17 3 0 1
+
+sector 17 1.50 4.70 0.60 6 1 2
+v 26 16
+v 44 16
+v 44 20
+v 26 20
+link 0 18 2 0.444444 1
+link 3 16 1 0 1
+
+sector 18 1.50 4.70 0.74 6 1 2
+v 34 14
+v 44 14
+v 44 16
+v 34 16
+link 0 15 2 0 1
+link 2 17 0 0 1
+
+spawn player-start player player 0 4 4 0 -90
+spawn survivor npc survivor 1 -4 4 0 90
+spawn fuse-box interact fuse_box 1 -6.5 2 0 90
+spawn caretaker-main actor caretaker 2 4 13 0 180
+spawn medkit pickup bandage 3 10.5 2 0 0
+spawn stair-panel interact stair_panel 3 12.5 4 0 90
+spawn kidnapper-main actor kidnapper 12 30 13 1.5 180
+spawn boss-panel interact boss_panel 13 22 13 1.5 0
+spawn warden-main actor warden 14 40 5 1.5 180
 
 barrier foyer-door door 0 3 4 7 0 1
-barrier patio-window window 0 2 5 5 25 0
-barrier stair-door door 10 1 4 7 0 0
-barrier boss-door door 11 2 4 7 0 0
+barrier patio-window window 0 2 5 5 50 0
+barrier stair-door door 3 1 4 7 0 0
+barrier chase-south door 13 0 4 7 0 1
+barrier chase-east door 13 1 4 7 0 1
+barrier boss-door door 15 0 4 7 0 0

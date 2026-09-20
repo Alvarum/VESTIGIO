@@ -1,7 +1,7 @@
 # Enemigo vulnerable que demuestra un drop dirigido por reglas.
 retro_actor 1
 id caretaker
-sprite none 32 48
+sprite art/characters/caretaker.png 1261 1247
 body 0.34 1.75 0.30
 movement 2.10 6.0
 health 80 12
@@ -10,11 +10,7 @@ tracking perception
 perception 13 95 7 3
 ranges 0.0 1.05
 
-animation idle 4 true
+animation idle 1 true
 frame 0 0.28 none
-frame 1 0.28 none
-animation chase 8 true
-frame 4 0.13 sound
-frame 5 0.13 none
-frame 6 0.13 none
-frame 7 0.13 none
+animation chase 1 true
+frame 0 0.13 sound
