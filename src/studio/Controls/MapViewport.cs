@@ -152,7 +152,10 @@ public sealed class MapViewport : FrameworkElement
     private void DrawTrigger(DrawingContext drawing, TriggerModel trigger)
     {
         Point center = ToScreen(new Point(trigger.Native.X, trigger.Native.Y));
-        var pen = new Pen(new SolidColorBrush(Color.FromArgb(190, 177, 112, 212)), 1.5)
+        bool selected = _viewModel?.SelectedItem is TriggerModel item && item.Index == trigger.Index;
+        var pen = new Pen(new SolidColorBrush(selected ? Color.FromRgb(255, 190, 92)
+                                                       : Color.FromArgb(190, 177, 112, 212)),
+                          selected ? 3 : 1.5)
             { DashStyle = DashStyles.Dash };
         if (trigger.Native.Shape == 1)
         {
@@ -175,7 +178,11 @@ public sealed class MapViewport : FrameworkElement
             (byte)(Math.Clamp(light.Native.Green, 0, 1) * 255),
             (byte)(Math.Clamp(light.Native.Blue, 0, 1) * 255));
         double radius = light.Native.Radius * _zoom;
-        drawing.DrawEllipse(new SolidColorBrush(color), new Pen(new SolidColorBrush(Color.FromArgb(130, 235, 191, 99)), 1), center, radius, radius);
+        bool selected = _viewModel?.SelectedItem is LightModel item && item.Index == light.Index;
+        drawing.DrawEllipse(new SolidColorBrush(color),
+            new Pen(new SolidColorBrush(selected ? Color.FromRgb(255, 190, 92)
+                                                 : Color.FromArgb(130, 235, 191, 99)),
+                    selected ? 3 : 1), center, radius, radius);
         drawing.DrawEllipse(new SolidColorBrush(Color.FromRgb(245, 196, 97)), null, center, 3.5, 3.5);
     }
 
@@ -198,7 +205,37 @@ public sealed class MapViewport : FrameworkElement
             InvalidateVisual();
             return;
         }
+        BarrierModel? barrier = _viewModel.Document.Barriers.LastOrDefault(item =>
+            BarrierDistance(item, mouse) <= 9);
+        if (barrier is not null)
+        {
+            _viewModel.SelectedItem = barrier;
+            InvalidateVisual();
+            return;
+        }
+        if (ShowLights)
+        {
+            LightModel? light = _viewModel.Document.Lights.LastOrDefault(item =>
+                (ToScreen(new Point(item.Native.X, item.Native.Y)) - mouse).Length <= 11);
+            if (light is not null)
+            {
+                _viewModel.SelectedItem = light;
+                InvalidateVisual();
+                return;
+            }
+        }
         Point world = ToWorld(mouse);
+        if (ShowTriggers)
+        {
+            TriggerModel? trigger = _viewModel.Document.Triggers.LastOrDefault(item =>
+                TriggerContains(item, world));
+            if (trigger is not null)
+            {
+                _viewModel.SelectedItem = trigger;
+                InvalidateVisual();
+                return;
+            }
+        }
         SectorModel? sector = _viewModel.Document.Sectors.LastOrDefault(item => Contains(item.Vertices, world));
         _viewModel.SelectedItem = sector;
         InvalidateVisual();
@@ -334,6 +371,35 @@ public sealed class MapViewport : FrameworkElement
         ActualHeight / 2 + _pan.Y - world.Y * _zoom);
     private Point ToWorld(Point screen) => new((screen.X - ActualWidth / 2 - _pan.X) / _zoom,
         -(screen.Y - ActualHeight / 2 - _pan.Y) / _zoom);
+
+    private double BarrierDistance(BarrierModel barrier, Point mouse)
+    {
+        if (_viewModel is null || barrier.Sector < 0 || barrier.Sector >= _viewModel.Document.Sectors.Count)
+            return double.PositiveInfinity;
+        SectorModel sector = _viewModel.Document.Sectors[barrier.Sector];
+        if (barrier.Edge < 0 || barrier.Edge >= sector.Vertices.Count)
+            return double.PositiveInfinity;
+        Point a = ToScreen(sector.Vertices[barrier.Edge]);
+        Point b = ToScreen(sector.Vertices[(barrier.Edge + 1) % sector.Vertices.Count]);
+        Vector edge = b - a;
+        double lengthSquared = edge.LengthSquared;
+        if (lengthSquared <= double.Epsilon)
+            return (mouse - a).Length;
+        double along = Math.Clamp(Vector.Multiply(mouse - a, edge) / lengthSquared, 0, 1);
+        return (mouse - (a + edge * along)).Length;
+    }
+
+    private static bool TriggerContains(TriggerModel trigger, Point world)
+    {
+        double dx = world.X - trigger.Native.X;
+        double dy = world.Y - trigger.Native.Y;
+        return trigger.Native.Shape switch
+        {
+            1 => dx * dx + dy * dy <= trigger.Native.Radius * trigger.Native.Radius,
+            0 => Math.Abs(dx) <= trigger.Native.SizeX && Math.Abs(dy) <= trigger.Native.SizeY,
+            _ => false
+        };
+    }
 
     private FormattedText CreateText(string text, double size, Color color) => new(text,
         System.Globalization.CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,

@@ -785,6 +785,16 @@ static bool editor_document(void) {
     CHECK(error.message[0] != '\0');
     CHECK(re_editor_overview(document, &overview));
     CHECK(overview.revision >= revision);
+    if (overview.light_count > 0) {
+        CHECK(re_editor_set_property(document, RE_EDITOR_LIGHT, 0, "intensity", ".75", &error));
+        ReEditorLightView light = {0};
+        CHECK(re_editor_light(document, 0, &light) && NEAR(light.intensity, .75f));
+    }
+    if (overview.trigger_count > 0) {
+        CHECK(re_editor_set_property(document, RE_EDITOR_TRIGGER, 0, "once", "true", &error));
+        ReEditorTriggerView trigger = {0};
+        CHECK(re_editor_trigger(document, 0, &trigger) && trigger.once);
+    }
 
     uint32_t placed = 0, duplicate = 0, drop_rule = 0;
     uint32_t original_markers = overview.marker_count;

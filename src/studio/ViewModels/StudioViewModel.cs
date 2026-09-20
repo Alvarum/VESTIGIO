@@ -341,6 +341,30 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
                 Add("Siguiente nodo", "next", dialogue.Next);
                 Add("Pausar el mundo", "pauses_world", dialogue.Native.PausesWorld != 0);
                 break;
+            case TriggerModel trigger:
+                Add("Identificador", "id", trigger.Id);
+                Add("Posición X", "x", trigger.Native.X, "m");
+                Add("Posición Y", "y", trigger.Native.Y, "m");
+                Add("Posición Z", "z", trigger.Native.Z, "m");
+                Add("Ancho / semieje X", "size_x", trigger.Native.SizeX, "m");
+                Add("Fondo / semieje Y", "size_y", trigger.Native.SizeY, "m");
+                Add("Altura / semieje Z", "size_z", trigger.Native.SizeZ, "m");
+                Add("Radio", "radius", trigger.Native.Radius, "m");
+                Add("Ejecutar una vez", "once", trigger.Native.Once != 0);
+                break;
+            case LightModel light:
+                Add("Identificador", "id", light.Id);
+                Add("Activa", "enabled", light.Native.Enabled != 0);
+                Add("Posición X", "x", light.Native.X, "m");
+                Add("Posición Y", "y", light.Native.Y, "m");
+                Add("Posición Z", "z", light.Native.Z, "m");
+                Add("Color rojo", "red", light.Native.Red, "0–1");
+                Add("Color verde", "green", light.Native.Green, "0–1");
+                Add("Color azul", "blue", light.Native.Blue, "0–1");
+                Add("Radio", "radius", light.Native.Radius, "m");
+                Add("Intensidad", "intensity", light.Native.Intensity);
+                Add("Parpadeo", "flicker", light.Native.Flicker, "0–1");
+                break;
         }
     }
 

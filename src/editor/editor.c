@@ -599,6 +599,80 @@ static bool set_dialogue(ReProject *p, uint32_t index, const char *key, const ch
     return false;
 }
 
+static bool set_trigger(ReProject *p, uint32_t index, const char *key, const char *value) {
+    if (index >= p->interactions.trigger_count)
+        return false;
+    ReTriggerVolume *trigger = &p->interactions.triggers[index];
+    float number;
+    bool boolean;
+    if (strcmp(key, "id") == 0)
+        return copy_text(trigger->id, sizeof(trigger->id), value);
+    if (strcmp(key, "once") == 0 && parse_bool(value, &boolean)) {
+        trigger->once = boolean;
+        return true;
+    }
+    if (!parse_float(value, &number))
+        return false;
+    if (strcmp(key, "x") == 0)
+        trigger->center.x = number;
+    else if (strcmp(key, "y") == 0)
+        trigger->center.y = number;
+    else if (strcmp(key, "z") == 0)
+        trigger->center.z = number;
+    else if (strcmp(key, "size_x") == 0 && number > 0)
+        trigger->half_size.x = number;
+    else if (strcmp(key, "size_y") == 0 && number > 0)
+        trigger->half_size.y = number;
+    else if (strcmp(key, "size_z") == 0 && number > 0)
+        trigger->half_size.z = number;
+    else if (strcmp(key, "radius") == 0 && number > 0)
+        trigger->radius = number;
+    else
+        return false;
+    return true;
+}
+
+static bool set_light(ReProject *p, uint32_t index, const char *key, const char *value) {
+    if (index >= p->interactions.light_count)
+        return false;
+    ReLight *light = &p->interactions.lights[index];
+    float number;
+    bool boolean;
+    if (strcmp(key, "id") == 0)
+        return copy_text(light->id, sizeof(light->id), value);
+    if (strcmp(key, "enabled") == 0 && parse_bool(value, &boolean)) {
+        light->initially_enabled = boolean;
+        return true;
+    }
+    if (!parse_float(value, &number))
+        return false;
+    if (strcmp(key, "x") == 0)
+        light->position.x = number;
+    else if (strcmp(key, "y") == 0)
+        light->position.y = number;
+    else if (strcmp(key, "z") == 0)
+        light->position.z = number;
+    else if (strcmp(key, "red") == 0 && number >= 0 && number <= 1)
+        light->color.x = number;
+    else if (strcmp(key, "green") == 0 && number >= 0 && number <= 1)
+        light->color.y = number;
+    else if (strcmp(key, "blue") == 0 && number >= 0 && number <= 1)
+        light->color.z = number;
+    else if (strcmp(key, "radius") == 0 && number > 0)
+        light->radius = number;
+    else if (strcmp(key, "intensity") == 0 && number >= 0)
+        light->intensity = number;
+    else if (strcmp(key, "yaw") == 0)
+        light->yaw = number;
+    else if (strcmp(key, "cone") == 0 && number > 0 && number <= RE_PI * 2)
+        light->cone = number;
+    else if (strcmp(key, "flicker") == 0 && number >= 0 && number <= 1)
+        light->flicker = number;
+    else
+        return false;
+    return true;
+}
+
 int re_editor_set_property(ReEditorDocument *document, int kind, uint32_t index,
                            const char *property, const char *value, ReError *error) {
     if (!document || !property || !value || !error)
@@ -628,6 +702,12 @@ int re_editor_set_property(ReEditorDocument *document, int kind, uint32_t index,
         break;
     case RE_EDITOR_DIALOGUE:
         changed = set_dialogue(project, index, property, value);
+        break;
+    case RE_EDITOR_TRIGGER:
+        changed = set_trigger(project, index, property, value);
+        break;
+    case RE_EDITOR_LIGHT:
+        changed = set_light(project, index, property, value);
         break;
     default:
         break;

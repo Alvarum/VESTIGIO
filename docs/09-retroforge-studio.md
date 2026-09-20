@@ -68,6 +68,10 @@ arrástrala para moverla en una cuadrícula de 25 cm, pulsa Ctrl+D para duplicar
 Supr para eliminar. Studio impide colocar fuera del nivel y explica por qué no
 puede borrar una entidad que todavía usan las reglas.
 
+Puertas, ventanas, luces y triggers también se seleccionan directamente sobre
+el plano. La selección usa un borde ámbar y abre sus propiedades reales en el
+inspector; no es necesario encontrarlos primero en el árbol.
+
 Las herramientas de creación directa de polígonos, puertas, ventanas y
 escaleras se incorporarán sobre la misma API de comandos; Studio no muestra
 botones para operaciones que todavía no ejecuta.
