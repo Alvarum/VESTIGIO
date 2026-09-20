@@ -8,7 +8,7 @@ public sealed record ProjectOverview
     public ProjectOverview() { }
     internal ProjectOverview(EditorNative.Overview value)
     {
-        Name = value.Name;
+        Name = value.Name.Replace('_', ' ');
         Id = value.Id;
         Manifest = value.Manifest;
         Root = value.Root;

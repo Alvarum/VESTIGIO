@@ -407,25 +407,57 @@
                 </layout:LayoutDocument>
               </layout:LayoutDocumentPane>
 
-              <layout:LayoutAnchorablePane DockHeight="190">
-                <layout:LayoutAnchorable Title="Recursos" ContentId="Resources" CanClose="False">
+              <layout:LayoutAnchorablePane DockHeight="205">
+                <layout:LayoutAnchorable Title="Biblioteca" ContentId="Resources" CanClose="False">
                   <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
                                 Background="{StaticResource PanelBrush}">
-                    <ItemsControl ItemsSource="{Binding Resources}" Margin="12">
-                      <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                          <Border Width="180" Margin="0,0,8,0" Padding="12" Background="{StaticResource SurfaceBrush}"
-                                  BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="7">
-                            <StackPanel>
-                              <TextBlock Style="{StaticResource RfEyebrowText}" Text="{Binding Kind}" />
-                              <TextBlock Margin="0,5,0,0" FontWeight="SemiBold" Text="{Binding Name}" />
-                              <TextBlock Margin="0,3,0,0" Foreground="{StaticResource FaintBrush}" FontSize="11" Text="{Binding Path}" />
-                            </StackPanel>
-                          </Border>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <StackPanel Orientation="Horizontal" Margin="12">
+                      <StackPanel>
+                        <TextBlock Style="{StaticResource RfEyebrowText}" Margin="2,0,0,8"
+                                   Text="ARRASTRA AL MAPA" />
+                        <ItemsControl ItemsSource="{Binding PlacementTools}">
+                          <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                              <Border Width="145" Height="105" Margin="0,0,8,0" Padding="11"
+                                      Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                      BorderThickness="1" CornerRadius="7" Cursor="Hand"
+                                      PreviewMouseLeftButtonDown="PlacementTool_MouseLeftButtonDown"
+                                      PreviewMouseLeftButtonUp="PlacementTool_MouseLeftButtonUp"
+                                      PreviewMouseMove="PlacementTool_MouseMove"
+                                      ToolTip="Arrastra esta pieza y suéltala dentro de una habitación">
+                                <Grid>
+                                  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                  <TextBlock FontSize="20" Foreground="{StaticResource AccentBrush}" Text="{Binding Symbol}" />
+                                  <TextBlock Grid.Row="1" Margin="0,5,0,0" FontWeight="SemiBold" Text="{Binding Name}" />
+                                  <TextBlock Grid.Row="2" Margin="0,3,0,0" Foreground="{StaticResource MutedBrush}"
+                                             FontSize="11" TextWrapping="Wrap" Text="{Binding Description}" />
+                                </Grid>
+                              </Border>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                      <Border Width="1" Margin="8,2,16,2" Background="{StaticResource BorderBrush}" />
+                      <StackPanel>
+                        <TextBlock Style="{StaticResource RfEyebrowText}" Margin="2,0,0,8" Text="ARCHIVOS DEL PROYECTO" />
+                        <ItemsControl ItemsSource="{Binding Resources}">
+                          <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                              <Border Width="160" Height="105" Margin="0,0,8,0" Padding="11" Background="{StaticResource SurfaceBrush}"
+                                      BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="7">
+                                <StackPanel>
+                                  <TextBlock Style="{StaticResource RfEyebrowText}" Text="{Binding Kind}" />
+                                  <TextBlock Margin="0,5,0,0" FontWeight="SemiBold" Text="{Binding Name}" />
+                                  <TextBlock Margin="0,3,0,0" Foreground="{StaticResource FaintBrush}" FontSize="11" Text="{Binding Path}" />
+                                </StackPanel>
+                              </Border>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </StackPanel>
                   </ScrollViewer>
                 </layout:LayoutAnchorable>
                 <layout:LayoutAnchorable Title="Problemas" ContentId="Problems" CanClose="False">
@@ -469,6 +501,21 @@
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <Border Margin="0,10,0,0" Padding="12" Background="{StaticResource AccentSoftBrush}"
+                            CornerRadius="7"
+                            Visibility="{Binding SelectedMarker, Converter={x:Static local:PresenceConverter.Instance}}">
+                      <StackPanel>
+                        <TextBlock Style="{StaticResource RfEyebrowText}" Text="ACCIONES RÁPIDAS" />
+                        <UniformGrid Margin="0,8,0,0" Columns="2">
+                          <Button Margin="0,0,5,5" Content="Duplicar" Command="{Binding DuplicateCommand}" />
+                          <Button Margin="5,0,0,5" Content="Eliminar" Command="{Binding DeleteCommand}" />
+                          <Button Margin="0,5,5,0" Content="Al morir: llave"
+                                  Command="{Binding AddDropCommand}" CommandParameter="brass_key" />
+                          <Button Margin="5,5,0,0" Content="Al morir: botiquín"
+                                  Command="{Binding AddDropCommand}" CommandParameter="bandage" />
+                        </UniformGrid>
+                      </StackPanel>
+                    </Border>
                     <Border Margin="0,10,0,0" Padding="12" Background="#FF121518" CornerRadius="7"
                             Visibility="{Binding SelectedItem, Converter={x:Static local:PresenceConverter.Instance}}">
                       <StackPanel>

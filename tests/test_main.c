@@ -732,6 +732,23 @@ static bool editor_document(void) {
     CHECK(error.message[0] != '\0');
     CHECK(re_editor_overview(document, &overview));
     CHECK(overview.revision >= revision);
+
+    uint32_t placed = 0, duplicate = 0, drop_rule = 0;
+    uint32_t original_markers = overview.marker_count;
+    uint32_t original_rules = overview.rule_count;
+    CHECK(re_editor_create_marker(document, "actor", "caretaker", 1, 1, &placed, &error));
+    CHECK(placed == original_markers);
+    CHECK(re_editor_move_marker(document, placed, 1.5f, 1.5f, &error));
+    ReEditorMarkerView moved = {0};
+    CHECK(re_editor_marker(document, placed, &moved));
+    CHECK(NEAR(moved.x, 1.5f) && NEAR(moved.y, 1.5f));
+    CHECK(re_editor_duplicate_marker(document, placed, &duplicate, &error));
+    CHECK(duplicate == original_markers + 1u);
+    CHECK(re_editor_delete_marker(document, duplicate, &error));
+    CHECK(re_editor_add_drop_rule(document, placed, "brass_key", &drop_rule, &error));
+    CHECK(drop_rule == original_rules);
+    CHECK(!re_editor_delete_marker(document, placed, &error)); /* Regla protege la referencia. */
+    CHECK(error.message[0] != '\0');
     re_editor_close(document);
     return true;
 }

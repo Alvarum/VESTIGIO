@@ -61,10 +61,16 @@ el botón central desplaza y un clic selecciona. Los overlays de zonas y luces
 se activan por separado para evitar que oculten el mapa. El inspector permite
 editar cotas, alturas, luz y materiales mediante unidades visibles.
 
-La versión actual permite inspeccionar y ajustar los elementos existentes. Las
-herramientas de creación directa de polígonos, puertas, ventanas y escaleras se
-incorporarán sobre la misma API de comandos; Studio no muestra botones para
-operaciones que todavía no ejecuta.
+La biblioteca inferior separa las piezas colocables de los archivos del
+proyecto. Arrastra un personaje, botiquín, llave o interruptor y suéltalo dentro
+de una habitación para crear una instancia. Haz clic para seleccionarla,
+arrástrala para moverla en una cuadrícula de 25 cm, pulsa Ctrl+D para duplicar o
+Supr para eliminar. Studio impide colocar fuera del nivel y explica por qué no
+puede borrar una entidad que todavía usan las reglas.
+
+Las herramientas de creación directa de polígonos, puertas, ventanas y
+escaleras se incorporarán sobre la misma API de comandos; Studio no muestra
+botones para operaciones que todavía no ejecuta.
 
 ### Personajes
 
@@ -73,6 +79,10 @@ nivel. Al seleccionarla aparecen sus clips de animación y sus fases de jefe.
 El inspector edita atlas, tamaño de celda, movimiento, percepción, vida, daño,
 invulnerabilidad y consecuencia de captura. En **Conexiones** se enumeran las
 instancias que usan esa definición.
+
+Al seleccionar una instancia de personaje aparecen acciones rápidas. Por
+ejemplo, **Al morir: llave** crea una regla one-shot completa con el personaje
+como origen y el pickup como consecuencia; no hay que copiar identificadores.
 
 Los clips muestran número de fotogramas, direcciones y repetición. Cada
 fotograma conserva celda, duración y evento; el atlas completo no se usa como

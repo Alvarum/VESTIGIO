@@ -27,6 +27,13 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
         SelectCommand = new RelayCommand<IEditorItem>(item => SelectedItem = item);
         WorkspaceCommand = new RelayCommand<string>(name => Workspace = name ?? "Construir");
         ApplyFieldCommand = new RelayCommand<InspectorEdit>(ApplyField);
+        DuplicateCommand = new RelayCommand(DuplicateSelected,
+            () => SelectedItem is MarkerModel && !IsPlaying);
+        DeleteCommand = new RelayCommand(DeleteSelected,
+            () => SelectedItem is MarkerModel && !IsPlaying);
+        AddDropCommand = new RelayCommand<string>(AddDrop,
+            item => SelectedItem is MarkerModel { MarkerKind: "actor" } &&
+                    !string.IsNullOrWhiteSpace(item) && !IsPlaying);
         RefreshPresentation();
     }
 
@@ -37,6 +44,7 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
     public ObservableCollection<string> Problems { get; } = [];
     public ObservableCollection<ResourceItem> Resources { get; } = [];
     public ObservableCollection<ConnectionItem> Connections { get; } = [];
+    public ObservableCollection<PlacementTool> PlacementTools { get; } = [];
 
     public ICommand SaveCommand { get; }
     public RelayCommand UndoCommand { get; }
@@ -46,6 +54,9 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
     public ICommand SelectCommand { get; }
     public ICommand WorkspaceCommand { get; }
     public ICommand ApplyFieldCommand { get; }
+    public RelayCommand DuplicateCommand { get; }
+    public RelayCommand DeleteCommand { get; }
+    public RelayCommand<string> AddDropCommand { get; }
 
     public IEditorItem? SelectedItem
     {
@@ -61,7 +72,11 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
             Raise(nameof(SelectedCharacter));
             Raise(nameof(SelectedRule));
             Raise(nameof(SelectedDialogue));
+            Raise(nameof(SelectedMarker));
             Raise(nameof(ConnectionsMessage));
+            DuplicateCommand.Notify();
+            DeleteCommand.Notify();
+            AddDropCommand.Notify();
         }
     }
 
@@ -70,6 +85,7 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
     public CharacterModel? SelectedCharacter => SelectedItem as CharacterModel;
     public RuleModel? SelectedRule => SelectedItem as RuleModel;
     public DialogueModel? SelectedDialogue => SelectedItem as DialogueModel;
+    public MarkerModel? SelectedMarker => SelectedItem as MarkerModel;
     public string ConnectionsMessage => Connections.Count == 0
         ? "Este elemento todavía no tiene conexiones directas."
         : $"{Connections.Count} conexión{(Connections.Count == 1 ? string.Empty : "es")} encontrada{(Connections.Count == 1 ? string.Empty : "s")}.";
@@ -136,6 +152,14 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
             Resources.Add(new ResourceItem(Path.GetFileNameWithoutExtension(path),
                 Path.GetExtension(path).TrimStart('.').ToUpperInvariant(), path));
 
+        PlacementTools.Clear();
+        foreach (CharacterModel character in Document.Characters)
+            PlacementTools.Add(new PlacementTool(character.DisplayName, character.Subtitle,
+                "actor", character.Id, "◉"));
+        PlacementTools.Add(new PlacementTool("Botiquín", "Recupera salud", "pickup", "bandage", "+"));
+        PlacementTools.Add(new PlacementTool("Llave", "Objeto de inventario", "pickup", "brass_key", "◆"));
+        PlacementTools.Add(new PlacementTool("Interruptor", "Objeto interactuable", "interact", "switch", "⌁"));
+
         Problems.Clear();
         if (Document.Sectors.Count == 0)
             Problems.Add("El nivel no contiene habitaciones transitables.");
@@ -155,9 +179,13 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
         Raise(nameof(SelectedCharacter));
         Raise(nameof(SelectedRule));
         Raise(nameof(SelectedDialogue));
+        Raise(nameof(SelectedMarker));
         Raise(nameof(ConnectionsMessage));
         UndoCommand.Notify();
         RedoCommand.Notify();
+        DuplicateCommand.Notify();
+        DeleteCommand.Notify();
+        AddDropCommand.Notify();
     }
 
     private void BuildSceneGroups()
@@ -343,6 +371,77 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
         }
     }
 
+    public void Place(PlacementTool tool, double x, double y)
+    {
+        if (IsPlaying)
+            return;
+        ExecuteEditorAction(() =>
+        {
+            SelectedItem = Document.CreateMarker(tool.MarkerKind, tool.Definition,
+                (float)x, (float)y);
+            Status = $"{tool.Name} colocado en el nivel";
+        });
+    }
+
+    public void MoveMarker(MarkerModel marker, double x, double y)
+    {
+        if (IsPlaying)
+            return;
+        ExecuteEditorAction(() =>
+        {
+            SelectedItem = Document.MoveMarker(marker.Index, (float)x, (float)y);
+            Status = $"{marker.DisplayName} movido";
+        });
+    }
+
+    private void DuplicateSelected()
+    {
+        if (SelectedItem is not MarkerModel marker)
+            return;
+        ExecuteEditorAction(() =>
+        {
+            SelectedItem = Document.DuplicateMarker(marker.Index);
+            Status = $"Copia de {marker.DisplayName} creada";
+        });
+    }
+
+    private void DeleteSelected()
+    {
+        if (SelectedItem is not MarkerModel marker)
+            return;
+        ExecuteEditorAction(() =>
+        {
+            Document.DeleteMarker(marker.Index);
+            SelectedItem = null;
+            Status = $"{marker.DisplayName} eliminado";
+        });
+    }
+
+    private void AddDrop(string? item)
+    {
+        if (SelectedItem is not MarkerModel marker || string.IsNullOrWhiteSpace(item))
+            return;
+        ExecuteEditorAction(() =>
+        {
+            SelectedItem = Document.AddDropRule(marker.Index, item);
+            Status = $"Regla creada: {marker.DisplayName} soltará {item} una sola vez";
+        });
+    }
+
+    private void ExecuteEditorAction(Action action)
+    {
+        try
+        {
+            action();
+        }
+        catch (Exception exception)
+        {
+            Status = exception.Message;
+            MessageBox.Show(exception.Message, "No se pudo aplicar la acción",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
     private bool Save()
     {
         try
@@ -438,3 +537,5 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
 internal sealed record InspectorEdit(InspectorField Field, string Value);
 internal sealed record ResourceItem(string Name, string Kind, string Path);
 internal sealed record ConnectionItem(string Label, IEditorItem Target);
+internal sealed record PlacementTool(string Name, string Description, string MarkerKind,
+    string Definition, string Symbol);

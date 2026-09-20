@@ -55,6 +55,54 @@ public sealed class EditorDocument : IDisposable
         Refresh();
     }
 
+    public MarkerModel CreateMarker(string kind, string definition, float x, float y)
+    {
+        EnsureOpen();
+        if (EditorNative.re_editor_create_marker(_handle, kind, definition, x, y,
+                out uint index, out EditorNative.Error error) == 0)
+            throw NativeFailure(error);
+        Refresh();
+        return Markers[(int)index];
+    }
+
+    public MarkerModel MoveMarker(uint index, float x, float y)
+    {
+        EnsureOpen();
+        if (EditorNative.re_editor_move_marker(_handle, index, x, y,
+                out EditorNative.Error error) == 0)
+            throw NativeFailure(error);
+        Refresh();
+        return Markers[(int)index];
+    }
+
+    public MarkerModel DuplicateMarker(uint index)
+    {
+        EnsureOpen();
+        if (EditorNative.re_editor_duplicate_marker(_handle, index, out uint duplicate,
+                out EditorNative.Error error) == 0)
+            throw NativeFailure(error);
+        Refresh();
+        return Markers[(int)duplicate];
+    }
+
+    public void DeleteMarker(uint index)
+    {
+        EnsureOpen();
+        if (EditorNative.re_editor_delete_marker(_handle, index, out EditorNative.Error error) == 0)
+            throw NativeFailure(error);
+        Refresh();
+    }
+
+    public RuleModel AddDropRule(uint marker, string item)
+    {
+        EnsureOpen();
+        if (EditorNative.re_editor_add_drop_rule(_handle, marker, item, out uint rule,
+                out EditorNative.Error error) == 0)
+            throw NativeFailure(error);
+        Refresh();
+        return Rules[(int)rule];
+    }
+
     public bool Undo()
     {
         EnsureOpen();

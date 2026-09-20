@@ -657,6 +657,198 @@ int re_editor_redo(ReEditorDocument *document) {
     return 1;
 }
 
+static int cancel_fail(ReEditorDocument *document, ReError *error, const char *message) {
+    char preserved[sizeof(error->message)];
+    (void)snprintf(preserved, sizeof(preserved), "%s", message);
+    cancel_command(document);
+    return fail(error, preserved);
+}
+
+static bool marker_id_exists(const ReWorld *world, const char *id) {
+    for (size_t i = 0; i < world->marker_count; i++)
+        if (strcmp(world->markers[i].id, id) == 0)
+            return true;
+    return false;
+}
+
+static bool make_marker_id(const ReWorld *world, const char *definition, char *out,
+                           size_t capacity) {
+    for (unsigned int suffix = 1; suffix < 10000; suffix++) {
+        int written = snprintf(out, capacity, "%.20s-%u", definition, suffix);
+        if (written > 0 && (size_t)written < capacity && !marker_id_exists(world, out))
+            return true;
+    }
+    return false;
+}
+
+int re_editor_create_marker(ReEditorDocument *document, const char *kind, const char *definition,
+                            float x, float y, uint32_t *out_index, ReError *error) {
+    if (!document || !kind || !definition || !out_index || !error || !isfinite(x) || !isfinite(y) ||
+        kind[0] == '\0' || definition[0] == '\0')
+        return fail(error, "Datos inválidos para colocar la entidad");
+    ReProject *project = begin_command(document);
+    if (!project)
+        return fail(error, "No se pudo iniciar el comando");
+    ReWorld *world = &project->world;
+    if (world->marker_count >= RE_MAX_MARKERS)
+        return cancel_fail(document, error, "El nivel alcanzó el límite de entidades");
+    int sector = re_world_sector(world, re_v2(x, y), -1);
+    if (sector < 0)
+        return cancel_fail(document, error, "Suelta la entidad dentro de una habitación");
+    ReMarker marker = {.sector = sector,
+                       .position = re_v3(x, y, world->sectors[sector].floor),
+                       .yaw = 0,
+                       .source_line = 0};
+    if (!copy_text(marker.kind, sizeof(marker.kind), kind) ||
+        !copy_text(marker.definition, sizeof(marker.definition), definition) ||
+        !make_marker_id(world, definition, marker.id, sizeof(marker.id)))
+        return cancel_fail(document, error, "Nombre de entidad demasiado largo");
+    size_t index = world->marker_count;
+    world->markers[index] = marker;
+    world->marker_count++;
+    if (!re_world_validate(world, error))
+        return cancel_fail(document, error, error->message);
+    *out_index = (uint32_t)index;
+    document->revision++;
+    *error = (ReError){0};
+    return 1;
+}
+
+int re_editor_move_marker(ReEditorDocument *document, uint32_t index, float x, float y,
+                          ReError *error) {
+    if (!document || !error || !isfinite(x) || !isfinite(y))
+        return fail(error, "Movimiento inválido");
+    ReProject *project = begin_command(document);
+    if (!project)
+        return fail(error, "No se pudo iniciar el comando");
+    ReWorld *world = &project->world;
+    if (index >= world->marker_count)
+        return cancel_fail(document, error, "La entidad ya no existe");
+    ReMarker *marker = &world->markers[index];
+    int sector = re_world_sector(world, re_v2(x, y), marker->sector);
+    if (sector < 0)
+        return cancel_fail(document, error, "La entidad debe permanecer dentro de una habitación");
+    marker->sector = sector;
+    marker->position = re_v3(x, y, world->sectors[sector].floor);
+    if (!re_world_validate(world, error))
+        return cancel_fail(document, error, error->message);
+    document->revision++;
+    *error = (ReError){0};
+    return 1;
+}
+
+int re_editor_duplicate_marker(ReEditorDocument *document, uint32_t index, uint32_t *out_index,
+                               ReError *error) {
+    if (!document || !out_index || !error)
+        return fail(error, "Duplicación inválida");
+    ReProject *project = begin_command(document);
+    if (!project)
+        return fail(error, "No se pudo iniciar el comando");
+    ReWorld *world = &project->world;
+    if (index >= world->marker_count || world->marker_count >= RE_MAX_MARKERS)
+        return cancel_fail(document, error, "No se puede duplicar esta entidad");
+    ReMarker marker = world->markers[index];
+    static const ReVec2 offsets[] = {{.5f, .5f}, {.5f, -.5f}, {-.5f, .5f}, {-.5f, -.5f}};
+    bool placed = false;
+    for (size_t i = 0; i < sizeof(offsets) / sizeof(offsets[0]); i++) {
+        ReVec2 candidate = re_add2(re_v2(marker.position.x, marker.position.y), offsets[i]);
+        int sector = re_world_sector(world, candidate, marker.sector);
+        if (sector >= 0) {
+            marker.sector = sector;
+            marker.position = re_v3(candidate.x, candidate.y, world->sectors[sector].floor);
+            placed = true;
+            break;
+        }
+    }
+    if (!placed || !make_marker_id(world, marker.definition, marker.id, sizeof(marker.id)))
+        return cancel_fail(document, error, "No hay espacio cercano para la copia");
+    size_t duplicate = world->marker_count;
+    world->markers[duplicate] = marker;
+    world->marker_count++;
+    if (!re_world_validate(world, error))
+        return cancel_fail(document, error, error->message);
+    *out_index = (uint32_t)duplicate;
+    document->revision++;
+    *error = (ReError){0};
+    return 1;
+}
+
+int re_editor_delete_marker(ReEditorDocument *document, uint32_t index, ReError *error) {
+    if (!document || !error)
+        return fail(error, "Eliminación inválida");
+    ReProject *project = begin_command(document);
+    if (!project)
+        return fail(error, "No se pudo iniciar el comando");
+    ReWorld *world = &project->world;
+    if (index >= world->marker_count)
+        return cancel_fail(document, error, "La entidad ya no existe");
+    const char *id = world->markers[index].id;
+    for (size_t rule_index = 0; rule_index < project->interactions.rule_count; rule_index++) {
+        const ReRuleDefinition *rule = &project->interactions.rules[rule_index];
+        if (strcmp(rule->source, id) == 0)
+            return cancel_fail(
+                document, error,
+                "La entidad se usa como origen de una regla; elimina esa conexión primero");
+        for (size_t action = 0; action < rule->action_count; action++)
+            if (strcmp(rule->actions[action].target, id) == 0)
+                return cancel_fail(
+                    document, error,
+                    "Una regla actúa sobre esta entidad; elimina esa conexión primero");
+    }
+    size_t remaining = world->marker_count - (size_t)index - 1u;
+    if (remaining > 0)
+        (void)memmove(&world->markers[index], &world->markers[index + 1u],
+                      remaining * sizeof(world->markers[0]));
+    world->marker_count--;
+    document->revision++;
+    *error = (ReError){0};
+    return 1;
+}
+
+static bool rule_id_exists(const ReInteractionDefinitions *definitions, const char *id) {
+    for (size_t i = 0; i < definitions->rule_count; i++)
+        if (strcmp(definitions->rules[i].id, id) == 0)
+            return true;
+    return false;
+}
+
+int re_editor_add_drop_rule(ReEditorDocument *document, uint32_t marker_index, const char *item,
+                            uint32_t *out_rule, ReError *error) {
+    if (!document || !item || !out_rule || !error || item[0] == '\0')
+        return fail(error, "Objeto de recompensa inválido");
+    ReProject *project = begin_command(document);
+    if (!project)
+        return fail(error, "No se pudo iniciar el comando");
+    if (marker_index >= project->world.marker_count ||
+        project->interactions.rule_count >= RE_MAX_RULES)
+        return cancel_fail(document, error, "No se puede crear la regla para esta entidad");
+    const ReMarker *marker = &project->world.markers[marker_index];
+    if (strcmp(marker->kind, "actor") != 0)
+        return cancel_fail(document, error,
+                           "Sólo un enemigo o personaje puede soltar un objeto al morir");
+    ReRuleDefinition rule = {
+        .event = RE_LOGIC_ENTITY_DIED, .priority = 100, .once = true, .action_count = 1};
+    if (!copy_text(rule.source, sizeof(rule.source), marker->id) ||
+        !copy_text(rule.actions[0].target, sizeof(rule.actions[0].target), item))
+        return cancel_fail(document, error, "El identificador no cabe en la regla");
+    rule.actions[0].kind = RE_RULE_SPAWN_PICKUP;
+    rule.actions[0].value = (ReValue){.kind = RE_VALUE_INT, .as.integer = 1};
+    for (unsigned int suffix = 1; suffix < 10000; suffix++) {
+        (void)snprintf(rule.id, sizeof(rule.id), "drop_%u", suffix);
+        if (!rule_id_exists(&project->interactions, rule.id))
+            break;
+    }
+    if (rule_id_exists(&project->interactions, rule.id))
+        return cancel_fail(document, error, "No se pudo generar un identificador para la regla");
+    size_t index = project->interactions.rule_count;
+    project->interactions.rules[index] = rule;
+    project->interactions.rule_count++;
+    *out_rule = (uint32_t)index;
+    document->revision++;
+    *error = (ReError){0};
+    return 1;
+}
+
 int re_editor_save(ReEditorDocument *document, ReError *error) {
     ReProject *project = current(document);
     if (!project || !error)

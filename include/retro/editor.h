@@ -163,6 +163,24 @@ RE_EDITOR_API int re_editor_rule_action(const ReEditorDocument *document, uint32
 RE_EDITOR_API int re_editor_dialogue_choice(const ReEditorDocument *document, uint32_t dialogue,
                                             uint32_t choice, ReEditorDialogueChoiceView *out);
 
+/* Comandos de mapa usados por el flujo directo de Studio. Cada llamada válida
+ * crea exactamente un paso de deshacer, aunque cambie varias propiedades. Las
+ * coordenadas están en metros y deben caer dentro de un sector transitable. */
+RE_EDITOR_API int re_editor_create_marker(ReEditorDocument *document, const char *kind,
+                                          const char *definition, float x, float y,
+                                          uint32_t *out_index, ReError *error);
+RE_EDITOR_API int re_editor_move_marker(ReEditorDocument *document, uint32_t index, float x,
+                                        float y, ReError *error);
+RE_EDITOR_API int re_editor_duplicate_marker(ReEditorDocument *document, uint32_t index,
+                                             uint32_t *out_index, ReError *error);
+RE_EDITOR_API int re_editor_delete_marker(ReEditorDocument *document, uint32_t index,
+                                          ReError *error);
+
+/* Asistente equivalente a “Al morir, soltar objeto”. Crea una regla one-shot
+ * completa y enlazada con la instancia, evitando identificadores manuales. */
+RE_EDITOR_API int re_editor_add_drop_rule(ReEditorDocument *document, uint32_t marker,
+                                          const char *item, uint32_t *out_rule, ReError *error);
+
 /* value usa la representación visible del inspector: números con punto como
  * separador y booleanos true/false. Una operación inválida no modifica ni el
  * documento ni su historial. */

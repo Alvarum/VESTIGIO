@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, object?> _content = [];
     private string _defaultLayout = string.Empty;
     private bool _allowClose;
+    private Point _placementDragStart;
 
     private static string SettingsDirectory => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -59,6 +60,36 @@ public partial class MainWindow : Window
     {
         if (DialogueList.SelectedItem is IEditorItem item)
             _viewModel.SelectedItem = item;
+    }
+
+    private void PlacementTool_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _placementDragStart = e.GetPosition(this);
+        if (sender is FrameworkElement element)
+            element.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void PlacementTool_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement element && element.IsMouseCaptured)
+            element.ReleaseMouseCapture();
+        e.Handled = true;
+    }
+
+    private void PlacementTool_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || sender is not FrameworkElement
+            { DataContext: PlacementTool tool } element)
+            return;
+        Vector distance = e.GetPosition(this) - _placementDragStart;
+        if (Math.Abs(distance.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(distance.Y) < SystemParameters.MinimumVerticalDragDistance)
+            return;
+        element.ReleaseMouseCapture();
+        e.Handled = true;
+        StudioLog.Write($"Inicio de colocación: {tool.Definition}");
+        DragDrop.DoDragDrop(element, tool, DragDropEffects.Copy);
     }
 
     private void LightOverlay_Changed(object sender, RoutedEventArgs e) =>

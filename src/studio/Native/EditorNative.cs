@@ -211,6 +211,20 @@ public static class EditorNative
     internal static extern int re_editor_dialogue_choice(nint document, uint dialogue, uint choice,
         out DialogueChoice value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    internal static extern int re_editor_create_marker(nint document, string kind, string definition,
+        float x, float y, out uint index, out Error error);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int re_editor_move_marker(nint document, uint index, float x, float y,
+        out Error error);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int re_editor_duplicate_marker(nint document, uint index, out uint duplicate,
+        out Error error);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int re_editor_delete_marker(nint document, uint index, out Error error);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    internal static extern int re_editor_add_drop_rule(nint document, uint marker, string item,
+        out uint rule, out Error error);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     internal static extern int re_editor_set_property(nint document, ObjectKind kind, uint index,
         string property, string value, out Error error);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

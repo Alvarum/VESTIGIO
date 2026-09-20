@@ -35,11 +35,15 @@ public sealed class MapViewport : FrameworkElement
     private Point _panOrigin;
     private double _zoom = 36;
     private bool _panning;
+    private MarkerModel? _draggingMarker;
+    private Point _markerDragOrigin;
+    private Point? _markerPreview;
 
     public MapViewport()
     {
         Focusable = true;
         ClipToBounds = true;
+        AllowDrop = true;
         DataContextChanged += (_, _) => Attach(DataContext as StudioViewModel);
     }
 
@@ -64,6 +68,14 @@ public sealed class MapViewport : FrameworkElement
                 DrawLight(drawing, light);
         foreach (MarkerModel marker in _viewModel.Document.Markers)
             DrawMarker(drawing, marker);
+        if (_draggingMarker is not null && _markerPreview is Point preview)
+        {
+            Point screen = ToScreen(preview);
+            var pen = new Pen(new SolidColorBrush(Color.FromRgb(255, 190, 92)), 2)
+                { DashStyle = DashStyles.Dash };
+            drawing.DrawEllipse(new SolidColorBrush(Color.FromArgb(80, 255, 190, 92)), pen,
+                screen, 10, 10);
+        }
     }
 
     private void DrawGrid(DrawingContext drawing)
@@ -179,6 +191,10 @@ public sealed class MapViewport : FrameworkElement
         if (marker is not null)
         {
             _viewModel.SelectedItem = marker;
+            _draggingMarker = marker;
+            _markerDragOrigin = mouse;
+            _markerPreview = null;
+            CaptureMouse();
             InvalidateVisual();
             return;
         }
@@ -202,6 +218,17 @@ public sealed class MapViewport : FrameworkElement
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        if (_draggingMarker is not null && e.LeftButton == MouseButtonState.Pressed)
+        {
+            Point mouse = e.GetPosition(this);
+            if ((mouse - _markerDragOrigin).Length >= SystemParameters.MinimumHorizontalDragDistance)
+            {
+                Point world = ToWorld(mouse);
+                _markerPreview = new Point(Math.Round(world.X * 4) / 4, Math.Round(world.Y * 4) / 4);
+                InvalidateVisual();
+            }
+            return;
+        }
         if (!_panning)
             return;
         Vector delta = e.GetPosition(this) - _dragOrigin;
@@ -212,6 +239,19 @@ public sealed class MapViewport : FrameworkElement
     protected override void OnMouseUp(MouseButtonEventArgs e)
     {
         base.OnMouseUp(e);
+        if (e.ChangedButton == MouseButton.Left && _draggingMarker is not null)
+        {
+            MarkerModel marker = _draggingMarker;
+            Point? destination = _markerPreview;
+            _draggingMarker = null;
+            _markerPreview = null;
+            ReleaseMouseCapture();
+            if (destination is Point world)
+                _viewModel?.MoveMarker(marker, world.X, world.Y);
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
         if (e.ChangedButton != MouseButton.Middle)
             return;
         _panning = false;
@@ -227,6 +267,56 @@ public sealed class MapViewport : FrameworkElement
         _pan += correction;
         InvalidateVisual();
         e.Handled = true;
+    }
+
+    protected override void OnDragOver(DragEventArgs e)
+    {
+        base.OnDragOver(e);
+        e.Effects = _viewModel is not null &&
+                    e.Data.GetDataPresent(typeof(PlacementTool))
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    protected override void OnDrop(DragEventArgs e)
+    {
+        base.OnDrop(e);
+        if (_viewModel is null || e.Data.GetData(typeof(PlacementTool)) is not PlacementTool tool)
+            return;
+        Point world = ToWorld(e.GetPosition(this));
+        double x = Math.Round(world.X * 4) / 4;
+        double y = Math.Round(world.Y * 4) / 4;
+        StudioLog.Write($"Entidad soltada: {tool.Definition} en {x:0.##}, {y:0.##}");
+        _viewModel.Place(tool, x, y);
+        InvalidateVisual();
+        e.Handled = true;
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (_viewModel is null)
+            return;
+        if (e.Key == Key.Delete && _viewModel.DeleteCommand.CanExecute(null))
+        {
+            _viewModel.DeleteCommand.Execute(null);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.D && Keyboard.Modifiers.HasFlag(ModifierKeys.Control) &&
+                 _viewModel.DuplicateCommand.CanExecute(null))
+        {
+            _viewModel.DuplicateCommand.Execute(null);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape && _draggingMarker is not null)
+        {
+            _draggingMarker = null;
+            _markerPreview = null;
+            ReleaseMouseCapture();
+            InvalidateVisual();
+            e.Handled = true;
+        }
     }
 
     private void Attach(StudioViewModel? viewModel)
