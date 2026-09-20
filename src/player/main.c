@@ -29,8 +29,9 @@ typedef struct PlayerApp {
     ReBody initial_player;
     ReCamera initial_camera;
     float elapsed;
+    float frame_ms;
     int menu_selection, pause_selection, save_slot, dialogue_selection;
-    bool title, paused, quit;
+    bool title, paused, quit, show_stats;
 } PlayerApp;
 
 static void colors(PlayerApp *app) {
@@ -323,6 +324,8 @@ static size_t visible_dialogue_choices(const PlayerApp *app, const ReDialogueNod
 }
 
 static void tick(PlayerApp *app, ReInput input) {
+    if (input.pressed & RE_STATS)
+        app->show_stats = !app->show_stats;
     if (app->title) {
         if (input.pressed & RE_UP)
             app->menu_selection = (app->menu_selection + 3) % 4;
@@ -571,12 +574,35 @@ static void draw(PlayerApp *app, ReRenderer *renderer, float alpha) {
     re_apply_lights(renderer, &camera, app->project.interactions.lights,
                     app->interaction.state.light_enabled, app->project.interactions.light_count,
                     app->elapsed);
+    /* Una barrera cerrada debe comunicar su intención antes de que el jugador
+     * la confunda con un fallo de colisión. El rayo usa exactamente la misma
+     * máscara y geometría que los disparos y el movimiento. */
+    ReVec3 look = re_v3(sinf(camera.yaw) * cosf(camera.pitch),
+                        cosf(camera.yaw) * cosf(camera.pitch), sinf(camera.pitch));
+    ReTraceHit facing =
+        re_world_trace(&app->project.world, camera.position, look, 1.8f, RE_BLOCK_MOVEMENT);
+    if (facing.barrier >= 0 && app->project.world.barriers[facing.barrier].open_fraction < .95f &&
+        app->interaction.state.message_time <= 0) {
+        const ReBarrier *barrier = &app->project.world.barriers[facing.barrier];
+        re_rect(renderer, 132, 218, 216, 20, re_rgba(8, 12, 17, 230));
+        re_text(renderer, barrier->kind == RE_BARRIER_DOOR ? 181 : 147, 225,
+                barrier->kind == RE_BARRIER_DOOR ? "E  ABRIR PUERTA" : "DISPARA PARA ROMPER VIDRIO",
+                1, re_rgba(240, 178, 86, 255));
+    }
     re_rect(renderer, 0, 247, 480, 23, re_rgba(9, 14, 19, 235));
     char hud[128];
     (void)snprintf(hud, sizeof(hud), "VIDA %03d  VIDAS %d  LLAVE %u  F5/F9",
                    app->interaction.state.player_health, app->interaction.state.player_lives,
                    re_interaction_item_count(&app->interaction, "brass_key"));
     re_text(renderer, 12, 255, hud, 1, re_rgba(220, 226, 218, 255));
+    if (app->show_stats) {
+        char stats[96];
+        float fps = app->frame_ms > .01f ? 1000 / app->frame_ms : 0;
+        (void)snprintf(stats, sizeof(stats), "%.1f FPS  %.2f MS  T%zu P%zu", (double)fps,
+                       (double)app->frame_ms, renderer->stats.rasterized, renderer->stats.shaded);
+        re_rect(renderer, 4, 4, 190, 17, re_rgba(5, 8, 12, 220));
+        re_text(renderer, 9, 9, stats, 1, re_rgba(154, 218, 187, 255));
+    }
     if (app->interaction.state.message_time > 0) {
         re_rect(renderer, 8, 218, 464, 22, re_rgba(8, 12, 17, 220));
         re_text(renderer, 14, 226, app->interaction.state.message, 1, re_rgba(240, 178, 86, 255));
@@ -749,13 +775,19 @@ int main(int argc, char **argv) {
     int frames = 0;
     while (!app->quit && (!smoke_frames || frames < smoke_frames)) {
         double now = re_platform_time();
+        double frame_delta = now - previous;
+        if (frame_delta > 0 && frame_delta < 1) {
+            float milliseconds = (float)(frame_delta * 1000);
+            app->frame_ms =
+                app->frame_ms > 0 ? app->frame_ms * .9f + milliseconds * .1f : milliseconds;
+        }
         ReInput input = re_platform_input(platform);
         app->quit |= input.quit;
         re_platform_capture_mouse(platform, input.focused && !app->title && !app->paused &&
                                                 !app->interaction.state.game_over &&
                                                 !app->interaction.state.won &&
                                                 !app->interaction.state.dialogue_pauses);
-        int ticks = re_clock_advance(&clock, now - previous, input.focused);
+        int ticks = re_clock_advance(&clock, frame_delta, input.focused);
         previous = now;
         re_input_accumulate(&pending, input);
         for (int i = 0; i < ticks; i++)

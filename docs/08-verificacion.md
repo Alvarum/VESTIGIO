@@ -90,9 +90,8 @@ New-Item -ItemType Directory -Force artifacts
 ./build/release/bin/retro_fps.exe --smoke 60 --capture artifacts/depth.png --view 3 --no-audio
 ./build/release/bin/retro_fps.exe --smoke 60 --capture artifacts/debug.png --view 4 --no-audio
 ./build/release/bin/retro_lab.exe --smoke 120 --capture artifacts/lab.png
-./build/release/bin/retro_studio.exe --capture artifacts/studio-final.png
-./build/release/bin/retro_studio.exe --play --capture artifacts/studio-play-final.png
-./build/release/bin/retro_player.exe --smoke 120 --capture artifacts/player.png
+./build/release/bin/retro_player.exe --project ./build/release/bin/assets/studio/haunted.retro `
+  --smoke 120 --capture artifacts/player.png
 ```
 
 `--smoke` congela la simulación y dibuja un número acotado de frames en ventana
@@ -113,6 +112,8 @@ Mediciones Release, resolución interna 480×270, sobre este equipo:
 | Laboratorio normal | 180 | 3.189 ms | No registrado en este ejecutable |
 | Proyecto Haunted exportado | 120 | 3.364 ms | 4.602 ms |
 | Haunted con 4 luces (esta actualización) | 240 | 6.999 ms; p95 8.404 ms | 9.700 ms |
+| Haunted optimizado Release | 600 | 6.942 ms; p95 9.223 ms | 11.069 ms |
+| Haunted desde Studio/Debug | 600 | 7.485 ms; p95 9.696 ms | 11.565 ms |
 
 El presupuesto de 60 FPS es 16.67 ms por frame. Estas medidas cubren el renderer
 y la UI CPU; no deben invertirse y presentarse como FPS garantizados del juego.
@@ -121,8 +122,13 @@ con presentación en el smoke. Las ventanas ocultas y escenas fijas no represent
 todos los escenarios de carga. No hay garantía para hardware o niveles distintos.
 
 La medición nueva informa además 10 marcadores/entidades de escena, 4 luces y
-9.50 MiB de memoria CPU contabilizada por el reproductor (estado, framebuffer,
+9.89 MiB de memoria CPU contabilizada por el reproductor (estado, framebuffer,
 profundidad y texturas CPU). No incluye memoria interna del driver gráfico.
+
+El núcleo CPU se compila con `-O2` también en Debug; gameplay, editor y la
+aplicación conservan `-Og`. Antes de esa separación, el mismo Haunted tardaba
+29.735 ms de render medio en Debug. La optimización reduce ese valor a 7.485 ms
+sin cambiar la resolución ni desactivar luces.
 
 La última ejecución del paquete extraído (240 frames) registró 3.619 ms de render
 CPU medio, 5.777 ms máximo y **4.193 ms por frame incluyendo presentación**.

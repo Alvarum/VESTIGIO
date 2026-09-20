@@ -324,7 +324,11 @@ void re_draw_world(ReRenderer *r, const ReCamera *c, const ReWorld *w,
         ReVec2 edge_b = s->vertices[((size_t)barrier->edge + 1u) % s->count];
         ReVec2 a = edge_point(edge_a, edge_b, s->portal_start[barrier->edge]);
         ReVec2 b = edge_point(edge_a, edge_b, s->portal_end[barrier->edge]);
-        quad(r, c, a, b, low, high, &materials[barrier->material], s->light);
+        /* Puertas y vidrios son affordances de juego. Un mínimo de luz evita
+         * que un panel cerrado en un sector oscuro parezca un portal vacío y,
+         * por tanto, una pared invisible. */
+        float barrier_light = fmaxf(s->light, barrier->kind == RE_BARRIER_DOOR ? .82f : .68f);
+        quad(r, c, a, b, low, high, &materials[barrier->material], barrier_light);
     }
 }
 
@@ -338,12 +342,32 @@ void re_apply_lights(ReRenderer *r, const ReCamera *c, const struct ReLight *lig
     int tiles_y = (r->height + TILE_SIZE - 1) / TILE_SIZE;
     uint8_t counts[MAX_TILES] = {0};
     uint8_t indices[MAX_TILES][LIGHTS_PER_TILE] = {{0}};
+    /* Estos términos sólo dependen de la luz y del tiempo del frame. Antes se
+     * recalculaban dentro del bucle de píxeles (incluidos varios sin/cos), lo
+     * que multiplicaba trabajo idéntico por hasta 129 600 píxeles. Mantenerlos
+     * indexados por la luz original conserva las listas compactas de tiles. */
+    float radius_squared[RE_MAX_LIGHTS] = {0};
+    float inverse_radius[RE_MAX_LIGHTS] = {0};
+    float frame_intensity[RE_MAX_LIGHTS] = {0};
+    float cone_cosine[RE_MAX_LIGHTS] = {0};
+    ReVec2 spot_direction[RE_MAX_LIGHTS] = {0};
     float tangent = tanf(c->fov * .5f);
     float focal = (float)r->width / (2 * tangent);
     float sy = sinf(c->yaw), cy = cosf(c->yaw), sp = sinf(c->pitch), cp = cosf(c->pitch);
     for (size_t i = 0; i < light_count && i < RE_MAX_LIGHTS; i++) {
         if (!enabled[i] || lights[i].radius <= 0 || lights[i].intensity <= 0)
             continue;
+        radius_squared[i] = lights[i].radius * lights[i].radius;
+        inverse_radius[i] = 1 / lights[i].radius;
+        float flicker =
+            lights[i].flicker > 0
+                ? 1 - lights[i].flicker * (.5f + .5f * sinf(time * 17 + (float)i * 2.7f))
+                : 1;
+        frame_intensity[i] = lights[i].intensity * flicker;
+        if (lights[i].kind == RE_LIGHT_SPOT) {
+            spot_direction[i] = re_v2(sinf(lights[i].yaw), cosf(lights[i].yaw));
+            cone_cosine[i] = cosf(lights[i].cone * .5f);
+        }
         ReVec3 delta = re_sub3(lights[i].position, c->position);
         float forward = delta.x * sy + delta.y * cy;
         float camera_x = delta.x * cy - delta.y * sy;
@@ -391,22 +415,18 @@ void re_apply_lights(ReRenderer *r, const ReCamera *c, const struct ReLight *lig
             for (uint8_t entry = 0; entry < counts[tile]; entry++) {
                 size_t index = indices[tile][entry];
                 ReVec3 to_point = re_sub3(world, lights[index].position);
-                float distance = sqrtf(re_dot3(to_point, to_point));
-                if (distance >= lights[index].radius)
+                float distance_squared = re_dot3(to_point, to_point);
+                if (distance_squared >= radius_squared[index])
                     continue;
+                float distance = sqrtf(distance_squared);
                 if (lights[index].kind == RE_LIGHT_SPOT && distance > RE_EPSILON) {
-                    ReVec2 direction = re_v2(sinf(lights[index].yaw), cosf(lights[index].yaw));
-                    float facing =
-                        re_dot2(direction, re_scale2(re_v2(to_point.x, to_point.y), 1 / distance));
-                    if (facing < cosf(lights[index].cone * .5f))
+                    float facing = re_dot2(spot_direction[index],
+                                           re_scale2(re_v2(to_point.x, to_point.y), 1 / distance));
+                    if (facing < cone_cosine[index])
                         continue;
                 }
-                float attenuation = 1 - distance / lights[index].radius;
-                float flicker = lights[index].flicker > 0
-                                    ? 1 - lights[index].flicker *
-                                              (.5f + .5f * sinf(time * 17 + (float)index * 2.7f))
-                                    : 1;
-                float strength = attenuation * attenuation * lights[index].intensity * flicker;
+                float attenuation = 1 - distance * inverse_radius[index];
+                float strength = attenuation * attenuation * frame_intensity[index];
                 illumination = re_add3(illumination, re_scale3(lights[index].color, strength));
             }
             RePixel color = r->pixels[pixel];

@@ -188,6 +188,59 @@ static bool haunted_stacked_portal(void) {
     CHECK(player.sector == 0);
     return true;
 }
+
+/* Recorre todas las aberturas transitables del showcase en ambos sentidos.
+ * Un portal que se dibuja abierto pero no deja pasar al mismo cilindro es una
+ * regresión visible como “muralla invisible”. */
+static bool haunted_all_portals(void) {
+    ReWorld world = {0};
+    ReError error = {0};
+    CHECK(re_world_load(RETRO_SOURCE_DIR "/assets/studio/levels/house.map", &world, &error));
+    for (size_t barrier = 0; barrier < world.barrier_count; barrier++) {
+        world.barriers[barrier].open_fraction = 1;
+        world.barriers[barrier].blocks = 0;
+    }
+    for (size_t sector_index = 0; sector_index < world.sector_count; sector_index++) {
+        const ReSector *sector = &world.sectors[sector_index];
+        for (size_t edge = 0; edge < sector->count; edge++) {
+            int neighbor = sector->neighbor[edge];
+            if (neighbor < 0)
+                continue;
+            const ReSector *other = &world.sectors[neighbor];
+            float clearance =
+                fminf(sector->ceiling, other->ceiling) - fmaxf(sector->floor, other->floor);
+            float portal_width = re_length2(re_sub2(sector->vertices[(edge + 1u) % sector->count],
+                                                    sector->vertices[edge])) *
+                                 (sector->portal_end[edge] - sector->portal_start[edge]);
+            if (clearance < 1.7f || portal_width < .8f ||
+                other->floor - sector->floor > .3f + RE_EPSILON)
+                continue;
+            ReVec2 a = sector->vertices[edge];
+            ReVec2 b = sector->vertices[(edge + 1u) % sector->count];
+            float middle = (sector->portal_start[edge] + sector->portal_end[edge]) * .5f;
+            ReVec2 portal = re_add2(a, re_scale2(re_sub2(b, a), middle));
+            ReVec2 edge_direction = re_normalize2(re_sub2(b, a));
+            ReVec2 inward = re_v2(-edge_direction.y, edge_direction.x);
+            ReBody player = {
+                .position = {portal.x + inward.x * .6f, portal.y + inward.y * .6f, sector->floor},
+                .radius = .26f,
+                .height = 1.7f,
+                .step_height = .3f,
+                .sector = (int)sector_index,
+                .grounded = true};
+            for (int tick = 0; tick < 20; tick++)
+                re_body_move(&world, &player, re_scale2(inward, -.08f), RE_FIXED_DT, 18);
+            if (player.sector != neighbor) {
+                (void)fprintf(stderr,
+                              "portal blocked sector=%zu edge=%zu neighbor=%d pos=%.3f,%.3f\n",
+                              sector_index, edge, neighbor, (double)player.position.x,
+                              (double)player.position.y);
+                return false;
+            }
+        }
+    }
+    return true;
+}
 static bool rendering(void) {
     ReRenderer r = {0};
     ReTexture texture = {0};
@@ -769,6 +822,7 @@ int main(void) {
                  {"maps", maps},
                  {"collisions", collisions},
                  {"haunted_stacked_portal", haunted_stacked_portal},
+                 {"haunted_all_portals", haunted_all_portals},
                  {"rendering", rendering},
                  {"renderer_contracts", renderer_contracts},
                  {"dynamic_lighting", dynamic_lighting},

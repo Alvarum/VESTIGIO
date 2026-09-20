@@ -15,6 +15,10 @@ function(retro_target target)
         target_compile_options(${target} PRIVATE -std=c23)
         target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Werror
             -Wconversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Wformat=2 -Wundef)
+        # -Og mantiene una experiencia de depuración útil (variables y flujo
+        # reconocibles) sin obligar al renderer CPU a ejecutar cada operación
+        # elemental sin optimizar. Release conserva sus flags propios de CMake.
+        target_compile_options(${target} PRIVATE $<$<CONFIG:Debug>:-Og>)
         if(RETRO_ANALYZE AND CMAKE_C_COMPILER_ID STREQUAL "GNU")
             target_compile_options(${target} PRIVATE -fanalyzer)
         endif()
@@ -31,6 +35,12 @@ endfunction()
 add_library(retro_core STATIC src/engine/math.c src/engine/map.c src/engine/world.c
     src/engine/render.c src/engine/canvas.c src/engine/input.c)
 retro_target(retro_core)
+# Studio inicia el Player del mismo preset. El núcleo gráfico necesita velocidad
+# representativa incluso en Debug; gameplay, editor y aplicaciones permanecen
+# en -Og para inspeccionar su flujo con el depurador.
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(retro_core PRIVATE $<$<CONFIG:Debug>:-O2>)
+endif()
 if(NOT WIN32)
     target_link_libraries(retro_core PUBLIC m)
 endif()
