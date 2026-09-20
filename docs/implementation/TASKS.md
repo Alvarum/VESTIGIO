@@ -6,7 +6,7 @@ Los paths son puntos de entrada; directorios nuevos son propuestas hasta F01. An
 
 ## F00 — Reconciliar baseline y obtener evidencia inicial
 
-Fase: **P0** · Rol: **integrator** · Estado: **PLANNED**.
+Fase: **P0** · Rol: **integrator** · Estado: **VERIFIED**.
 
 Dependencias integradas: ninguna; inicio del plan.
 
@@ -29,6 +29,8 @@ Puntos de entrada: `docs/implementation/STATE.md`, `docs/implementation/evidence
 Verificación: V-CORE, V-APP.
 
 Desbloquea: Contratos e implementación sobre una base conocida.
+
+Evidencia: docs/implementation/evidence/F00.md.
 
 ## F01 — Congelar contratos mínimos entre agentes
 

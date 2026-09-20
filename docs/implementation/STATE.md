@@ -2,12 +2,12 @@
 
 Fecha de preparación del plan: 2026-09-20.
 
-- Estado global: **PLAN_LISTO / IMPLEMENTACIÓN_NO_INICIADA**.
+- Estado global: **IMPLEMENTACIÓN_EN_CURSO — F00 VERIFICADO**.
 - HEAD observado para redactar: `28dafa949ff68ed3dc52bf93d287863037bf8578`.
 - Checkout observado limpio antes de crear `docs/implementation/`.
 - Cambios de código desde `ae48d31` hasta esa base: ninguno; se incorporó la investigación.
-- Todos los tickets del nuevo backlog están PLANNED. El engine legacy existente no equivale a haber implementado estos tickets nuevos.
-- Único ticket inicialmente elegible: **F00**. Al integrarse F00: F01. Después de F01: G01 y R01, si sus escrituras no se solapan.
+- F00 está VERIFIED en el worktree; se marcará INTEGRATED al registrar su commit. Los demás tickets siguen PLANNED. El engine legacy existente no equivale a haber implementado esos tickets nuevos.
+- Próximo ticket tras integrar F00: **F01**. Después de F01: G01 y R01, si sus escrituras no se solapan.
 - Encargo de inicio recomendado: **ARRANQUE**. Los prompts permiten seleccionar COMPLETO de forma explícita.
 - GPU objetivo: backend principal confirmado por el usuario; G01/G02 pendientes de implementación y evidencia.
 - Builds/pruebas del engine durante esta planificación: **no ejecutados**. La verificación de este paquete sólo valida documentos y DAG.
@@ -16,11 +16,11 @@ Verificación del paquete: **PASS**, 31 tickets, 61 dependencias, 15 oleadas te�
 
 ## Registro del coordinador
 
-Sin asignaciones ni locks reclamados todavía. Actualizar esta sección al empezar F00; no sustituir el estado por planes vagos.
+F00 ejecutado por el integrador. No hay workers ni locks concurrentes.
 
 | Ticket | Responsable / checkout | Base y resultado | Locks / archivos compartidos | Evidencia / siguiente paso |
 |---|---|---|---|---|
-| F00 | Sin asignar | Confirmar HEAD al iniciar | integration | Ejecutar baseline y revisar A01–A14 |
+| F00 | integrador / checkout principal | `28dafa9` / commit pendiente | integration | [evidence/F00.md](evidence/F00.md); integrar y comenzar F01 |
 
 ## Bloqueos y decisiones pendientes
 

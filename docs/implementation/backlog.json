@@ -9,7 +9,7 @@
   "validation_profiles": ["V-CORE", "V-APP", "V-SDK", "V-GPU", "V-WPF", "V-ASSET", "V-DATA", "V-SPATIAL", "V-AUDIO", "V-PERF", "V-DELIVERY"],
   "tasks": [
     {
-      "id": "F00", "phase": "P0", "title": "Reconciliar baseline y obtener evidencia inicial", "role": "integrator", "dependencies": [], "locks": ["integration"], "status": "PLANNED",
+      "id": "F00", "phase": "P0", "title": "Reconciliar baseline y obtener evidencia inicial", "role": "integrator", "dependencies": [], "locks": ["integration"], "status": "VERIFIED", "evidence": ["docs/implementation/evidence/F00.md"],
       "paths": ["docs/implementation/STATE.md", "docs/implementation/evidence/", "tools/build.ps1", "tools/check.ps1", "CMakePresets.json"],
       "steps": ["Registrar HEAD, git status y diff del código desde ae48d31; mapear A01-A14 del informe a vigente, corregido o pendiente de reproducción. No reaplicar correcciones ya existentes.", "Comprobar toolchain/dependencias y ejecutar la matriz baseline de VALIDATION.md en un checkout aislado o sin escritores concurrentes; registrar fallos previos sin expandir el alcance de reparación.", "Seleccionar corpus Haunted, portales parciales, sesión/editor y escenas sintéticas futuras; fijar ruta de evidencia, hardware y propietario de integración."],
       "acceptance": ["Baseline exacto y comandos/resultados registrados; ninguna afirmación PASS sin ejecución.", "Los fallos que impiden validar la futura vertical se resuelven con un ticket acotado o se identifican como bloqueo; fallos ajenos se preservan y documentan.", "Todos los agentes pueden reproducir el checkout y las herramientas; no comparten build/bin/obj ni editan una rama de integración simultáneamente."],
