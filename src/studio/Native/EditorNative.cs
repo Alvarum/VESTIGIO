@@ -225,6 +225,9 @@ public static class EditorNative
     internal static extern int re_editor_add_drop_rule(nint document, uint marker, string item,
         out uint rule, out Error error);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    internal static extern int re_editor_add_interaction_rule(nint document, uint marker, int action,
+        string target, string value, out uint rule, out Error error);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     internal static extern int re_editor_set_property(nint document, ObjectKind kind, uint index,
         string property, string value, out Error error);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

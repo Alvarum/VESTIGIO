@@ -849,6 +849,76 @@ int re_editor_add_drop_rule(ReEditorDocument *document, uint32_t marker_index, c
     return 1;
 }
 
+static bool barrier_exists(const ReWorld *world, const char *id) {
+    for (size_t i = 0; i < world->barrier_count; i++)
+        if (strcmp(world->barriers[i].id, id) == 0)
+            return true;
+    return false;
+}
+
+static bool dialogue_exists(const ReInteractionDefinitions *definitions, const char *id) {
+    for (size_t i = 0; i < definitions->dialogue_count; i++)
+        if (strcmp(definitions->dialogues[i].id, id) == 0)
+            return true;
+    return false;
+}
+
+int re_editor_add_interaction_rule(ReEditorDocument *document, uint32_t marker_index, int action,
+                                   const char *target, const char *value, uint32_t *out_rule,
+                                   ReError *error) {
+    if (!document || !target || !value || !out_rule || !error)
+        return fail(error, "Evento de interacción inválido");
+    ReProject *project = begin_command(document);
+    if (!project)
+        return fail(error, "No se pudo iniciar el comando");
+    if (marker_index >= project->world.marker_count ||
+        project->interactions.rule_count >= RE_MAX_RULES)
+        return cancel_fail(document, error, "No se puede crear la interacción");
+
+    bool supported = action == RE_RULE_SHOW_MESSAGE || action == RE_RULE_OPEN_BARRIER ||
+                     action == RE_RULE_START_DIALOGUE || action == RE_RULE_GIVE_ITEM;
+    if (!supported)
+        return cancel_fail(document, error, "La acción no está disponible en el asistente rápido");
+    if (action == RE_RULE_SHOW_MESSAGE && value[0] == '\0')
+        return cancel_fail(document, error, "Escribe el mensaje que verá el jugador");
+    if (action == RE_RULE_OPEN_BARRIER && !barrier_exists(&project->world, target))
+        return cancel_fail(document, error, "La puerta o ventana seleccionada no existe");
+    if (action == RE_RULE_START_DIALOGUE && !dialogue_exists(&project->interactions, target))
+        return cancel_fail(document, error, "La conversación seleccionada no existe");
+    if (action == RE_RULE_GIVE_ITEM && target[0] == '\0')
+        return cancel_fail(document, error, "Selecciona el objeto que recibirá el jugador");
+
+    const ReMarker *marker = &project->world.markers[marker_index];
+    ReRuleDefinition rule = {.event = RE_LOGIC_INTERACT, .priority = 100, .action_count = 1};
+    if (!copy_text(rule.source, sizeof(rule.source), marker->id))
+        return cancel_fail(document, error, "El identificador del origen es demasiado largo");
+    rule.actions[0].kind = (enum ReActionKind)action;
+    const char *action_target = action == RE_RULE_SHOW_MESSAGE ? "-" : target;
+    if (!copy_text(rule.actions[0].target, sizeof(rule.actions[0].target), action_target))
+        return cancel_fail(document, error, "El identificador del destino es demasiado largo");
+    if (action == RE_RULE_SHOW_MESSAGE) {
+        rule.actions[0].value.kind = RE_VALUE_TEXT;
+        if (!copy_text(rule.actions[0].value.as.text, sizeof(rule.actions[0].value.as.text), value))
+            return cancel_fail(document, error, "El mensaje admite hasta 63 caracteres");
+    } else if (action == RE_RULE_GIVE_ITEM) {
+        rule.actions[0].value = (ReValue){.kind = RE_VALUE_INT, .as.integer = 1};
+    }
+    for (unsigned int suffix = 1; suffix < 10000; suffix++) {
+        (void)snprintf(rule.id, sizeof(rule.id), "interact_%u", suffix);
+        if (!rule_id_exists(&project->interactions, rule.id))
+            break;
+    }
+    if (rule_id_exists(&project->interactions, rule.id))
+        return cancel_fail(document, error, "No se pudo generar un identificador para la regla");
+    size_t index = project->interactions.rule_count;
+    project->interactions.rules[index] = rule;
+    project->interactions.rule_count++;
+    *out_rule = (uint32_t)index;
+    document->revision++;
+    *error = (ReError){0};
+    return 1;
+}
+
 int re_editor_save(ReEditorDocument *document, ReError *error) {
     ReProject *project = current(document);
     if (!project || !error)

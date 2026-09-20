@@ -747,6 +747,14 @@ static bool editor_document(void) {
     CHECK(re_editor_delete_marker(document, duplicate, &error));
     CHECK(re_editor_add_drop_rule(document, placed, "brass_key", &drop_rule, &error));
     CHECK(drop_rule == original_rules);
+    uint32_t interaction_rule = 0;
+    CHECK(re_editor_add_interaction_rule(document, placed, RE_RULE_OPEN_BARRIER, "foyer-door", "",
+                                         &interaction_rule, &error));
+    CHECK(interaction_rule == original_rules + 1u);
+    ReEditorRuleActionView interaction_action = {0};
+    CHECK(re_editor_rule_action(document, interaction_rule, 0, &interaction_action));
+    CHECK(interaction_action.kind == RE_RULE_OPEN_BARRIER &&
+          strcmp(interaction_action.target, "foyer-door") == 0);
     CHECK(!re_editor_delete_marker(document, placed, &error)); /* Regla protege la referencia. */
     CHECK(error.message[0] != '\0');
     re_editor_close(document);

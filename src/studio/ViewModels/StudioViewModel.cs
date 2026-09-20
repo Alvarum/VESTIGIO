@@ -14,6 +14,9 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
     private string _searchText = string.Empty;
     private bool _isPlaying;
     private Process? _playerProcess;
+    private DialogueModel? _quickDialogue;
+    private BarrierModel? _quickBarrier;
+    private string _quickMessage = "Hola. Hay algo que debes saber.";
 
     public StudioViewModel(EditorDocument document)
     {
@@ -34,6 +37,14 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
         AddDropCommand = new RelayCommand<string>(AddDrop,
             item => SelectedItem is MarkerModel { MarkerKind: "actor" } &&
                     !string.IsNullOrWhiteSpace(item) && !IsPlaying);
+        StartDialogueCommand = new RelayCommand(StartDialogue,
+            () => SelectedItem is MarkerModel && QuickDialogue is not null && !IsPlaying);
+        OpenBarrierCommand = new RelayCommand(OpenBarrier,
+            () => SelectedItem is MarkerModel && QuickBarrier is not null && !IsPlaying);
+        ShowMessageCommand = new RelayCommand(ShowMessage,
+            () => SelectedItem is MarkerModel && !string.IsNullOrWhiteSpace(QuickMessage) && !IsPlaying);
+        GiveItemCommand = new RelayCommand<string>(GiveItem,
+            item => SelectedItem is MarkerModel && !string.IsNullOrWhiteSpace(item) && !IsPlaying);
         RefreshPresentation();
     }
 
@@ -57,6 +68,10 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
     public RelayCommand DuplicateCommand { get; }
     public RelayCommand DeleteCommand { get; }
     public RelayCommand<string> AddDropCommand { get; }
+    public RelayCommand StartDialogueCommand { get; }
+    public RelayCommand OpenBarrierCommand { get; }
+    public RelayCommand ShowMessageCommand { get; }
+    public RelayCommand<string> GiveItemCommand { get; }
 
     public IEditorItem? SelectedItem
     {
@@ -77,6 +92,10 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
             DuplicateCommand.Notify();
             DeleteCommand.Notify();
             AddDropCommand.Notify();
+            StartDialogueCommand.Notify();
+            OpenBarrierCommand.Notify();
+            ShowMessageCommand.Notify();
+            GiveItemCommand.Notify();
         }
     }
 
@@ -89,6 +108,36 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
     public string ConnectionsMessage => Connections.Count == 0
         ? "Este elemento todavía no tiene conexiones directas."
         : $"{Connections.Count} conexión{(Connections.Count == 1 ? string.Empty : "es")} encontrada{(Connections.Count == 1 ? string.Empty : "s")}.";
+
+    public DialogueModel? QuickDialogue
+    {
+        get => _quickDialogue;
+        set
+        {
+            if (Set(ref _quickDialogue, value))
+                StartDialogueCommand.Notify();
+        }
+    }
+
+    public BarrierModel? QuickBarrier
+    {
+        get => _quickBarrier;
+        set
+        {
+            if (Set(ref _quickBarrier, value))
+                OpenBarrierCommand.Notify();
+        }
+    }
+
+    public string QuickMessage
+    {
+        get => _quickMessage;
+        set
+        {
+            if (Set(ref _quickMessage, value))
+                ShowMessageCommand.Notify();
+        }
+    }
 
     public string Workspace
     {
@@ -128,6 +177,13 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
             StopCommand.Notify();
             UndoCommand.Notify();
             RedoCommand.Notify();
+            DuplicateCommand.Notify();
+            DeleteCommand.Notify();
+            AddDropCommand.Notify();
+            StartDialogueCommand.Notify();
+            OpenBarrierCommand.Notify();
+            ShowMessageCommand.Notify();
+            GiveItemCommand.Notify();
         }
     }
 
@@ -159,6 +215,10 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
         PlacementTools.Add(new PlacementTool("Botiquín", "Recupera salud", "pickup", "bandage", "+"));
         PlacementTools.Add(new PlacementTool("Llave", "Objeto de inventario", "pickup", "brass_key", "◆"));
         PlacementTools.Add(new PlacementTool("Interruptor", "Objeto interactuable", "interact", "switch", "⌁"));
+        if (QuickDialogue is null || !Document.Dialogues.Any(item => item.Id == QuickDialogue.Id))
+            QuickDialogue = Document.Dialogues.FirstOrDefault();
+        if (QuickBarrier is null || !Document.Barriers.Any(item => item.Id == QuickBarrier.Id))
+            QuickBarrier = Document.Barriers.FirstOrDefault();
 
         Problems.Clear();
         if (Document.Sectors.Count == 0)
@@ -186,6 +246,10 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
         DuplicateCommand.Notify();
         DeleteCommand.Notify();
         AddDropCommand.Notify();
+        StartDialogueCommand.Notify();
+        OpenBarrierCommand.Notify();
+        ShowMessageCommand.Notify();
+        GiveItemCommand.Notify();
     }
 
     private void BuildSceneGroups()
@@ -425,6 +489,40 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
         {
             SelectedItem = Document.AddDropRule(marker.Index, item);
             Status = $"Regla creada: {marker.DisplayName} soltará {item} una sola vez";
+        });
+    }
+
+    private void StartDialogue()
+    {
+        if (QuickDialogue is not null)
+            AddInteraction(12, QuickDialogue.Id, string.Empty,
+                $"Al interactuar se iniciará {QuickDialogue.DisplayName}");
+    }
+
+    private void OpenBarrier()
+    {
+        if (QuickBarrier is not null)
+            AddInteraction(6, QuickBarrier.Id, string.Empty,
+                $"Al interactuar se abrirá {QuickBarrier.DisplayName}");
+    }
+
+    private void ShowMessage() => AddInteraction(5, "-", QuickMessage,
+        "Mensaje de interacción creado");
+
+    private void GiveItem(string? item)
+    {
+        if (!string.IsNullOrWhiteSpace(item))
+            AddInteraction(2, item, string.Empty, $"Al interactuar se entregará {item}");
+    }
+
+    private void AddInteraction(int action, string target, string value, string status)
+    {
+        if (SelectedItem is not MarkerModel marker)
+            return;
+        ExecuteEditorAction(() =>
+        {
+            SelectedItem = Document.AddInteractionRule(marker.Index, action, target, value);
+            Status = status;
         });
     }
 

@@ -180,6 +180,9 @@ RE_EDITOR_API int re_editor_delete_marker(ReEditorDocument *document, uint32_t i
  * completa y enlazada con la instancia, evitando identificadores manuales. */
 RE_EDITOR_API int re_editor_add_drop_rule(ReEditorDocument *document, uint32_t marker,
                                           const char *item, uint32_t *out_rule, ReError *error);
+RE_EDITOR_API int re_editor_add_interaction_rule(ReEditorDocument *document, uint32_t marker,
+                                                 int action, const char *target, const char *value,
+                                                 uint32_t *out_rule, ReError *error);
 
 /* value usa la representación visible del inspector: números con punto como
  * separador y booleanos true/false. Una operación inválida no modifica ni el

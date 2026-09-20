@@ -103,6 +103,16 @@ public sealed class EditorDocument : IDisposable
         return Rules[(int)rule];
     }
 
+    public RuleModel AddInteractionRule(uint marker, int action, string target, string value)
+    {
+        EnsureOpen();
+        if (EditorNative.re_editor_add_interaction_rule(_handle, marker, action, target, value,
+                out uint rule, out EditorNative.Error error) == 0)
+            throw NativeFailure(error);
+        Refresh();
+        return Rules[(int)rule];
+    }
+
     public bool Undo()
     {
         EnsureOpen();

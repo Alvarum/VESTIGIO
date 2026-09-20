@@ -83,6 +83,9 @@ instancias que usan esa definición.
 Al seleccionar una instancia de personaje aparecen acciones rápidas. Por
 ejemplo, **Al morir: llave** crea una regla one-shot completa con el personaje
 como origen y el pickup como consecuencia; no hay que copiar identificadores.
+El bloque **Al interactuar** permite elegir una conversación o barrera, o
+escribir un mensaje corto. **Crear** añade el evento, origen y acción como una
+sola operación que también se puede deshacer.
 
 Los clips muestran número de fotogramas, direcciones y repetición. Cada
 fotograma conserva celda, duración y evento; el atlas completo no se usa como
