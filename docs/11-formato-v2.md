@@ -14,6 +14,7 @@ rules horror_fps
 death checkpoint
 level levels/house.map
 title_art art/haunted-title.png
+material 0 art/materials/brick-red.png
 logic logic/haunted.rules
 dialogue dialogues/haunted.dialogue
 actor actors/kidnapper.actor
@@ -25,6 +26,11 @@ Las rutas son relativas al manifiesto. Se rechazan rutas absolutas y componentes
 `id` identifica guardados; sólo admite ASCII alfanumérico, `-` y `_`. `death`
 acepta `restart_level`, `checkpoint`, `limited_lives` o `permadeath`. El motor
 sigue importando `retro_project 1` en memoria; guardar desde Studio produce v2.
+
+Cada directiva opcional `material <índice> <ruta PNG>` sustituye el patrón de
+respaldo de ese índice. El mapa, el renderer y las colisiones siguen usando el
+mismo índice estable. Las rutas son relativas al manifiesto, no pueden escapar
+de la carpeta del proyecto y se validan al abrir la sesión.
 
 ## Mapa v4
 

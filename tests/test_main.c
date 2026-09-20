@@ -290,8 +290,14 @@ static bool renderer_contracts(void) {
     float uv[4] = {0};
     CHECK(re_texture_cell_uv(&texture, 4, 4, 3, uv));
     CHECK(NEAR(uv[0], .5f) && NEAR(uv[1], .5f) && NEAR(uv[2], 1) && NEAR(uv[3], 1));
-    CHECK(!re_texture_cell_uv(&texture, 3, 4, 0, uv));
+    CHECK(!re_texture_cell_uv(&texture, 9, 4, 0, uv));
     CHECK(!re_texture_cell_uv(&texture, 4, 4, 4, uv));
+    ReTexture padded_sheet = {0};
+    CHECK(re_texture_init(&padded_sheet, 18, 4));
+    CHECK(re_texture_cell_uv(&padded_sheet, 4, 4, 3, uv));
+    CHECK(NEAR(uv[0], 12.0f / 18.0f) && NEAR(uv[2], 16.0f / 18.0f));
+    CHECK(!re_texture_cell_uv(&padded_sheet, 4, 4, 4, uv));
+    re_texture_destroy(&padded_sheet);
     for (int y = 0; y < 8; y++)
         for (int x = 0; x < 8; x++)
             texture.pixels[(size_t)y * 8u + (size_t)x] =
@@ -616,7 +622,7 @@ static bool reusable_gameplay(void) {
     const ReCharacter *boss_actor = re_gameplay_get(gameplay, boss);
     CHECK(boss_actor != nullptr && boss_actor->phase == 1);
     int cell = re_character_animation_cell(kidnapper, actor, "chase", 0);
-    CHECK(cell == 0);
+    CHECK(cell == 1 || cell == 2);
     return true;
 }
 
@@ -626,6 +632,8 @@ static bool safe_door(void) {
     *project = (ReProject){0};
     ReError error = {0};
     CHECK(re_project_load(RETRO_SOURCE_DIR "/assets/studio/haunted.retro", project, &error));
+    CHECK(strcmp(project->material_files[0], "art/materials/brick-red.png") == 0);
+    CHECK(strcmp(project->material_files[6], "art/materials/exit-green.png") == 0);
     project->world.barriers[2].open_fraction = 1;
     ReBody body = {.position = {14, 4, 0}, .radius = .3f, .height = 1.7f, .sector = 3};
     CHECK(!re_barrier_tick(&project->world, 2, 0, 2, RE_FIXED_DT, &body, 1));
@@ -747,8 +755,8 @@ static bool interaction_journey(void) {
 /* Recorre el arco completo de Haunted sin ventana. No sustituye una partida
  * humana: protege la
  * conexiÃ³n entre objetivo, llave, persecuciÃ³n, compuertas,
- * jefe y salida para que el showcase
- * nunca vuelva a quedar bloqueado. */
+ * jefe y salida para que el
+ * showcase nunca vuelva a quedar bloqueado. */
 static bool haunted_showcase_journey(void) {
     static ReProject project;
     static ReGameplay gameplay;

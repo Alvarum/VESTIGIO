@@ -6,6 +6,13 @@ rules horror_fps
 death checkpoint
 level levels/house.map
 title_art art/haunted-title.png
+material 0 art/materials/brick-red.png
+material 1 art/materials/floor-steel.png
+material 2 art/materials/ceiling-soot.png
+material 3 art/materials/concrete-violet.png
+material 4 art/materials/metal-green.png
+material 5 art/materials/steel-charcoal.png
+material 6 art/materials/exit-green.png
 logic logic/haunted.rules
 dialogue dialogues/haunted.dialogue
 actor actors/kidnapper.actor

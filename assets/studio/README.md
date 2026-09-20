@@ -1,5 +1,18 @@
 # Haunted: Casa de la Niebla
 
+## Dirección visual
+
+Los personajes y materiales de este ejemplo fueron creados para RetroForge
+con el generador de imágenes de OpenAI y preparados como recursos locales PNG.
+Las cuatro hojas de personajes tienen cuatro poses recortadas y transparencia;
+los siete materiales comparten una paleta industrial de carbón, óxido, verde y
+ámbar. No dependen de servicios externos durante la ejecución.
+
+El juego carga exclusivamente los archivos `*-sheet.png` declarados por los
+actores y los PNG de `art/materials` declarados por `haunted.retro`; las poses
+anteriores de un solo fotograma fueron sustituidas para evitar recursos muertos
+en el juego exportado.
+
 Haunted es el showcase jugable de RetroForge. Su recorrido estÃ¡ diseÃ±ado para
 demostrar sistemas reales del motor en una partida corta y legible, no para
 ser una galerÃ­a de objetos aislados.

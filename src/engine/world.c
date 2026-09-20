@@ -98,8 +98,7 @@ void re_body_move(const ReWorld *w, ReBody *body, ReVec2 delta, float dt, float 
              * resolviéndose en portal_clearance_blocks(). */
             float body_bottom = body->position.z;
             float body_top = body->position.z + body->height;
-            if (s->ceiling <= body_bottom + RE_EPSILON ||
-                s->floor >= body_top - RE_EPSILON)
+            if (s->ceiling <= body_bottom + RE_EPSILON || s->floor >= body_top - RE_EPSILON)
                 continue;
             for (size_t e = 0; e < s->count; e++) {
                 ReVec2 a = s->vertices[e], b = s->vertices[(e + 1) % s->count];

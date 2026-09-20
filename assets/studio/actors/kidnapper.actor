@@ -2,7 +2,7 @@
 # desde Studio para comparar ambos modos sin recompilar.
 retro_actor 1
 id kidnapper
-sprite art/characters/kidnapper.png 1024 1536
+sprite art/characters/kidnapper-sheet.png 192 256
 body 0.32 1.72 0.30
 movement 2.85 8.0
 health 100 0
@@ -14,6 +14,7 @@ ranges 0.68 1.10
 animation idle 1 true
 frame 0 0.22 none
 animation chase 1 true
-frame 0 0.11 sound
+frame 1 0.11 sound
+frame 2 0.11 none
 animation capture 1 false
-frame 0 0.35 attack
+frame 3 0.35 attack

@@ -337,7 +337,7 @@ int re_editor_barrier(const ReEditorDocument *document, uint32_t index, ReEditor
     if (!p || !out || index >= p->world.barrier_count)
         return 0;
     const ReBarrier *b = &p->world.barriers[index];
-    *out = (ReEditorBarrierView){.kind = b->kind,
+    *out = (ReEditorBarrierView){.kind = (int)b->kind,
                                  .sector = b->sector,
                                  .edge = b->edge,
                                  .material = b->material,
@@ -358,7 +358,7 @@ int re_editor_character(const ReEditorDocument *document, uint32_t index,
                                    .cell_height = c->cell_height,
                                    .max_health = c->max_health,
                                    .attack_damage = c->attack_damage,
-                                   .tracking = c->tracking,
+                                   .tracking = (int)c->tracking,
                                    .radius = c->radius,
                                    .height = c->height,
                                    .speed = c->speed,
@@ -382,7 +382,7 @@ int re_editor_rule(const ReEditorDocument *document, uint32_t index, ReEditorRul
     if (!p || !out || index >= p->interactions.rule_count)
         return 0;
     const ReRuleDefinition *r = &p->interactions.rules[index];
-    *out = (ReEditorRuleView){.event = r->event,
+    *out = (ReEditorRuleView){.event = (int)r->event,
                               .priority = r->priority,
                               .once = r->once,
                               .cooldown = r->cooldown,
@@ -413,7 +413,7 @@ int re_editor_trigger(const ReEditorDocument *document, uint32_t index, ReEditor
     if (!p || !out || index >= p->interactions.trigger_count)
         return 0;
     const ReTriggerVolume *t = &p->interactions.triggers[index];
-    *out = (ReEditorTriggerView){.shape = t->shape,
+    *out = (ReEditorTriggerView){.shape = (int)t->shape,
                                  .sector = t->sector,
                                  .once = t->once,
                                  .x = t->center.x,
@@ -432,7 +432,7 @@ int re_editor_light(const ReEditorDocument *document, uint32_t index, ReEditorLi
     if (!p || !out || index >= p->interactions.light_count)
         return 0;
     const ReLight *l = &p->interactions.lights[index];
-    *out = (ReEditorLightView){.kind = l->kind,
+    *out = (ReEditorLightView){.kind = (int)l->kind,
                                .enabled = l->initially_enabled,
                                .x = l->position.x,
                                .y = l->position.y,
@@ -492,7 +492,7 @@ int re_editor_animation_frame(const ReEditorDocument *document, uint32_t charact
         return 0;
     const ReAnimationFrame *value = &p->characters[character].animations[animation].frames[frame];
     *out = (ReEditorAnimationFrameView){
-        .cell = value->cell, .duration = value->duration, .event = value->event};
+        .cell = value->cell, .duration = value->duration, .event = (int)value->event};
     return 1;
 }
 
@@ -506,8 +506,8 @@ int re_editor_boss_phase(const ReEditorDocument *document, uint32_t character, u
     *out = (ReEditorBossPhaseView){.health_threshold = value->health_threshold,
                                    .speed_multiplier = value->speed_multiplier,
                                    .cooldown = value->cooldown,
-                                   .tracking = value->tracking,
-                                   .action = value->action,
+                                   .tracking = (int)value->tracking,
+                                   .action = (int)value->action,
                                    .summon_limit = value->summon_limit};
     (void)copy_text(out->name, sizeof(out->name), value->name);
     return 1;
@@ -520,7 +520,8 @@ int re_editor_rule_condition(const ReEditorDocument *document, uint32_t rule, ui
         condition >= p->interactions.rules[rule].condition_count)
         return 0;
     const ReRuleCondition *value = &p->interactions.rules[rule].conditions[condition];
-    *out = (ReEditorRuleConditionView){.kind = value->kind, .comparison = value->comparison};
+    *out =
+        (ReEditorRuleConditionView){.kind = (int)value->kind, .comparison = (int)value->comparison};
     (void)copy_text(out->key, sizeof(out->key), value->key);
     value_text(value->value, out->value, sizeof(out->value));
     return 1;
@@ -533,7 +534,7 @@ int re_editor_rule_action(const ReEditorDocument *document, uint32_t rule, uint3
         action >= p->interactions.rules[rule].action_count)
         return 0;
     const ReRuleAction *value = &p->interactions.rules[rule].actions[action];
-    *out = (ReEditorRuleActionView){.kind = value->kind};
+    *out = (ReEditorRuleActionView){.kind = (int)value->kind};
     (void)copy_text(out->target, sizeof(out->target), value->target);
     value_text(value->value, out->value, sizeof(out->value));
     return 1;

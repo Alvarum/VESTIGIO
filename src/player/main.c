@@ -48,11 +48,14 @@ int main(int argc, char **argv) {
     int result = 1;
     if (!override && re_platform_application_path("project.retro", manifest, sizeof(manifest))) {
         FILE *probe = fopen(manifest, "rb");
-        if (probe) (void)fclose(probe);
-        else (void)re_platform_asset_path("studio/haunted.retro", manifest, sizeof(manifest));
+        if (probe)
+            (void)fclose(probe);
+        else
+            (void)re_platform_asset_path("studio/haunted.retro", manifest, sizeof(manifest));
     }
     if (!project || !re_project_load(override ? override : manifest, project, &error) ||
-        !re_session_create(project, smoke_frames > 0, smoke_frames ? show_menu : 1, &session, &error)) {
+        !re_session_create(project, smoke_frames > 0, smoke_frames ? show_menu : 1, &session,
+                           &error)) {
         (void)fprintf(stderr, "Proyecto:%zu: %s\n", error.line, error.message);
         goto cleanup;
     }
@@ -62,17 +65,20 @@ int main(int argc, char **argv) {
     while (!(re_session_flags(session) & 1) && (!smoke_frames || frames < smoke_frames)) {
         double start = re_platform_time();
         ReInput input = re_platform_input(platform);
-        if (input.quit) break;
+        if (input.quit)
+            break;
         re_platform_capture_mouse(platform, input.focused && (re_session_flags(session) & 2));
         re_session_frame(session, start - previous, input.movement.x, input.movement.y,
-                          input.look.x, input.look.y, input.pressed, input.held, input.focused, 0);
+                         input.look.x, input.look.y, input.pressed, input.held, input.focused, 0);
         previous = start;
         session_total += re_platform_time() - start;
         re_platform_present(platform, re_session_renderer(session));
         double elapsed = re_platform_time() - start;
-        if (samples) samples[frames] = elapsed;
+        if (samples)
+            samples[frames] = elapsed;
         total += elapsed;
-        if (elapsed > maximum) maximum = elapsed;
+        if (elapsed > maximum)
+            maximum = elapsed;
         frames++;
     }
     if (smoke_frames) {
@@ -83,8 +89,8 @@ int main(int argc, char **argv) {
         }
         (void)printf("frames=%d frame_mean_ms=%.3f frame_p95_ms=%.3f frame_max_ms=%.3f "
                      "session_mean_ms=%.3f entities=%zu lights=%zu cpu_memory_mib=%.2f\n",
-                     frames, frames ? total * 1000 / (double)frames : 0, p95 * 1000,
-                     maximum * 1000, frames ? session_total * 1000 / (double)frames : 0,
+                     frames, frames ? total * 1000 / (double)frames : 0, p95 * 1000, maximum * 1000,
+                     frames ? session_total * 1000 / (double)frames : 0,
                      project->world.marker_count, project->interactions.light_count,
                      (double)re_session_memory(session) / (1024 * 1024));
     }

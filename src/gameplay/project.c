@@ -3,6 +3,7 @@
 #include "retro/project.h"
 #include "retro/transaction.h"
 #include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -87,6 +88,18 @@ static size_t split(char *line, char **parts, size_t capacity) {
     return count;
 }
 
+static bool material_index(const char *text, size_t *out) {
+    if (!text || !*text || !out)
+        return false;
+    errno = 0;
+    char *end = nullptr;
+    unsigned long value = strtoul(text, &end, 10);
+    if (errno || !end || *end || value >= RE_MAX_MATERIALS)
+        return false;
+    *out = (size_t)value;
+    return true;
+}
+
 bool re_project_load(const char *manifest, ReProject *out, ReError *error) {
     if (!re_project_recover(manifest, error))
         return false;
@@ -144,6 +157,13 @@ bool re_project_load(const char *manifest, ReProject *out, ReError *error) {
         } else if (count == 2 && strcmp(part[0], "title_art") == 0 &&
                    strlen(part[1]) < RE_PROJECT_PATH && !unsafe_relative(part[1])) {
             (void)snprintf(candidate->title_art, sizeof(candidate->title_art), "%s", part[1]);
+        } else if (count == 3 && strcmp(part[0], "material") == 0) {
+            size_t index = 0;
+            if (!material_index(part[1], &index) || strlen(part[2]) >= RE_PROJECT_PATH ||
+                unsafe_relative(part[2]) || candidate->material_files[index][0])
+                ok = fail(error, line_number, "Material inválido o duplicado");
+            else
+                (void)snprintf(candidate->material_files[index], RE_PROJECT_PATH, "%s", part[2]);
         } else if (count == 2 && strcmp(part[0], "logic") == 0 &&
                    strlen(part[1]) < RE_PROJECT_PATH && !unsafe_relative(part[1])) {
             (void)snprintf(candidate->logic_file, sizeof(candidate->logic_file), "%s", part[1]);
@@ -224,6 +244,9 @@ bool re_project_write_manifest(const char *path, const ReProject *project, ReErr
         ok = fprintf(file, "dialogue %s\n", project->dialogue_file) > 0;
     if (ok && project->title_art[0])
         ok = fprintf(file, "title_art %s\n", project->title_art) > 0;
+    for (size_t i = 0; ok && i < RE_MAX_MATERIALS; i++)
+        if (project->material_files[i][0])
+            ok = fprintf(file, "material %zu %s\n", i, project->material_files[i]) > 0;
     for (size_t i = 0; ok && i < project->character_count; i++)
         ok = fprintf(file, "actor %s\n", project->actor_files[i]) > 0;
     if (fclose(file) != 0)

@@ -23,6 +23,9 @@ typedef struct ReProject {
     /* Arte opcional de portada. La plataforma lo carga; el formato del
      * proyecto sólo conserva una ruta relativa y sigue libre de raylib. */
     char title_art[RE_PROJECT_PATH];
+    /* Una ruta opcional por índice de material. El índice coincide con el
+     * usado por el mapa; una entrada vacía conserva el patrón de respaldo. */
+    char material_files[RE_MAX_MATERIALS][RE_PROJECT_PATH];
     char logic_file[RE_PROJECT_PATH];
     char dialogue_file[RE_PROJECT_PATH];
     char actor_files[RE_MAX_CHARACTER_DEFS][RE_PROJECT_PATH];

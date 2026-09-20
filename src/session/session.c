@@ -57,11 +57,12 @@ struct ReGameSession {
 };
 typedef struct ReGameSession PlayerApp;
 
-static void colors(PlayerApp *app) {
+static bool colors(PlayerApp *app) {
     static const RePixel palette[] = {{83, 99, 108, 255}, {48, 59, 65, 255}, {33, 41, 48, 255},
                                       {173, 91, 50, 255}, {74, 85, 94, 255}, {74, 164, 151, 180}};
     for (int i = 0; i < RE_MAX_MATERIALS; i++) {
-        (void)re_texture_init(&app->materials[i], 8, 8);
+        if (!re_texture_init(&app->materials[i], 8, 8))
+            return false;
         RePixel base = palette[(size_t)i % 6u];
         for (int y = 0; y < 8; y++)
             for (int x = 0; x < 8; x++) {
@@ -78,6 +79,22 @@ static void colors(PlayerApp *app) {
                     (uint8_t)re_clamp((float)blue, 0, 255), 255);
             }
     }
+    return true;
+}
+
+static bool load_project_materials(PlayerApp *app) {
+    for (size_t i = 0; i < RE_MAX_MATERIALS; i++) {
+        if (!app->project.material_files[i][0])
+            continue;
+        char path[RE_PROJECT_PATH * 2];
+        ReTexture loaded = {0};
+        if (!re_project_path(&app->project, app->project.material_files[i], path, sizeof(path)) ||
+            !re_platform_image_load(path, &loaded))
+            return false;
+        re_texture_destroy(&app->materials[i]);
+        app->materials[i] = loaded;
+    }
+    return true;
 }
 
 static void create_pickup_sprites(PlayerApp *app) {
@@ -126,7 +143,8 @@ static bool create_projectile_sprite(PlayerApp *app) {
 
 static bool app_init(PlayerApp *app, const ReProject *project) {
     app->project = *project;
-    colors(app);
+    if (!colors(app) || !load_project_materials(app))
+        return false;
     create_pickup_sprites(app);
     if (!create_projectile_sprite(app))
         return false;
@@ -674,9 +692,10 @@ static void tick(PlayerApp *app, ReInput input) {
 static void draw_actor(PlayerApp *app, ReRenderer *renderer, const ReCamera *camera,
                        const ReCharacter *actor) {
     const ReCharacterDef *definition = &app->project.characters[actor->definition];
-    const char *clip = actor->state == RE_CHARACTER_RECOVERY ? "attack"
-                       : actor->state == RE_CHARACTER_CHASE  ? "chase"
-                                                             : "idle";
+    bool attacking = actor->state == RE_CHARACTER_WINDUP || actor->state == RE_CHARACTER_RECOVERY;
+    const char *clip = attacking ? (definition->capture_game_over ? "capture" : "attack")
+                       : actor->state == RE_CHARACTER_CHASE ? "chase"
+                                                            : "idle";
     int cell = re_character_animation_cell(definition, actor, clip, camera->yaw);
     const ReTexture *texture = &app->sprites[actor->definition];
     /* Un atlas nunca se muestra entero como recuperacion de error. Una celda
@@ -698,8 +717,13 @@ static void draw_npc(PlayerApp *app, ReRenderer *renderer, const ReCamera *camer
         if (strcmp(marker->definition, definition->id) != 0)
             continue;
         const ReTexture *texture = &app->sprites[i];
+        /* Los NPC sin IA también reproducen su clip idle. Un personaje local
+         * temporal permite reutilizar exactamente la selección de fotogramas
+         * y direcciones del runtime, sin mantener un segundo algoritmo. */
+        ReCharacter preview = {.yaw = marker->yaw, .animation_time = app->elapsed};
+        int cell = re_character_animation_cell(definition, &preview, "idle", camera->yaw);
         float uv[4];
-        if (!re_texture_cell_uv(texture, definition->cell_width, definition->cell_height, 0, uv))
+        if (!re_texture_cell_uv(texture, definition->cell_width, definition->cell_height, cell, uv))
             return;
         re_draw_billboard_region(renderer, camera, marker->position, definition->radius * 2.6f,
                                  definition->height, texture, 1, uv[0], uv[1], uv[2], uv[3]);

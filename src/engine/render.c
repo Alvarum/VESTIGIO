@@ -29,9 +29,12 @@ void re_texture_destroy(ReTexture *t) {
 bool re_texture_cell_uv(const ReTexture *texture, int cell_width, int cell_height, int cell,
                         float out_uv[4]) {
     if (!texture || !texture->pixels || !out_uv || cell_width <= 0 || cell_height <= 0 ||
-        cell < 0 || texture->width <= 0 || texture->height <= 0 ||
-        texture->width % cell_width != 0 || texture->height % cell_height != 0)
+        cell < 0 || texture->width < cell_width || texture->height < cell_height)
         return false;
+    /* Los importadores y algunos generadores dejan uno o dos píxeles
+     * transparentes al final de una hoja. Las celdas completas siguen siendo
+     * válidas: la división entera ignora solamente ese margen final. Nunca
+     * ampliamos una celda ni usamos la hoja completa como recuperación. */
     int columns = texture->width / cell_width;
     int rows = texture->height / cell_height;
     if (columns <= 0 || rows <= 0 || cell >= columns * rows)
