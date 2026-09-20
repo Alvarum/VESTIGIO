@@ -387,22 +387,15 @@
 
                 <layout:LayoutDocument x:Name="TestDocument" Title="Probar" ContentId="TestDocument" CanClose="False">
                   <Grid Background="{StaticResource WindowBrush}">
-                    <Border Width="620" Padding="34" HorizontalAlignment="Center" VerticalAlignment="Center"
-                            Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="1" CornerRadius="12">
-                      <StackPanel>
-                        <Border Width="56" Height="56" CornerRadius="28" Background="{StaticResource AccentSoftBrush}" HorizontalAlignment="Left">
-                          <TextBlock Text="▶" Foreground="{StaticResource AccentBrush}" FontSize="22" HorizontalAlignment="Center" />
-                        </Border>
-                        <TextBlock Style="{StaticResource RfHeadingText}" Margin="0,20,0,8" Text="Probar el proyecto real" />
-                        <TextBlock Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" TextTrimming="None" LineHeight="23"
-                                   Text="Studio guarda y abre RetroForge Player con este mismo manifiesto. La prueba usa el renderer, las colisiones, los sprites y las reglas del juego exportado." />
-                        <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
-                          <Button Style="{StaticResource PrimaryButton}" Content="▶  Iniciar prueba" Command="{Binding PlayCommand}" />
-                          <Button Margin="8,0,0,0" Content="■  Terminar" Command="{Binding StopCommand}" />
-                        </StackPanel>
-                      </StackPanel>
-                    </Border>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <WrapPanel Margin="12">
+                      <Button Content="▶ Iniciar" Command="{Binding PlayCommand}" />
+                      <Button Content="Pausar / continuar" Command="{Binding PauseSessionCommand}" Margin="6,0" />
+                      <Button Content="Avanzar un tick" Command="{Binding StepSessionCommand}" />
+                      <Button Content="■ Detener" Command="{Binding StopCommand}" Margin="6,0" />
+                      <TextBlock Margin="12,8" Text="Clic: controlar · WASD · botón derecho: mirar · E: interactuar · Espacio: saltar" />
+                    </WrapPanel>
+                    <local:GameViewport Grid.Row="1" />
                   </Grid>
                 </layout:LayoutDocument>
               </layout:LayoutDocumentPane>

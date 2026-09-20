@@ -26,6 +26,14 @@ public partial class MainWindow : Window
         _viewModel = viewModel;
         DataContext = viewModel;
         InitializeComponent();
+        _viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(StudioViewModel.IsPlaying) && _viewModel.IsPlaying)
+            {
+                TestDocument.IsSelected = true;
+                TestDocument.IsActive = true;
+            }
+        };
         Loaded += Window_Loaded;
         Closing += Window_Closing;
         PreviewKeyDown += Window_PreviewKeyDown;

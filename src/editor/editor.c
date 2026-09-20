@@ -5,6 +5,9 @@
  * para un editor personal. Si los límites crecen, esta implementación puede
  * sustituirse por deltas sin cambiar la ABI pública. */
 #include "retro/editor.h"
+#ifdef RETRO_EDITOR_SESSIONS
+#include "retro/session.h"
+#endif
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
@@ -17,6 +20,7 @@ enum { RE_EDITOR_HISTORY = 48 };
 struct ReEditorDocument {
     ReProject *states;
     size_t count, cursor, saved_cursor;
+    bool editing; /* El candidato se conserva fuera del historial. */
     uint64_t revision;
 };
 
@@ -27,6 +31,13 @@ static ReProject *current(ReEditorDocument *document) {
 static const ReProject *current_const(const ReEditorDocument *document) {
     return document ? &document->states[document->cursor] : nullptr;
 }
+
+#ifdef RETRO_EDITOR_SESSIONS
+int re_editor_start_session(const ReEditorDocument *document, ReGameSession **out, ReError *error) {
+    const ReProject *project = current_const(document);
+    return project ? re_session_create(project, 1, 0, out, error) : 0;
+}
+#endif
 
 static int fail(ReError *error, const char *message) {
     if (error) {
@@ -82,30 +93,41 @@ static bool parse_bool(const char *text, bool *out) {
 }
 
 static ReProject *begin_command(ReEditorDocument *document) {
-    if (!document)
+    if (!document || document->editing)
         return nullptr;
-    if (document->cursor + 1u < document->count)
-        document->count = document->cursor + 1u;
+    document->states[RE_EDITOR_HISTORY] = document->states[document->cursor];
+    document->editing = true;
+    return &document->states[RE_EDITOR_HISTORY];
+}
+
+/* Sólo un comando validado puede eliminar la rama de rehacer. El slot
+ * provisional también impide perder el estado más antiguo al rechazar
+ * operaciones cuando el historial está lleno. */
+static void commit_command(ReEditorDocument *document) {
+    if (!document || !document->editing)
+        return;
+    if (document->saved_cursor > document->cursor)
+        document->saved_cursor = SIZE_MAX;
+    document->count = document->cursor + 1u;
     if (document->count == RE_EDITOR_HISTORY) {
         (void)memmove(&document->states[0], &document->states[1],
                       (RE_EDITOR_HISTORY - 1u) * sizeof(*document->states));
         document->count--;
         document->cursor--;
-        if (document->saved_cursor > 0)
+        if (document->saved_cursor != SIZE_MAX && document->saved_cursor > 0)
             document->saved_cursor--;
         else
             document->saved_cursor = SIZE_MAX;
     }
-    document->states[document->count] = document->states[document->cursor];
+    document->states[document->count] = document->states[RE_EDITOR_HISTORY];
     document->cursor = document->count++;
-    return current(document);
+    document->editing = false;
+    document->revision++;
 }
 
 static void cancel_command(ReEditorDocument *document) {
-    if (!document || document->cursor == 0)
-        return;
-    document->count--;
-    document->cursor--;
+    if (document)
+        document->editing = false;
 }
 
 int re_editor_open(const char *manifest, ReEditorDocument **out, ReError *error) {
@@ -114,7 +136,7 @@ int re_editor_open(const char *manifest, ReEditorDocument **out, ReError *error)
     ReEditorDocument *document = calloc(1, sizeof(*document));
     if (!document)
         return fail(error, "No hay memoria para el documento");
-    document->states = calloc(RE_EDITOR_HISTORY, sizeof(*document->states));
+    document->states = calloc(RE_EDITOR_HISTORY + 1u, sizeof(*document->states));
     if (!document->states) {
         free(document);
         return fail(error, "No hay memoria para el historial");
@@ -716,7 +738,7 @@ int re_editor_set_property(ReEditorDocument *document, int kind, uint32_t index,
         cancel_command(document);
         return fail(error, "La propiedad o el valor no son válidos");
     }
-    document->revision++;
+    commit_command(document);
     *error = (ReError){0};
     return 1;
 }
@@ -789,7 +811,7 @@ int re_editor_create_marker(ReEditorDocument *document, const char *kind, const 
     if (!re_world_validate(world, error))
         return cancel_fail(document, error, error->message);
     *out_index = (uint32_t)index;
-    document->revision++;
+    commit_command(document);
     *error = (ReError){0};
     return 1;
 }
@@ -812,7 +834,7 @@ int re_editor_move_marker(ReEditorDocument *document, uint32_t index, float x, f
     marker->position = re_v3(x, y, world->sectors[sector].floor);
     if (!re_world_validate(world, error))
         return cancel_fail(document, error, error->message);
-    document->revision++;
+    commit_command(document);
     *error = (ReError){0};
     return 1;
 }
@@ -848,7 +870,7 @@ int re_editor_duplicate_marker(ReEditorDocument *document, uint32_t index, uint3
     if (!re_world_validate(world, error))
         return cancel_fail(document, error, error->message);
     *out_index = (uint32_t)duplicate;
-    document->revision++;
+    commit_command(document);
     *error = (ReError){0};
     return 1;
 }
@@ -880,7 +902,7 @@ int re_editor_delete_marker(ReEditorDocument *document, uint32_t index, ReError 
         (void)memmove(&world->markers[index], &world->markers[index + 1u],
                       remaining * sizeof(world->markers[0]));
     world->marker_count--;
-    document->revision++;
+    commit_command(document);
     *error = (ReError){0};
     return 1;
 }
@@ -924,7 +946,7 @@ int re_editor_add_drop_rule(ReEditorDocument *document, uint32_t marker_index, c
     project->interactions.rules[index] = rule;
     project->interactions.rule_count++;
     *out_rule = (uint32_t)index;
-    document->revision++;
+    commit_command(document);
     *error = (ReError){0};
     return 1;
 }
@@ -994,7 +1016,7 @@ int re_editor_add_interaction_rule(ReEditorDocument *document, uint32_t marker_i
     project->interactions.rules[index] = rule;
     project->interactions.rule_count++;
     *out_rule = (uint32_t)index;
-    document->revision++;
+    commit_command(document);
     *error = (ReError){0};
     return 1;
 }

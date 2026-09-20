@@ -779,6 +779,16 @@ static bool editor_document(void) {
     CHECK(re_editor_sector(document, 0, &restored) && NEAR(restored.light, original.light));
     CHECK(re_editor_redo(document));
     CHECK(re_editor_sector(document, 0, &changed) && NEAR(changed.light, 0.123f));
+    /* Rechazar una edición después de deshacer debe conservar la rama futura.
+     * Antes, begin_command la truncaba aunque el valor no fuera válido. */
+    CHECK(re_editor_undo(document));
+    CHECK(re_editor_overview(document, &overview));
+    uint64_t before_invalid = overview.revision;
+    CHECK(!re_editor_set_property(document, RE_EDITOR_SECTOR, 0, "light", "nan", &error));
+    CHECK(re_editor_overview(document, &overview) && overview.can_redo &&
+          overview.revision == before_invalid);
+    CHECK(re_editor_redo(document));
+    CHECK(re_editor_sector(document, 0, &changed) && NEAR(changed.light, 0.123f));
 
     uint64_t revision = overview.revision;
     CHECK(!re_editor_set_property(document, RE_EDITOR_SECTOR, 0, "unknown", "1", &error));

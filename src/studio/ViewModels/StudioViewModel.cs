@@ -13,7 +13,13 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
     private string _status = "Proyecto cargado y validado";
     private string _searchText = string.Empty;
     private bool _isPlaying;
-    private Process? _playerProcess;
+    private nint _session;
+    private bool _simulationPaused, _stepRequested;
+    public nint Session => _session;
+    public bool SimulationPaused { get => _simulationPaused; set => Set(ref _simulationPaused, value); }
+    internal bool ConsumeStep() { bool value = _stepRequested; _stepRequested = false; return value; }
+    public RelayCommand PauseSessionCommand { get; }
+    public RelayCommand StepSessionCommand { get; }
     private DialogueModel? _quickDialogue;
     private BarrierModel? _quickBarrier;
     private string _quickMessage = "Hola. Hay algo que debes saber.";
@@ -27,6 +33,8 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
         RedoCommand = new RelayCommand(Redo, () => Document.Overview.CanRedo && !IsPlaying);
         PlayCommand = new RelayCommand(Play, () => !IsPlaying);
         StopCommand = new RelayCommand(Stop, () => IsPlaying);
+        PauseSessionCommand = new RelayCommand(() => SimulationPaused = !SimulationPaused, () => IsPlaying);
+        StepSessionCommand = new RelayCommand(() => { SimulationPaused = true; _stepRequested = true; }, () => IsPlaying);
         SelectCommand = new RelayCommand<IEditorItem>(item => SelectedItem = item);
         WorkspaceCommand = new RelayCommand<string>(name => Workspace = name ?? "Construir");
         ApplyFieldCommand = new RelayCommand<InspectorEdit>(ApplyField);
@@ -175,6 +183,8 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
             Raise(nameof(EditEnabled));
             PlayCommand.Notify();
             StopCommand.Notify();
+            PauseSessionCommand.Notify();
+            StepSessionCommand.Notify();
             UndoCommand.Notify();
             RedoCommand.Notify();
             DuplicateCommand.Notify();
@@ -594,63 +604,28 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
 
     private void Play()
     {
-        if (Overview.Dirty && !Save())
-            return;
-        string player = Path.Combine(AppContext.BaseDirectory, "retro_player.exe");
-        if (!File.Exists(player))
-        {
-            Status = "Compila retro_player para iniciar la prueba";
-            return;
-        }
-        _playerProcess = Process.Start(new ProcessStartInfo(player)
-        {
-            UseShellExecute = false,
-            ArgumentList = { "--project", Overview.Manifest }
-        });
-        if (_playerProcess is null)
-        {
-            Status = "Windows no pudo iniciar RetroForge Player";
-            return;
-        }
-        _playerProcess.EnableRaisingEvents = true;
-        _playerProcess.Exited += PlayerExited;
-        IsPlaying = true;
-        Status = "Prueba iniciada en Player con este proyecto";
+        try {
+            _session = Document.StartSession();
+            SimulationPaused = false;
+            IsPlaying = true;
+            Raise(nameof(Session));
+            Status = "Prueba aislada · clic para controlar · WASD · botón derecho para mirar";
+        } catch (Exception exception) { Status = exception.Message; }
     }
 
     private void Stop()
     {
-        Process? process = _playerProcess;
-        if (process is not null && !process.HasExited)
-        {
-            process.CloseMainWindow();
-            if (!process.WaitForExit(1200))
-                process.Kill(entireProcessTree: true);
-        }
-        FinishPlaytest("Prueba terminada; la edición vuelve a estar disponible");
-    }
-
-    private void PlayerExited(object? sender, EventArgs args) =>
-        Application.Current.Dispatcher.BeginInvoke(() =>
-            FinishPlaytest("Player se cerró; la edición vuelve a estar disponible"));
-
-    private void FinishPlaytest(string message)
-    {
-        if (_playerProcess is not null)
-        {
-            _playerProcess.Exited -= PlayerExited;
-            _playerProcess.Dispose();
-            _playerProcess = null;
-        }
+        SessionNative.re_session_destroy(_session);
+        _session = 0;
+        _stepRequested = false;
         IsPlaying = false;
-        Status = message;
+        Raise(nameof(Session));
+        Status = "Prueba terminada; el documento conserva todos sus cambios sin guardar";
     }
 
     public void Dispose()
     {
-        if (_playerProcess is not null && !_playerProcess.HasExited)
-            _playerProcess.CloseMainWindow();
-        _playerProcess?.Dispose();
+        Stop();
         Document.Changed -= DocumentChanged;
         Document.Dispose();
     }

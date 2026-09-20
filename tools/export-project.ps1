@@ -22,6 +22,9 @@ New-Item -ItemType Directory -Force -Path $target | Out-Null
 Get-ChildItem -LiteralPath $projectRoot -Force | Copy-Item -Destination $target -Recurse -Force
 Copy-Item -LiteralPath $manifest -Destination (Join-Path $target 'project.retro') -Force
 Copy-Item -LiteralPath $player -Destination (Join-Path $target "$name.exe") -Force
+$sessionLibrary = Join-Path (Split-Path -Parent $player) 'retro_session.dll'
+if (!(Test-Path -LiteralPath $sessionLibrary)) { throw 'Falta retro_session.dll junto al Player.' }
+Copy-Item -LiteralPath $sessionLibrary -Destination $target -Force
 foreach($notice in @('README.md','THIRD_PARTY.md')) {
     $candidate=Join-Path $sourceRoot $notice
     if(Test-Path -LiteralPath $candidate) { Copy-Item -LiteralPath $candidate -Destination $target -Force }

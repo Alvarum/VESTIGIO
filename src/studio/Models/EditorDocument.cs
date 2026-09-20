@@ -139,6 +139,15 @@ public sealed class EditorDocument : IDisposable
         Refresh();
     }
 
+    internal nint StartSession()
+    {
+        EnsureOpen();
+        if (SessionNative.re_editor_start_session(_handle, out nint session,
+                out EditorNative.Error error) == 0)
+            throw NativeFailure(error);
+        return session;
+    }
+
     private SectorModel? TrySector(uint index) =>
         EditorNative.re_editor_sector(_handle, index, out EditorNative.Sector item) != 0
             ? new SectorModel(index, item)

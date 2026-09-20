@@ -192,5 +192,10 @@ RE_EDITOR_API int re_editor_set_property(ReEditorDocument *document, int kind, u
 RE_EDITOR_API int re_editor_undo(ReEditorDocument *document);
 RE_EDITOR_API int re_editor_redo(ReEditorDocument *document);
 RE_EDITOR_API int re_editor_save(ReEditorDocument *document, ReError *error);
+/* Disponible en builds con aplicaciones. Copia el documento no guardado a una
+ * sesión aislada; el receptor libera el handle con re_session_destroy. */
+struct ReGameSession;
+RE_EDITOR_API int re_editor_start_session(const ReEditorDocument *document,
+                                          struct ReGameSession **out, ReError *error);
 
 #endif
