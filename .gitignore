@@ -1,0 +1,42 @@
+# Herramientas y dependencias descargadas localmente.
+/.tools/
+/.deps/
+
+# Directorios de compilacion generados por CMake/Ninja.
+/build/
+/cmake-build-*/
+CMakeUserPresets.json
+compile_commands.json
+
+# Paquetes, exportaciones y evidencia visual regenerable.
+/dist/
+/artifacts/
+/exports/
+*.zip
+*.ppm
+
+# Estado local de RetroForge Studio y archivos temporales.
+.retroforge/
+*.tmp
+*.autosave
+*.sav
+
+# Archivos personales del editor y del sistema operativo.
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Resultados de cobertura, analizadores y depuradores.
+coverage/
+*.gcda
+*.gcno
+*.gcov
+*.profraw
+*.profdata
+*.pdb
+*.ilk

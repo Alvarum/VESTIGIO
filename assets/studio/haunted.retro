@@ -1,0 +1,14 @@
+# Showcase jugable dirigido por datos.
+retro_project 2
+id haunted_house
+name Casa_de_la_niebla
+rules horror_fps
+death checkpoint
+level levels/house.map
+title_art art/haunted-title.png
+logic logic/haunted.rules
+dialogue dialogues/haunted.dialogue
+actor actors/kidnapper.actor
+actor actors/warden.actor
+actor actors/caretaker.actor
+actor actors/survivor.actor

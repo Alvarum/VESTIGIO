@@ -1,0 +1,12 @@
+retro_dialogue 1
+
+node survivor_intro "Elena" true "La casa despertó cuando se cortó la luz. El tablero está detrás de mí." next end
+choice help "Voy a encenderlo. Quédate aquí." survivor_thanks - bool true
+choice question "¿Qué hay arriba?" survivor_warning - bool true
+end
+
+node survivor_warning "Elena" true "Una mujer recorre el piso superior. No puede atravesar paredes, pero nunca deja de buscar." next survivor_thanks
+end
+
+node survivor_thanks "Elena" true "Toma este vendaje. El cuidador del patio guarda la llave de la escalera." next end
+end

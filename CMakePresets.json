@@ -1,0 +1,39 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 28, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "${sourceDir}/.tools/msys64/ucrt64/bin/gcc.exe",
+        "CMAKE_MAKE_PROGRAM": "${sourceDir}/.tools/msys64/ucrt64/bin/ninja.exe",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": true
+      }
+    },
+    { "name": "debug", "inherits": "base", "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" } },
+    { "name": "release", "inherits": "base", "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" } },
+    { "name": "ubsan", "inherits": "base", "cacheVariables": {
+      "CMAKE_C_COMPILER": "${sourceDir}/.tools/msys64/ucrt64/bin/clang.exe",
+      "CMAKE_BUILD_TYPE": "Debug", "RETRO_BUILD_APPS": false,
+      "CMAKE_C_FLAGS": "-fsanitize=undefined -fsanitize-trap=all"
+    } },
+    { "name": "analyze", "inherits": "base", "cacheVariables": {
+      "CMAKE_BUILD_TYPE": "Debug", "RETRO_ANALYZE": true, "RETRO_BUILD_APPS": false
+    } }
+  ],
+  "buildPresets": [
+    { "name": "debug", "configurePreset": "debug" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "ubsan", "configurePreset": "ubsan" },
+    { "name": "analyze", "configurePreset": "analyze" }
+  ],
+  "testPresets": [
+    { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true } },
+    { "name": "release", "configurePreset": "release", "output": { "outputOnFailure": true } },
+    { "name": "ubsan", "configurePreset": "ubsan", "output": { "outputOnFailure": true } },
+    { "name": "analyze", "configurePreset": "analyze", "output": { "outputOnFailure": true } }
+  ]
+}

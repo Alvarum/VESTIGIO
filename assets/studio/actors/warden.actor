@@ -1,0 +1,22 @@
+# Jefe de ejemplo: al 50% cambia a seguimiento constante y proyectiles.
+retro_actor 1
+id warden
+sprite none 48 64
+body 0.48 2.15 0.30
+movement 1.85 5.5
+health 300 18
+flags false true true false
+tracking perception
+perception 24 120 12 6
+ranges 0.0 7.5
+
+animation idle 4 true
+frame 0 0.30 none
+frame 1 0.30 none
+animation attack 4 true
+frame 4 0.28 none
+frame 5 0.08 attack
+frame 6 0.35 none
+
+phase sentinel 1.0 perception summon 1.0 4.0 2
+phase wrath 0.5 omniscient projectile 1.35 1.2 0

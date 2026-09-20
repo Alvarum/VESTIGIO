@@ -1,0 +1,138 @@
+# Compilación por targets: las políticas del proyecto no contaminan raylib.
+cmake_minimum_required(VERSION 3.28)
+project(RetroForge VERSION 0.1.0 LANGUAGES C)
+include(CTest)
+option(RETRO_BUILD_APPS "Construir aplicaciones con ventana" ON)
+option(RETRO_ANALYZE "Ejecutar el analizador estático de GCC" OFF)
+option(RETRO_SANITIZE "ASan y UBSan donde el compilador los soporte" OFF)
+
+function(retro_target target)
+    set_target_properties(${target} PROPERTIES C_STANDARD 23 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+    target_include_directories(${target} PUBLIC "${PROJECT_SOURCE_DIR}/include")
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        # Algunas tablas de CMake siguen emitiendo el alias histórico c2x.
+        # Seleccionamos explícitamente el nombre del estándar publicado.
+        target_compile_options(${target} PRIVATE -std=c23)
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Werror
+            -Wconversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Wformat=2 -Wundef)
+        if(RETRO_ANALYZE AND CMAKE_C_COMPILER_ID STREQUAL "GNU")
+            target_compile_options(${target} PRIVATE -fanalyzer)
+        endif()
+        if(RETRO_SANITIZE)
+            target_compile_options(${target} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+            target_link_options(${target} PUBLIC -fsanitize=address,undefined)
+        endif()
+        if(WIN32 AND NOT RETRO_SANITIZE)
+            target_link_options(${target} PUBLIC -static -static-libgcc)
+        endif()
+    endif()
+endfunction()
+
+add_library(retro_core STATIC src/engine/math.c src/engine/map.c src/engine/world.c
+    src/engine/render.c src/engine/canvas.c src/engine/input.c)
+retro_target(retro_core)
+if(NOT WIN32)
+    target_link_libraries(retro_core PUBLIC m)
+endif()
+
+# Reglas reutilizables y formatos de proyecto. Sigue siendo una biblioteca sin
+# ventana: editor, juegos y pruebas ejecutan exactamente la misma simulación.
+add_library(retro_gameplay STATIC src/gameplay/gameplay.c src/gameplay/interaction.c
+    src/gameplay/project.c)
+retro_target(retro_gameplay)
+target_link_libraries(retro_gameplay PUBLIC retro_core)
+
+add_library(fps_game STATIC src/fps/game.c src/fps/art.c src/fps/view.c)
+retro_target(fps_game)
+target_link_libraries(fps_game PUBLIC retro_core retro_gameplay)
+target_include_directories(fps_game PUBLIC "${PROJECT_SOURCE_DIR}/src/fps")
+
+if(RETRO_BUILD_APPS)
+    include(FetchContent)
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
+    set(CUSTOMIZE_BUILD OFF CACHE BOOL "" FORCE)
+    # Release 6.0, commit exacto. Hash del archivo comprimido descargado.
+    set(raylib_source "${PROJECT_SOURCE_DIR}/.deps/raylib-dbc56a87da87d973a9c5baa4e7438a9d20121d28")
+    if(EXISTS "${raylib_source}/CMakeLists.txt")
+        # bootstrap ya verificó el tarball antes de extraerlo. Usar SOURCE_DIR
+        # evita duplicar ~90 MiB dentro de cada preset de compilación.
+        FetchContent_Declare(raylib SOURCE_DIR "${raylib_source}")
+    else()
+        set(raylib_archive "${PROJECT_SOURCE_DIR}/.deps/raylib-6.0.tar.gz")
+        if(NOT EXISTS "${raylib_archive}")
+            set(raylib_archive "https://github.com/raysan5/raylib/archive/dbc56a87da87d973a9c5baa4e7438a9d20121d28.tar.gz")
+        endif()
+        FetchContent_Declare(raylib URL "${raylib_archive}"
+            URL_HASH SHA256=81b06ce7c19cf3b634b0271c23c361ba6ad8bf45fb8b036abbfeb4260ec1e126
+            DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+    endif()
+    FetchContent_MakeAvailable(raylib)
+    # raygui es header-only. La implementación vive en un target de tercero para
+    # que sus avisos no relajen -Werror en nuestro Studio.
+    set(raygui_dir "${PROJECT_SOURCE_DIR}/.deps/raygui-020a61bebcbe288b4414de3416e219ef40af847a")
+    if(NOT EXISTS "${raygui_dir}/src/raygui.h")
+        message(FATAL_ERROR "Falta raygui 5.0 exacta; ejecuta tools/bootstrap.ps1")
+    endif()
+    add_library(raygui_vendor STATIC src/studio/raygui_impl.c)
+    target_include_directories(raygui_vendor SYSTEM PUBLIC "${raygui_dir}/src" "${raylib_SOURCE_DIR}/src")
+    target_link_libraries(raygui_vendor PUBLIC raylib)
+    add_library(retro_platform STATIC src/platform/raylib_platform.c)
+    retro_target(retro_platform)
+    target_link_libraries(retro_platform PUBLIC retro_core PRIVATE raylib)
+    target_include_directories(retro_platform SYSTEM PRIVATE "${raylib_SOURCE_DIR}/src")
+    if(BUILD_TESTING)
+        add_executable(retro_platform_test tests/platform_test.c)
+        retro_target(retro_platform_test)
+        target_link_libraries(retro_platform_test PRIVATE retro_platform)
+        add_test(NAME retro_window COMMAND retro_platform_test)
+        set_tests_properties(retro_window PROPERTIES LABELS "window")
+    endif()
+    add_executable(retro_fps src/fps/main.c)
+    retro_target(retro_fps)
+    target_link_libraries(retro_fps PRIVATE fps_game retro_platform)
+    add_executable(retro_lab src/lab/main.c)
+    retro_target(retro_lab)
+    target_link_libraries(retro_lab PRIVATE retro_platform)
+    add_executable(retro_player src/player/main.c)
+    retro_target(retro_player)
+    target_link_libraries(retro_player PRIVATE retro_gameplay retro_platform)
+    add_executable(retro_studio src/studio/main.c)
+    retro_target(retro_studio)
+    target_link_libraries(retro_studio PRIVATE retro_gameplay raygui_vendor raylib)
+    target_include_directories(retro_studio SYSTEM PRIVATE "${raygui_dir}/src" "${raylib_SOURCE_DIR}/src")
+    foreach(app retro_fps retro_lab retro_player retro_studio)
+        set_target_properties(${app} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+        install(TARGETS ${app} RUNTIME DESTINATION . COMPONENT Runtime)
+    endforeach()
+    add_custom_target(retro_assets ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${PROJECT_SOURCE_DIR}/assets" "${CMAKE_BINARY_DIR}/bin/assets")
+    add_dependencies(retro_fps retro_assets)
+    add_dependencies(retro_lab retro_assets)
+    add_dependencies(retro_player retro_assets)
+    add_dependencies(retro_studio retro_assets)
+    install(DIRECTORY assets DESTINATION . COMPONENT Runtime)
+    install(FILES README.md THIRD_PARTY.md DESTINATION . COMPONENT Runtime)
+    install(FILES "${raylib_SOURCE_DIR}/LICENSE" DESTINATION licenses COMPONENT Runtime RENAME raylib.txt)
+    install(FILES "${raygui_dir}/LICENSE" DESTINATION licenses COMPONENT Runtime RENAME raygui.txt)
+    install(FILES "${raylib_SOURCE_DIR}/src/external/glfw/LICENSE.md" DESTINATION licenses COMPONENT Runtime RENAME glfw.txt)
+    # Se conservan los avisos en sus fuentes originales, sin extraer fragmentos
+    # ambiguos de licencias embebidas (stb, miniaudio, cargadores, etc.).
+    install(DIRECTORY "${raylib_SOURCE_DIR}/src/external/" DESTINATION licenses/raylib-external
+        COMPONENT Runtime FILES_MATCHING PATTERN "*.h" PATTERN "*.c" PATTERN "glfw" EXCLUDE)
+    if(WIN32)
+        install(DIRECTORY "${PROJECT_SOURCE_DIR}/.tools/msys64/ucrt64/share/licenses/gcc-libs"
+            "${PROJECT_SOURCE_DIR}/.tools/msys64/ucrt64/share/licenses/crt"
+            DESTINATION licenses COMPONENT Runtime OPTIONAL)
+    endif()
+    install(DIRECTORY docs DESTINATION . COMPONENT Runtime)
+    install(FILES tools/export-project.ps1 DESTINATION tools COMPONENT Runtime)
+endif()
+
+if(BUILD_TESTING)
+    add_executable(retro_tests tests/test_main.c)
+    retro_target(retro_tests)
+    target_link_libraries(retro_tests PRIVATE fps_game)
+    target_compile_definitions(retro_tests PRIVATE RETRO_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+    add_test(NAME retro_contracts COMMAND retro_tests)
+endif()

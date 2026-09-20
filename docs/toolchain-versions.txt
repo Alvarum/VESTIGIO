@@ -1,0 +1,32 @@
+RetroForge - entorno validado 2026-09-20
+Sistema: Windows 11 / NT 10.0.26200.0, x86_64
+CPU: AMD Ryzen 5 3600 6-Core Processor
+Ubicacion: .tools/msys64 (aislada dentro del proyecto)
+
+MSYS2 base: msys2-base-x86_64-20260611.tar.xz
+SHA256: a2d047e8ee213c3c6a49a8de427eb1069df12207c0422ff1b3cbb5c905c34221
+mingw-w64-ucrt-x86_64-gcc 16.2.0-3
+mingw-w64-ucrt-x86_64-cmake 4.4.3-3
+mingw-w64-ucrt-x86_64-ninja 1.13.2-1
+mingw-w64-ucrt-x86_64-gdb 17.2-1
+mingw-w64-ucrt-x86_64-clang 22.1.8-3
+mingw-w64-ucrt-x86_64-clang-tools-extra 22.1.8-3
+Lista completa de paquetes locales: .tools/toolchain-packages.txt
+
+raylib: 6.0
+Commit: dbc56a87da87d973a9c5baa4e7438a9d20121d28
+Archivo: https://github.com/raysan5/raylib/archive/dbc56a87da87d973a9c5baa4e7438a9d20121d28.tar.gz
+SHA256: 81b06ce7c19cf3b634b0271c23c361ba6ad8bf45fb8b036abbfeb4260ec1e126
+
+raygui: 5.0
+Commit: 020a61bebcbe288b4414de3416e219ef40af847a
+Archivo: https://github.com/raysan5/raygui/archive/020a61bebcbe288b4414de3416e219ef40af847a.tar.gz
+SHA256: 8327ee8ec254ababfd76908cf39857384ad311e4ef43f9c2c7d94bec6e4a6389
+
+Investigacion original, conservada:
+deep-research-report.md
+SHA256: 00dd7a2793285a53aab8328ad8acbaf2d2501b93454f0c0eac0654942d04e9ff
+
+Nota: MSYS2 es rolling release. Bootstrap fija el archivo base y registra los
+paquetes resueltos, pero una ejecucion futura de pacman puede instalar revisiones
+mas recientes. El codigo de raylib SI queda fijado por commit y SHA256.
