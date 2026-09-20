@@ -7,6 +7,7 @@
         xmlns:local="clr-namespace:RetroForge.Studio"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="RetroForge Studio" Width="1500" Height="920" MinWidth="1080" MinHeight="680"
+        FontFamily="{StaticResource InterfaceFont}" FontSize="14"
         WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="CanResizeWithGrip">
   <shell:WindowChrome.WindowChrome>
     <shell:WindowChrome CaptionHeight="42" ResizeBorderThickness="7" CornerRadius="8"
@@ -95,6 +96,9 @@
         <DockPanel>
           <Menu DockPanel.Dock="Left" Margin="8,0">
             <MenuItem Header="Archivo">
+              <MenuItem Header="Nuevo proyecto…" Click="NewProject_Click" />
+              <MenuItem Header="Abrir proyecto…" Click="OpenProject_Click" />
+              <Separator />
               <MenuItem Header="Guardar todo" InputGestureText="Ctrl+S" Command="{Binding SaveCommand}" />
               <Separator />
               <MenuItem Header="Cerrar" Click="Close_Click" />
@@ -125,11 +129,9 @@
         <StackPanel Orientation="Horizontal" Margin="12,8">
           <RadioButton Style="{StaticResource WorkspaceToggle}" Content="Construir" Tag="MapDocument"
                        IsChecked="True" Click="Workspace_Click" />
-          <RadioButton Style="{StaticResource WorkspaceToggle}" Content="Personajes" Tag="CharacterDocument"
+          <RadioButton Style="{StaticResource WorkspaceToggle}" Content="Contenido" Tag="CharacterDocument"
                        Click="Workspace_Click" />
-          <RadioButton Style="{StaticResource WorkspaceToggle}" Content="Lógica" Tag="LogicDocument"
-                       Click="Workspace_Click" />
-          <RadioButton Style="{StaticResource WorkspaceToggle}" Content="Diálogos" Tag="DialogueDocument"
+          <RadioButton Style="{StaticResource WorkspaceToggle}" Content="Eventos" Tag="LogicDocument"
                        Click="Workspace_Click" />
           <RadioButton Style="{StaticResource WorkspaceToggle}" Content="Probar" Tag="TestDocument"
                        Click="Workspace_Click" />
@@ -179,20 +181,29 @@
 
             <layout:LayoutPanel Orientation="Vertical">
               <layout:LayoutDocumentPane>
-                <layout:LayoutDocument x:Name="MapDocument" Title="Plano de la casa" ContentId="MapDocument"
+                <layout:LayoutDocument x:Name="MapDocument" Title="Mapa del nivel" ContentId="MapDocument"
                                        IsSelected="True" CanClose="False">
                   <Grid Background="{StaticResource WindowBrush}" IsEnabled="{Binding EditEnabled}">
-                    <local:MapViewport x:Name="MapView" />
-                    <Border VerticalAlignment="Top" HorizontalAlignment="Left" Margin="16"
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <WrapPanel Margin="10">
+                      <TextBlock Text="Herramienta" VerticalAlignment="Center" Margin="0,0,8,0" />
+                      <ComboBox ItemsSource="{Binding MapTools}" SelectedItem="{Binding MapTool}" Width="140" />
+                      <TextBlock Text="Cota (m)" VerticalAlignment="Center" Margin="12,0,6,0" />
+                      <TextBox Text="{Binding FloorElevation}" Width="52" />
+                      <TextBlock Text="Altura (m)" VerticalAlignment="Center" Margin="12,0,6,0" />
+                      <TextBox Text="{Binding RoomHeight}" Width="52" />
+                      <Button Margin="8,0,0,0" Content="Encuadrar" ToolTip="Mostrar todo el mapa · F" Click="FrameMap_Click"/>
+                    </WrapPanel>
+                    <local:MapViewport x:Name="MapView" Grid.Row="1" />
+                    <Border Grid.Row="2" Margin="8,4"
                             Background="#E6171A1D" BorderBrush="{StaticResource BorderBrush}"
                             BorderThickness="1" CornerRadius="8" Padding="12,8">
                       <StackPanel>
-                        <TextBlock FontWeight="SemiBold" Text="Vista de planta" />
-                        <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="12"
-                                   Text="Rueda: zoom · botón central: desplazar · clic: seleccionar" />
+                        <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="12" TextWrapping="Wrap"
+                                   Text="{Binding MapHelp}" />
                       </StackPanel>
                     </Border>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="16">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="16">
                       <ToggleButton Style="{StaticResource OverlayToggle}" Content="Zonas" IsChecked="True"
                                     Checked="TriggerOverlay_Changed" Unchecked="TriggerOverlay_Changed" />
                       <ToggleButton Style="{StaticResource OverlayToggle}" Content="Luces" Margin="6,0,0,0"
@@ -400,7 +411,7 @@
                 </layout:LayoutDocument>
               </layout:LayoutDocumentPane>
 
-              <layout:LayoutAnchorablePane DockHeight="205">
+              <layout:LayoutAnchorablePane DockHeight="236">
                 <layout:LayoutAnchorable Title="Biblioteca" ContentId="Resources" CanClose="False">
                   <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
                                 Background="{StaticResource PanelBrush}">
@@ -412,7 +423,7 @@
                           <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                           <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                              <Border Width="145" Height="105" Margin="0,0,8,0" Padding="11"
+                              <Border Width="160" Height="126" Margin="0,0,8,0" Padding="11"
                                       Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
                                       BorderThickness="1" CornerRadius="7" Cursor="Hand"
                                       PreviewMouseLeftButtonDown="PlacementTool_MouseLeftButtonDown"
@@ -421,7 +432,18 @@
                                       ToolTip="Arrastra esta pieza y suéltala dentro de una habitación">
                                 <Grid>
                                   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                                  <TextBlock FontSize="20" Foreground="{StaticResource AccentBrush}" Text="{Binding Symbol}" />
+                                  <Grid Height="38">
+                                    <TextBlock FontSize="24" Foreground="{StaticResource AccentBrush}" Text="{Binding Symbol}">
+                                      <TextBlock.Style><Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers><DataTrigger Binding="{Binding Thumbnail}" Value="{x:Null}">
+                                          <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger></Style.Triggers>
+                                      </Style></TextBlock.Style>
+                                    </TextBlock>
+                                    <Image Source="{Binding Thumbnail}" Stretch="Uniform" HorizontalAlignment="Left"
+                                           RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                                  </Grid>
                                   <TextBlock Grid.Row="1" Margin="0,5,0,0" FontWeight="SemiBold" Text="{Binding Name}" />
                                   <TextBlock Grid.Row="2" Margin="0,3,0,0" Foreground="{StaticResource MutedBrush}"
                                              FontSize="11" TextWrapping="Wrap" Text="{Binding Description}" />

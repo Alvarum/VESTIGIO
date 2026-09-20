@@ -15,7 +15,7 @@ Studio WPF -> retro_editor.dll -> retro_gameplay -> retro_core
 ```
 
 Esta división importa por dos motivos: Player y Studio interpretan los mismos
-archivos, y una asignación creada en C siempre se libera en C.
+archivos y ejecutan la misma `retro_session.dll`. Una asignación creada en C siempre se libera en C.
 
 ## Inicio
 
@@ -42,8 +42,8 @@ manifiesto.
   detener.
 - **Escena:** árbol buscable de habitaciones, instancias, barreras, triggers,
   luces, definiciones, reglas y conversaciones.
-- **Documento central:** espacios Construir, Personajes, Lógica, Diálogos y
-  Probar.
+- **Documento central:** documentos de mapa, personajes, reglas, diálogos y prueba;
+  accesos superiores Construir, Contenido, Eventos y Probar.
 - **Inspector:** propiedades editables y conexiones navegables del elemento
   seleccionado.
 - **Panel inferior:** recursos utilizados y problemas de validación.
@@ -72,9 +72,15 @@ Puertas, ventanas, luces y triggers también se seleccionan directamente sobre
 el plano. La selección usa un borde ámbar y abre sus propiedades reales en el
 inspector; no es necesario encontrarlos primero en el árbol.
 
-Las herramientas de creación directa de polígonos, puertas, ventanas y
-escaleras se incorporarán sobre la misma API de comandos; Studio no muestra
-botones para operaciones que todavía no ejecuta.
+**Archivo → Nuevo proyecto** crea una habitación inicial y un jugador. Selecciona
+**Habitación** y arrastra un rectángulo sobre la cuadrícula. Las paredes
+compartidas compatibles se conectan automáticamente. **Puerta** y **Ventana**
+colocan una barrera de 1,5 m al hacer clic sobre una conexión existente.
+La cota determina la altura de edición: las otras plantas quedan tenues y no
+se seleccionan desde el mapa. **Encuadrar** (F) muestra el nivel completo.
+
+Todavía faltan dibujo poligonal, plantas con nombres, generador de escaleras y
+vista 3D de autoría. El control de cota no sustituye esos sistemas.
 
 ### Personajes
 
@@ -111,10 +117,12 @@ deben corregirse antes de exportar.
 
 ### Probar
 
-**Probar** guarda primero si hay cambios y abre `retro_player.exe` con el mismo
-manifiesto. Si el guardado falla, Player no se inicia. **Detener** cierra
-solamente el proceso iniciado por esa sesión de Studio; cerrar Player también
-reactiva automáticamente la edición.
+**Probar** crea una copia del documento actual sin guardarlo. WPF muestra el
+framebuffer C de 480×270, usando la misma sesión que Player. Clic para enfocar,
+WASD para moverse y arrastre con botón derecho para mirar. Pausa de simulación
+y **Un tick** permiten examinar la prueba. **Detener** libera la copia y devuelve
+la edición exactamente como estaba. Las ranuras de disco quedan desactivadas
+en esta prueba aislada.
 
 La simulación de Player no escribe posiciones, enemigos o puertas de vuelta en
 el documento. Guardar una partida y guardar el proyecto son operaciones
@@ -127,10 +135,10 @@ el cambio, C valida el valor y conserva un estado para deshacer. Una operación
 inválida no cambia la revisión ni el historial. Deshacer y rehacer actualizan
 el árbol, el mapa, el inspector y las conexiones desde la nueva revisión.
 
-El guardado explícito escribe los formatos del proyecto mediante las rutinas de
-`retro_gameplay`. El autosave transaccional completo y las herramientas visuales
-de creación siguen pendientes; por eso esta documentación no promete aún
-recuperación automática de cambios no guardados.
+El guardado explícito prepara todos los archivos, conserva sus versiones anteriores
+y publica un diario antes de reemplazarlos. Si se interrumpe, abrir el proyecto
+restaura el conjunto anterior antes de analizar los archivos. Un fallo de guardado
+mantiene la ventana abierta. El autosave de cambios no guardados sigue pendiente.
 
 ## Archivos del editor
 
@@ -143,6 +151,15 @@ recuperación automática de cambios no guardados.
 | `src/studio/ViewModels/StudioViewModel.cs` | Selección, comandos, conexiones y Player. |
 | `src/studio/Models/EditorDocument.cs` | Dueño administrado del handle nativo. |
 | `src/studio/Native/EditorNative.cs` | Firmas de interoperabilidad C/C#. |
+| `include/retro/session.h`, `src/session/session.c` | Sesión compartida y framebuffer. |
+| `src/studio/Native/SessionNative.cs` | Frontera administrada de la sesión. |
+| `src/studio/Controls/GameViewport.cs` | Entrada y presentación de la prueba. |
+| `src/studio/Services/SpriteThumbnail.cs` | Recortes validados y caché de imágenes. |
+| `include/retro/character_art.h`, `src/gameplay/character_art.c` | Arte provisional compartido. |
+| `include/retro/transaction.h`, `src/gameplay/transaction.c` | Guardado coordinado y recuperación. |
+| `tests/studio/Program.cs` | Recorrido de modelos y composiciones WPF de prueba. |
+| `tests/studio/RetroForge.Studio.Tests.csproj` | Ejecutable de pruebas .NET sin framework externo. |
+| `tests/session_test.c` | Aislamiento y equivalencia determinista de sesiones. |
 | `src/studio/Themes/Graphite.xaml` | Colores, tipografía, foco y controles. |
 
 ## Exportación
@@ -155,6 +172,8 @@ powershell -ExecutionPolicy Bypass -File tools/export-project.ps1 `
   -Project assets/studio/haunted.retro -Output dist/Games
 ```
 
-El resultado incluye Player, proyecto, recursos necesarios y licencias. Las
+El resultado incluye Player, `retro_session.dll`, proyecto, recursos y licencias.
+Actualmente copia la carpeta de recursos; la selección exclusiva de dependencias
+usadas y el asistente visual siguen pendientes. Las
 rutas se resuelven desde el manifiesto, por lo que una carpeta con espacios no
 debe cambiar el funcionamiento.

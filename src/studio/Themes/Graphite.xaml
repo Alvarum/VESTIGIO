@@ -124,6 +124,63 @@
     </Style.Triggers>
   </Style>
 
+  <!-- El template del sistema usa blanco en algunos temas de Windows. Este
+       selector conserva contraste, teclado y foco dentro de nuestra paleta. -->
+  <Style TargetType="ComboBoxItem">
+    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+    <Setter Property="Padding" Value="10,7"/>
+    <Setter Property="Template"><Setter.Value>
+      <ControlTemplate TargetType="ComboBoxItem">
+        <Border x:Name="Row" Padding="{TemplateBinding Padding}" Background="Transparent">
+          <ContentPresenter/>
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Row" Property="Background" Value="{StaticResource SurfaceHoverBrush}"/></Trigger>
+          <Trigger Property="IsSelected" Value="True"><Setter TargetName="Row" Property="Background" Value="{StaticResource AccentSoftBrush}"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate>
+    </Setter.Value></Setter>
+  </Style>
+  <Style TargetType="ComboBox">
+    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+    <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+    <Setter Property="MinHeight" Value="34"/>
+    <Setter Property="Template"><Setter.Value>
+      <ControlTemplate TargetType="ComboBox">
+        <Grid>
+          <ToggleButton Focusable="False" ClickMode="Press"
+                        IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+            <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
+              <Border x:Name="Face" Background="{StaticResource SurfaceBrush}" CornerRadius="4"
+                      BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                <TextBlock Text="▾" HorizontalAlignment="Right" Margin="0,0,10,0"/>
+              </Border>
+              <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Face" Property="Background" Value="{StaticResource SurfaceHoverBrush}"/>
+              </Trigger></ControlTemplate.Triggers>
+            </ControlTemplate></ToggleButton.Template>
+          </ToggleButton>
+          <ContentPresenter Margin="10,5,28,5" VerticalAlignment="Center" IsHitTestVisible="False"
+                            Content="{TemplateBinding SelectionBoxItem}"
+                            ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
+          <Border x:Name="Focus" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1"
+                  CornerRadius="4" Visibility="Collapsed" IsHitTestVisible="False"/>
+          <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True" Focusable="False"
+                 IsOpen="{TemplateBinding IsDropDownOpen}" PopupAnimation="None">
+            <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+              <ScrollViewer MaxHeight="320" CanContentScroll="True"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
+            </Border>
+          </Popup>
+        </Grid>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/></Trigger>
+          <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate>
+    </Setter.Value></Setter>
+  </Style>
+
   <Style TargetType="Menu">
     <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
     <Setter Property="Background" Value="Transparent" />

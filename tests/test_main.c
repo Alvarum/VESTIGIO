@@ -833,6 +833,82 @@ static bool editor_document(void) {
     re_editor_close(document);
     return true;
 }
+static bool visual_authoring(void) {
+    const char *manifest = RETRO_TEST_DIR "/authoring-test.retro";
+    ReEditorDocument *document = nullptr;
+    ReError error = {0};
+    CHECK(re_editor_new(manifest, &document, &error));
+    uint32_t room = 0, barrier = 0;
+    CHECK(re_editor_create_room(document, 6, 1, 10, 5, 0, 3, &room, &error));
+    CHECK(room == 1);
+    CHECK(!re_editor_create_room(document, 2, 2, 8, 8, 0, 3, &room, &error));
+    CHECK(re_editor_save(document, &error));
+    ReProject *project = calloc(1, sizeof(*project));
+    CHECK(project && re_project_load(manifest, project, &error));
+    ReBody body = {.position = {5, 3, 0},
+                   .radius = .28f,
+                   .height = 1.72f,
+                   .step_height = .3f,
+                   .sector = 0,
+                   .grounded = true};
+    for (int i = 0; i < 90; i++)
+        re_body_move(&project->world, &body, re_v2(.035f, 0), RE_FIXED_DT, 18);
+    CHECK(body.sector == 1 && body.position.x > 7);
+    CHECK(re_editor_add_barrier(document, 0, 1, 0, 1.5f, &barrier, &error));
+    CHECK(re_editor_save(document, &error));
+    CHECK(re_project_load(manifest, project, &error));
+    body.position = re_v3(5, 3, 0);
+    body.sector = 0;
+    for (int i = 0; i < 90; i++)
+        re_body_move(&project->world, &body, re_v2(.035f, 0), RE_FIXED_DT, 18);
+    CHECK(body.sector == 0 && body.position.x < 6);
+    project->world.barriers[barrier].open_fraction = 1;
+    for (int i = 0; i < 90; i++)
+        re_body_move(&project->world, &body, re_v2(.035f, 0), RE_FIXED_DT, 18);
+    CHECK(body.sector == 1);
+    /* La habitación superior no altera la selección del nivel inferior. */
+    CHECK(re_editor_create_room(document, 0, 0, 6, 6, 3, 6, &room, &error));
+    uint32_t marker = 0;
+    CHECK(re_editor_create_marker_at(document, "interact", "switch", 2, 2, 3, &marker, &error));
+    ReEditorMarkerView placed = {0};
+    CHECK(re_editor_marker(document, marker, &placed) && placed.sector == 2 && NEAR(placed.z, 3));
+    CHECK(re_editor_undo(document));
+    CHECK(!re_editor_create_room(document, 0, 0, 6, 6, 2, 5, &room, &error));
+    CHECK(re_editor_redo(document));
+    /* Mover y duplicar conservan la planta: no se elige por XY solamente. */
+    CHECK(re_editor_move_marker(document, marker, 3, 3, &error));
+    CHECK(re_editor_marker(document, marker, &placed) && placed.sector == 2);
+    CHECK(!re_editor_move_marker(document, marker, 8, 3, &error));
+    uint32_t duplicate = 0;
+    CHECK(re_editor_duplicate_marker(document, marker, &duplicate, &error));
+    CHECK(re_editor_marker(document, duplicate, &placed) && placed.sector == 2);
+    char map_path[RE_PROJECT_PATH * 2];
+    CHECK(re_project_path(project, project->initial_level, map_path, sizeof(map_path)));
+    /* Simular una interrupción después de reemplazar un hijo. Al abrir,
+     * el diario restaura el conjunto anterior antes de interpretar el mapa. */
+    char backup[RE_PROJECT_PATH * 2 + 32], journal[RE_PROJECT_PATH * 2 + 32];
+    (void)snprintf(backup, sizeof(backup), "%s.rf-old", map_path);
+    (void)snprintf(journal, sizeof(journal), "%s.rf-journal", manifest);
+    CHECK(re_world_save_v4(backup, &project->world, &error));
+    FILE *broken = fopen(map_path, "wb");
+    CHECK(broken && fputs("interrupted", broken) >= 0);
+    CHECK(fclose(broken) == 0);
+    FILE *record = fopen(journal, "wb");
+    CHECK(record && fprintf(record, "retro_transaction 1\n1 %s\n", project->initial_level) > 0);
+    CHECK(fclose(record) == 0);
+    CHECK(re_project_load(manifest, project, &error));
+    CHECK(project->world.sector_count == 2);
+    /* Fallo preparando un recurso: nunca se debe cambiar el mapa original. */
+    (void)snprintf(project->logic_file, sizeof(project->logic_file), "missing/logic.rules");
+    project->world.sectors[0].light = .23f;
+    CHECK(!re_project_save(project, &error));
+    CHECK(re_project_load(manifest, project, &error));
+    CHECK(NEAR(project->world.sectors[0].light, .75f));
+    re_editor_close(document);
+    free(project);
+    CHECK(remove(manifest) == 0 && remove(map_path) == 0);
+    return true;
+}
 int main(void) {
     const struct {
         const char *name;
@@ -855,7 +931,8 @@ int main(void) {
                  {"safe_door", safe_door},
                  {"interaction_journey", interaction_journey},
                  {"rule_cycle_guard", rule_cycle_guard},
-                 {"editor_document", editor_document}};
+                 {"editor_document", editor_document},
+                 {"visual_authoring", visual_authoring}};
     int failures = 0;
     for (size_t i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
         bool ok = tests[i].run();

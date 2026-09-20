@@ -3,8 +3,9 @@
  * Un proyecto creado con acciones incorporadas se ejecuta con este binario:
  * no necesita recompilar C. Las extensiones nativas pueden reemplazar este
  * punto de composición y seguir usando retro_core + retro_gameplay. */
-#include "retro/platform.h"
 #include "retro/session.h"
+#include "retro/character_art.h"
+#include "retro/platform.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -89,49 +90,6 @@ static void create_pickup_sprites(PlayerApp *app) {
     }
 }
 
-static void fallback_sprite(ReTexture *texture, const ReCharacterDef *definition, size_t seed) {
-    int cell_width = definition->cell_width > 0 ? definition->cell_width : 32;
-    int cell_height = definition->cell_height > 0 ? definition->cell_height : 48;
-    int columns = 8, rows = 8;
-    (void)re_texture_init(texture, cell_width * columns, cell_height * rows);
-    for (int cell = 0; cell < columns * rows; cell++)
-        for (int y = 0; y < cell_height; y++)
-            for (int x = 0; x < cell_width; x++) {
-                int pose = cell % 4;
-                int center = cell_width / 2 + pose - 2;
-                int head_y = cell_height / 6, head_radius = cell_width / 6;
-                int dx = x - center, dy = y - head_y;
-                bool hair = dx * dx + dy * dy <= head_radius * head_radius;
-                bool face =
-                    dx * dx + dy * dy <= (head_radius - 2) * (head_radius - 2) && y >= head_y - 1;
-                int torso_top = cell_height / 3, torso_bottom = cell_height * 2 / 3;
-                int half_body = cell_width / 5 + (y - torso_top) / 10;
-                bool coat = y >= torso_top && y <= torso_bottom && abs(x - center) <= half_body;
-                bool left_arm =
-                    y >= torso_top && y < torso_bottom && abs(x - (center - half_body - 2)) <= 2;
-                bool right_arm =
-                    y >= torso_top && y < torso_bottom && abs(x - (center + half_body + 2)) <= 2;
-                bool left_leg = y > torso_bottom && y < cell_height - 2 &&
-                                abs(x - (center - cell_width / 8 - pose % 2)) <= 2;
-                bool right_leg = y > torso_bottom && y < cell_height - 2 &&
-                                 abs(x - (center + cell_width / 8 + pose % 2)) <= 2;
-                uint8_t red = (uint8_t)(150u + (unsigned int)(seed % 3u) * 28u +
-                                        (unsigned int)(cell % 3) * 8u);
-                RePixel pixel = re_rgba(0, 0, 0, 0);
-                if (hair)
-                    pixel = re_rgba(35, 25, 28, 255);
-                if (face)
-                    pixel = re_rgba(207, 158, 132, 255);
-                if (coat || left_arm || right_arm)
-                    pixel = re_rgba(red, (uint8_t)(48 + pose * 7), 62, 255);
-                if (left_leg || right_leg)
-                    pixel = re_rgba(38, 42, 49, 255);
-                size_t px = (size_t)(cell % columns) * (size_t)cell_width + (size_t)x;
-                size_t py = (size_t)(cell / columns) * (size_t)cell_height + (size_t)y;
-                texture->pixels[py * (size_t)texture->width + px] = pixel;
-            }
-}
-
 static bool app_init(PlayerApp *app, const ReProject *project) {
     app->project = *project;
     colors(app);
@@ -142,7 +100,8 @@ static bool app_init(PlayerApp *app, const ReProject *project) {
             !re_project_path(&app->project, app->project.characters[i].sprite, path,
                              sizeof(path)) ||
             !re_platform_image_load(path, &app->sprites[i]))
-            fallback_sprite(&app->sprites[i], &app->project.characters[i], i);
+            if (!re_character_placeholder(&app->sprites[i], &app->project.characters[i], i))
+                return false;
     }
     if (app->project.title_art[0]) {
         char path[RE_PROJECT_PATH * 2];
@@ -218,14 +177,35 @@ static void interact(PlayerApp *app) {
     ReVec3 forward = re_camera_forward(&app->camera);
     if (re_interaction_interact(&app->interaction, app->camera.position, forward, 2.2f))
         return;
-    /* En proyectos con reglas, una puerta sólo cambia mediante una acción
-     * declarada. El fallback conserva compatibilidad con proyectos v1. */
-    if (app->project.interactions.rule_count)
-        return;
     ReTraceHit hit =
-        re_world_trace(&app->project.world, app->camera.position, forward, 1.5f, RE_BLOCK_MOVEMENT);
-    if (hit.barrier >= 0 && app->project.world.barriers[hit.barrier].kind == RE_BARRIER_DOOR)
-        app->project.world.barriers[hit.barrier].open_fraction = 1;
+        re_world_trace(&app->project.world, app->camera.position, forward, 2.2f, RE_BLOCK_MOVEMENT);
+    if (hit.barrier >= 0 && app->project.world.barriers[hit.barrier].kind == RE_BARRIER_DOOR) {
+        ReBarrier *barrier = &app->project.world.barriers[hit.barrier];
+        /* Una puerta nueva se abre por defecto; una puerta conectada conserva
+         * sus condiciones. La presencia de reglas ajenas no debe bloquearla. */
+        bool controlled = false, direct = false;
+        for (size_t i = 0; i < app->project.interactions.rule_count; i++) {
+            const ReRuleDefinition *rule = &app->project.interactions.rules[i];
+            if (rule->event == RE_LOGIC_INTERACT && strcmp(rule->source, barrier->id) == 0)
+                direct = true;
+            for (size_t j = 0; j < rule->action_count; j++)
+                if ((rule->actions[j].kind == RE_RULE_OPEN_BARRIER ||
+                     rule->actions[j].kind == RE_RULE_CLOSE_BARRIER) &&
+                    strcmp(rule->actions[j].target, barrier->id) == 0)
+                    controlled = true;
+        }
+        if (direct) {
+            ReLogicEvent event = {.kind = RE_LOGIC_INTERACT, .position = app->player.position};
+            (void)snprintf(event.source, sizeof(event.source), "%s", barrier->id);
+            (void)re_interaction_emit(&app->interaction, event);
+        } else if (!controlled)
+            barrier->open_fraction = 1;
+        else {
+            (void)snprintf(app->interaction.state.message, sizeof(app->interaction.state.message),
+                           "Esta puerta se abre mediante un objeto o interruptor");
+            app->interaction.state.message_time = 3;
+        }
+    }
 }
 
 static void shoot(PlayerApp *app) {
@@ -270,7 +250,8 @@ static void shoot(PlayerApp *app) {
 }
 
 static void save_game(PlayerApp *app, size_t index, const char *label) {
-    if (app->preview) return; /* Una prueba nunca escribe partidas del usuario. */
+    if (app->preview)
+        return; /* Una prueba nunca escribe partidas del usuario. */
     ReError error = {0};
     if (index >= 5 || !app->save_paths[index][0] ||
         !re_save_write(app->save_paths[index], app->project.id, &app->interaction, &app->player,
@@ -294,7 +275,8 @@ static void save_game(PlayerApp *app, size_t index, const char *label) {
 }
 
 static bool load_game(PlayerApp *app, size_t index) {
-    if (app->preview) return false;
+    if (app->preview)
+        return false;
     ReError error = {0};
     if (index >= 5 || !app->save_paths[index][0] ||
         !re_save_read(app->save_paths[index], app->project.id, &app->interaction, &app->player,
@@ -592,7 +574,7 @@ static void draw(PlayerApp *app, ReRenderer *renderer, float alpha) {
         const ReBarrier *barrier = &app->project.world.barriers[facing.barrier];
         re_rect(renderer, 132, 218, 216, 20, re_rgba(8, 12, 17, 230));
         re_text(renderer, barrier->kind == RE_BARRIER_DOOR ? 181 : 147, 225,
-                barrier->kind == RE_BARRIER_DOOR ? "E  ABRIR PUERTA" : "DISPARA PARA ROMPER VIDRIO",
+                barrier->kind == RE_BARRIER_DOOR ? "E  INTERACTUAR" : "DISPARA PARA ROMPER VIDRIO",
                 1, re_rgba(240, 178, 86, 255));
     }
     re_rect(renderer, 0, 247, 480, 23, re_rgba(9, 14, 19, 235));
@@ -717,15 +699,16 @@ static void wrap_text(const char *source, char *destination, size_t capacity, si
     destination[output] = '\0';
 }
 
-
 /* API de sesión. Todos los recursos pertenecen a este handle y se liberan
  * simétricamente, incluso si falla la creación a mitad de la carga. */
-int re_session_create(const ReProject *project, int preview, int menu,
-                      ReGameSession **out, ReError *error) {
-    if (!project || !out || !error) return 0;
+int re_session_create(const ReProject *project, int preview, int menu, ReGameSession **out,
+                      ReError *error) {
+    if (!project || !out || !error)
+        return 0;
     *out = nullptr;
     ReGameSession *session = calloc(1, sizeof(*session));
-    if (!session) return 0;
+    if (!session)
+        return 0;
     session->preview = preview != 0;
     if (!app_init(session, project) || !re_renderer_init(&session->renderer, 480, 270)) {
         (void)snprintf(error->message, sizeof(error->message),
@@ -740,21 +723,29 @@ int re_session_create(const ReProject *project, int preview, int menu,
 }
 
 void re_session_destroy(ReGameSession *session) {
-    if (!session) return;
-    for (int i = 0; i < RE_MAX_MATERIALS; i++) re_texture_destroy(&session->materials[i]);
-    for (size_t i = 0; i < RE_MAX_CHARACTER_DEFS; i++) re_texture_destroy(&session->sprites[i]);
-    for (size_t i = 0; i < 2; i++) re_texture_destroy(&session->pickup_sprites[i]);
+    if (!session)
+        return;
+    for (int i = 0; i < RE_MAX_MATERIALS; i++)
+        re_texture_destroy(&session->materials[i]);
+    for (size_t i = 0; i < RE_MAX_CHARACTER_DEFS; i++)
+        re_texture_destroy(&session->sprites[i]);
+    for (size_t i = 0; i < 2; i++)
+        re_texture_destroy(&session->pickup_sprites[i]);
     re_texture_destroy(&session->title_art);
     re_renderer_destroy(&session->renderer);
     free(session);
 }
 
 void re_session_frame(ReGameSession *session, double elapsed, float move_x, float move_y,
-                       float look_x, float look_y, uint32_t pressed, uint32_t held,
-                       int focused, int single_step) {
-    if (!session) return;
-    ReInput input = {.movement = {move_x, move_y}, .look = {look_x, look_y},
-                      .pressed = pressed, .held = held, .focused = focused != 0};
+                      float look_x, float look_y, uint32_t pressed, uint32_t held, int focused,
+                      int single_step) {
+    if (!session)
+        return;
+    ReInput input = {.movement = {move_x, move_y},
+                     .look = {look_x, look_y},
+                     .pressed = pressed,
+                     .held = held,
+                     .focused = focused != 0};
     if (elapsed > 0 && elapsed < 1)
         session->frame_ms = (float)(elapsed * 1000);
     /* Perder foco descarta eventos pendientes y tiempo: ni disparos tardíos
@@ -765,7 +756,8 @@ void re_session_frame(ReGameSession *session, double elapsed, float move_x, floa
     } else {
         re_input_accumulate(&session->pending, input);
         int ticks = single_step ? 1 : re_clock_advance(&session->clock, elapsed, true);
-        for (int i = 0; i < ticks; i++) tick(session, re_input_consume(&session->pending));
+        for (int i = 0; i < ticks; i++)
+            tick(session, re_input_consume(&session->pending));
     }
     draw(session, &session->renderer, re_clock_alpha(&session->clock));
 }
@@ -776,25 +768,29 @@ const ReRenderer *re_session_renderer(const ReGameSession *session) {
 
 int re_session_copy_pixels(const ReGameSession *session, void *destination, uint32_t bytes) {
     const size_t required = 480u * 270u * 4u;
-    if (!session || !destination || bytes < required) return 0;
+    if (!session || !destination || bytes < required)
+        return 0;
     memcpy(destination, session->renderer.pixels, required);
     return 1;
 }
 
 int re_session_flags(const ReGameSession *session) {
-    if (!session) return 1;
-    bool capture = !session->title && !session->paused &&
-                   !session->interaction.state.game_over && !session->interaction.state.won &&
-                   !session->interaction.state.dialogue_pauses;
+    if (!session)
+        return 1;
+    bool capture = !session->title && !session->paused && !session->interaction.state.game_over &&
+                   !session->interaction.state.won && !session->interaction.state.dialogue_pauses;
     return (session->quit ? 1 : 0) | (capture ? 2 : 0);
 }
 
 size_t re_session_memory(const ReGameSession *session) {
-    if (!session) return 0;
+    if (!session)
+        return 0;
     size_t total = sizeof(*session) + 480u * 270u * 8u + texture_bytes(&session->title_art);
-    for (size_t i = 0; i < RE_MAX_MATERIALS; i++) total += texture_bytes(&session->materials[i]);
-    for (size_t i = 0; i < RE_MAX_CHARACTER_DEFS; i++) total += texture_bytes(&session->sprites[i]);
-    for (size_t i = 0; i < 2; i++) total += texture_bytes(&session->pickup_sprites[i]);
+    for (size_t i = 0; i < RE_MAX_MATERIALS; i++)
+        total += texture_bytes(&session->materials[i]);
+    for (size_t i = 0; i < RE_MAX_CHARACTER_DEFS; i++)
+        total += texture_bytes(&session->sprites[i]);
+    for (size_t i = 0; i < 2; i++)
+        total += texture_bytes(&session->pickup_sprites[i]);
     return total;
 }
-

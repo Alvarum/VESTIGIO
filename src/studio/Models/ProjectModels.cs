@@ -40,6 +40,7 @@ public interface IEditorItem
 
 public sealed record SectorModel(uint Index, EditorNative.Sector Native) : IEditorItem
 {
+    public IReadOnlyList<(float Start, float End)> Openings { get; init; } = [];
     public EditorNative.ObjectKind Kind => EditorNative.ObjectKind.Sector;
     public string Id => $"sector-{Index}";
     public string DisplayName => $"Habitación {Index + 1}";
@@ -89,6 +90,8 @@ public sealed record CharacterModel(uint Index, EditorNative.Character Native) :
     public string Subtitle => Native.PhaseCount > 0 ? $"Jefe · {Native.PhaseCount} fases" :
         Native.CaptureGameOver != 0 ? "Perseguidor · captura" : "Personaje";
     public string Sprite => Native.Sprite;
+    public System.Windows.Media.ImageSource? Thumbnail { get; init; }
+    public string ThumbnailError { get; init; } = string.Empty;
     public IReadOnlyList<AnimationModel> Animations { get; init; } = [];
     public IReadOnlyList<BossPhaseModel> Phases { get; init; } = [];
     public string? SpritePath(string root) => string.IsNullOrWhiteSpace(Sprite)

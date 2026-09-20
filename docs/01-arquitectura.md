@@ -6,9 +6,12 @@
 flowchart TD
   F[Foundry: main] --> G[Reglas y presentación del FPS]
   F --> P[Plataforma raylib]
-  S[RetroForge Studio] --> D[Gameplay y proyectos]
-  X[Reproductor genérico] --> D
-  S --> R[raylib + raygui]
+  S[Studio WPF] --> E[Documento de autoría C]
+  E --> D[Gameplay y proyectos]
+  S --> Q[Sesión C compartida]
+  X[Reproductor genérico] --> Q
+  Q --> D
+  Q --> P
   X --> P
   L[Laboratorio: main] --> P
   L --> C[Núcleo C23]
@@ -26,6 +29,16 @@ No hay contenedor de servicios, herencia simulada ni macros que escondan llamada
 La encapsulación importante es la frontera entre módulos, no fabricar objetos
 opacos para cada vector. `RePlatform` sí es opaco: sus recursos son específicos
 de raylib y no deben escapar a otras capas.
+
+`ReGameSession` posee una copia de `ReProject`, simulación, texturas, cámara,
+entrada pendiente y renderer. Player y Studio llaman a su misma actualización.
+Studio copia píxeles hacia WPF; Player presenta la textura con raylib. La interfaz
+de autoría expone índices válidos durante una revisión; el paso a identificadores
+estables para toda la autoría aún forma parte del plan Creator.
+
+Los archivos de esta ampliación y sus contratos se enumeran en
+[Studio](09-retroforge-studio.md#archivos-del-editor) y su estado se registra en
+[seguimiento de Creator](15-creator-implementation.md).
 
 ## Un fotograma
 

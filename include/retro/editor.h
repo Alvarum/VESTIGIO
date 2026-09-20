@@ -23,6 +23,18 @@
 
 typedef struct ReEditorDocument ReEditorDocument;
 
+/* Consulta secuencial del inventario definido por el proyecto. Devuelve 0 al
+ * terminar; out pertenece al llamador y no retiene punteros del documento. */
+RE_EDITOR_API int re_editor_item(const ReEditorDocument *document, uint32_t index,
+                                 ReItemDefinition *out);
+/* Intervalo normalizado sobre la arista. 0 significa pared sin abertura. */
+RE_EDITOR_API int re_editor_portal(const ReEditorDocument *document, uint32_t sector, uint32_t edge,
+                                   float *start, float *end);
+/* Copia UNA celda RGBA del arte provisional al buffer del llamador.
+ * capacity se expresa en bytes; las dimensiones proceden de character(). */
+RE_EDITOR_API int re_editor_placeholder(const ReEditorDocument *document, uint32_t character,
+                                        uint32_t cell, void *rgba, uint32_t capacity);
+
 enum ReEditorObjectKind {
     RE_EDITOR_PROJECT,
     RE_EDITOR_SECTOR,
@@ -131,6 +143,7 @@ typedef struct ReEditorDialogueChoiceView {
 } ReEditorDialogueChoiceView;
 
 RE_EDITOR_API int re_editor_open(const char *manifest, ReEditorDocument **out, ReError *error);
+RE_EDITOR_API int re_editor_new(const char *manifest, ReEditorDocument **out, ReError *error);
 RE_EDITOR_API void re_editor_close(ReEditorDocument *document);
 RE_EDITOR_API int re_editor_overview(const ReEditorDocument *document, ReEditorOverview *out);
 RE_EDITOR_API int re_editor_sector(const ReEditorDocument *document, uint32_t index,
@@ -169,6 +182,16 @@ RE_EDITOR_API int re_editor_dialogue_choice(const ReEditorDocument *document, ui
 RE_EDITOR_API int re_editor_create_marker(ReEditorDocument *document, const char *kind,
                                           const char *definition, float x, float y,
                                           uint32_t *out_index, ReError *error);
+/* Rectángulo normalizado XY, cotas en metros. Conecta paredes compartidas
+ * compatibles sin crear muros duplicados. Una operación = un paso de historial. */
+RE_EDITOR_API int re_editor_create_room(ReEditorDocument *document, float x0, float y0, float x1,
+                                        float y1, float floor, float ceiling, uint32_t *out_index,
+                                        ReError *error);
+RE_EDITOR_API int re_editor_add_barrier(ReEditorDocument *document, uint32_t sector, uint32_t edge,
+                                        int kind, float width, uint32_t *out_index, ReError *error);
+RE_EDITOR_API int re_editor_create_marker_at(ReEditorDocument *document, const char *kind,
+                                             const char *definition, float x, float y, float floor,
+                                             uint32_t *out_index, ReError *error);
 RE_EDITOR_API int re_editor_move_marker(ReEditorDocument *document, uint32_t index, float x,
                                         float y, ReError *error);
 RE_EDITOR_API int re_editor_duplicate_marker(ReEditorDocument *document, uint32_t index,

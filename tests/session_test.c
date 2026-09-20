@@ -36,7 +36,8 @@ int main(void) {
      * enlaza la misma frontera que consume el ejecutable Player. */
     result = 0;
 cleanup:
-    if (result) (void)fprintf(stderr, "Sesión compartida: %s\n", error.message);
+    if (result)
+        (void)fprintf(stderr, "Sesión compartida: %s\n", error.message);
     re_session_destroy(first);
     re_session_destroy(second);
     re_editor_close(document);

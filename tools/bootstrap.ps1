@@ -46,6 +46,8 @@ try {
         throw 'RetroForge Studio requiere el SDK de .NET 10 para Windows.'
     }
     & dotnet restore 'src/studio/RetroForge.Studio.csproj' --packages '.nuget/packages'
+    if ($LASTEXITCODE) { throw 'No se pudo restaurar Studio' }
+    & dotnet restore 'tests/studio/RetroForge.Studio.Tests.csproj' --packages '.nuget/packages'
     if ($LASTEXITCODE) { throw 'Fallo restaurando las dependencias fijadas de Studio' }
     Write-Output 'Herramientas listas. Siguiente: ./tools/build.ps1 -Preset debug -Test'
 } finally { Pop-Location }

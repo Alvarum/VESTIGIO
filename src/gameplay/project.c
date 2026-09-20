@@ -1,6 +1,7 @@
 /* Persistencia del proyecto. Se usan formatos de texto pequeños y explícitos
  * para que Git muestre cambios útiles y una persona pueda reparar un archivo. */
 #include "retro/project.h"
+#include "retro/transaction.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -87,6 +88,8 @@ static size_t split(char *line, char **parts, size_t capacity) {
 }
 
 bool re_project_load(const char *manifest, ReProject *out, ReError *error) {
+    if (!re_project_recover(manifest, error))
+        return false;
     if (!manifest || !out || !error)
         return false;
     FILE *file = fopen(manifest, "rb");
@@ -197,11 +200,12 @@ bool re_project_load(const char *manifest, ReProject *out, ReError *error) {
     return ok;
 }
 
-bool re_project_save(const ReProject *project, ReError *error) {
-    if (!project || !error || !project->manifest[0])
+bool re_project_write_manifest(const char *path, const ReProject *project, ReError *error) {
+    if (!project || !error || !path || !path[0])
         return false;
-    char temporary[RE_PROJECT_PATH + 8];
-    if (snprintf(temporary, sizeof(temporary), "%s.tmp", project->manifest) < 0)
+    char temporary[RE_PROJECT_PATH * 2 + 40];
+    int length = snprintf(temporary, sizeof(temporary), "%s.tmp", path);
+    if (length < 0 || (size_t)length >= sizeof(temporary))
         return fail(error, 0, "Ruta de proyecto demasiado larga");
     FILE *file = fopen(temporary, "wb");
     if (!file)
@@ -224,26 +228,20 @@ bool re_project_save(const ReProject *project, ReError *error) {
         ok = fprintf(file, "actor %s\n", project->actor_files[i]) > 0;
     if (fclose(file) != 0)
         ok = false;
-    char map[RE_PROJECT_PATH * 2];
-    if (ok)
-        ok = re_project_path(project, project->initial_level, map, sizeof(map)) &&
-             re_world_save_v4(map, &project->world, error);
-    if (ok && project->logic_file[0])
-        ok = re_project_path(project, project->logic_file, map, sizeof(map)) &&
-             re_interaction_save_rules(map, &project->interactions, error);
-    if (ok && project->dialogue_file[0])
-        ok = re_project_path(project, project->dialogue_file, map, sizeof(map)) &&
-             re_interaction_save_dialogues(map, &project->interactions, error);
     if (!ok) {
         (void)remove(temporary);
         return error->message[0] ? false : fail(error, 0, "Error guardando el proyecto");
     }
-    if (!replace_file(temporary, project->manifest)) {
+    if (!replace_file(temporary, path)) {
         (void)remove(temporary);
         return fail(error, 0, "No se pudo reemplazar el manifiesto");
     }
     *error = (ReError){0};
     return true;
+}
+
+bool re_project_save(const ReProject *project, ReError *error) {
+    return re_project_commit(project, error);
 }
 
 bool re_project_import(const ReProject *project, const char *source, const char *relative,

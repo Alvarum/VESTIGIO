@@ -10,6 +10,20 @@ public static class EditorNative
 {
     private const string Library = "retro_editor";
 
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int re_editor_new([MarshalAs(UnmanagedType.LPUTF8Str)] string manifest,
+        out nint document, out Error error);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int re_editor_create_room(nint document, float x0, float y0,
+        float x1, float y1, float floor, float ceiling, out uint index, out Error error);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int re_editor_add_barrier(nint document, uint sector, uint edge,
+        int kind, float width, out uint index, out Error error);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int re_editor_create_marker_at(nint document,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string kind, [MarshalAs(UnmanagedType.LPUTF8Str)] string definition,
+        float x, float y, float floor, out uint index, out Error error);
+
     public enum ObjectKind
     {
         Project,
@@ -51,6 +65,25 @@ public static class EditorNative
         public uint VertexCount;
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)] public float[] Vertices;
     }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct ItemDefinition
+    {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string Id;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 48)] public string Name;
+        public uint MaxStack;
+    }
+
+    [DllImport("retro_editor", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int re_editor_item(nint document, uint index, out ItemDefinition item);
+
+    [DllImport("retro_editor", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int re_editor_placeholder(nint document, uint character, uint cell,
+        [Out] byte[] rgba, uint capacity);
+
+    [DllImport("retro_editor", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int re_editor_portal(nint document, uint sector, uint edge,
+        out float start, out float end);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public struct Marker

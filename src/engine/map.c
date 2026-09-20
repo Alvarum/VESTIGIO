@@ -326,20 +326,29 @@ bool re_world_validate(const ReWorld *w, ReError *err) {
                 e >= (int)w->sectors[n].count)
                 return fail(err, s->source_line, "Indice de conexion invalido");
             const ReSector *other = &w->sectors[n];
-            if (other->neighbor[e] != (int)si || other->neighbor_edge[e] != (int)i ||
-                re_length2(re_sub2(s->vertices[i],
-                                   other->vertices[((size_t)e + 1) % other->count])) > RE_EPSILON ||
-                re_length2(re_sub2(s->vertices[(i + 1) % s->count], other->vertices[e])) >
-                    RE_EPSILON)
+            if (other->neighbor[e] != (int)si || other->neighbor_edge[e] != (int)i)
                 return fail(err, s->source_line, "Conexion no reciproca o extremos distintos");
             float start = s->portal_start[i], end = s->portal_end[i];
             float reciprocal_start = other->portal_start[e];
             float reciprocal_end = other->portal_end[e];
             if (!isfinite(start) || !isfinite(end) || start < 0 || end > 1 || end - start < 0.01f ||
-                fabsf(reciprocal_start - (1 - end)) > RE_EPSILON ||
-                fabsf(reciprocal_end - (1 - start)) > RE_EPSILON)
+                !isfinite(reciprocal_start) || !isfinite(reciprocal_end) || reciprocal_start < 0 ||
+                reciprocal_end > 1 || reciprocal_end - reciprocal_start < 0.01f)
                 return fail(err, s->source_line,
                             "Abertura invalida o distinta en la conexion reciproca");
+            /* Las habitaciones pueden tener paredes de distinta longitud.
+             * Lo compartido son los extremos de la abertura en metros, no sus
+             * coordenadas normalizadas sobre cada pared. */
+            ReVec2 a = s->vertices[i], b = s->vertices[(i + 1) % s->count];
+            ReVec2 c = other->vertices[e], d = other->vertices[((size_t)e + 1) % other->count];
+            ReVec2 ab = re_sub2(b, a), cd = re_sub2(d, c);
+            if (re_dot2(ab, cd) >= 0 ||
+                re_length2(re_sub2(re_add2(a, re_scale2(ab, start)),
+                                   re_add2(c, re_scale2(cd, reciprocal_end)))) > RE_EPSILON ||
+                re_length2(re_sub2(re_add2(a, re_scale2(ab, end)),
+                                   re_add2(c, re_scale2(cd, reciprocal_start)))) > RE_EPSILON)
+                return fail(err, s->source_line,
+                            "Los extremos fisicos de la abertura no coinciden");
         }
         for (size_t j = si + 1; j < w->sector_count; j++) {
             const ReSector *other = &w->sectors[j];

@@ -9,6 +9,7 @@ namespace RetroForge.Studio;
 public sealed class EditorDocument : IDisposable
 {
     private nint _handle;
+    private readonly SpriteThumbnail _thumbnails = new();
 
     public EditorDocument(string manifest)
     {
@@ -26,6 +27,7 @@ public sealed class EditorDocument : IDisposable
     public ObservableCollection<DialogueModel> Dialogues { get; } = [];
     public ObservableCollection<TriggerModel> Triggers { get; } = [];
     public ObservableCollection<LightModel> Lights { get; } = [];
+    public ObservableCollection<EditorNative.ItemDefinition> Items { get; } = [];
 
     public event EventHandler? Changed;
 
@@ -43,6 +45,9 @@ public sealed class EditorDocument : IDisposable
         Replace(Dialogues, native.DialogueCount, TryDialogue);
         Replace(Triggers, native.TriggerCount, TryTrigger);
         Replace(Lights, native.LightCount, TryLight);
+        Items.Clear();
+        for (uint i = 0; EditorNative.re_editor_item(_handle, i, out EditorNative.ItemDefinition item) != 0; i++)
+            Items.Add(item);
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -55,14 +60,43 @@ public sealed class EditorDocument : IDisposable
         Refresh();
     }
 
-    public MarkerModel CreateMarker(string kind, string definition, float x, float y)
+    public MarkerModel CreateMarker(string kind, string definition, float x, float y, float floor = 0)
     {
         EnsureOpen();
-        if (EditorNative.re_editor_create_marker(_handle, kind, definition, x, y,
+        if (EditorNative.re_editor_create_marker_at(_handle, kind, definition, x, y, floor,
                 out uint index, out EditorNative.Error error) == 0)
             throw NativeFailure(error);
         Refresh();
         return Markers[(int)index];
+    }
+
+    public SectorModel CreateRoom(float x0, float y0, float x1, float y1, float floor, float height)
+    {
+        EnsureOpen();
+        if (EditorNative.re_editor_create_room(_handle, x0, y0, x1, y1, floor, floor + height,
+                out uint index, out EditorNative.Error error) == 0) throw NativeFailure(error);
+        Refresh();
+        return Sectors[(int)index];
+    }
+
+    public BarrierModel AddBarrier(uint sector, uint edge, bool window, float width)
+    {
+        EnsureOpen();
+        if (EditorNative.re_editor_add_barrier(_handle, sector, edge, window ? 1 : 0, width,
+                out uint index, out EditorNative.Error error) == 0) throw NativeFailure(error);
+        Refresh();
+        return Barriers[(int)index];
+    }
+
+    public static void CreateProject(string manifest)
+    {
+        if (EditorNative.re_editor_new(manifest, out nint handle, out EditorNative.Error error) == 0)
+            throw NativeFailure(error);
+        try
+        {
+            if (EditorNative.re_editor_save(handle, out error) == 0) throw NativeFailure(error);
+        }
+        finally { EditorNative.re_editor_close(handle); }
     }
 
     public MarkerModel MoveMarker(uint index, float x, float y)
@@ -148,10 +182,15 @@ public sealed class EditorDocument : IDisposable
         return session;
     }
 
-    private SectorModel? TrySector(uint index) =>
-        EditorNative.re_editor_sector(_handle, index, out EditorNative.Sector item) != 0
-            ? new SectorModel(index, item)
-            : null;
+    private SectorModel? TrySector(uint index)
+    {
+        if (EditorNative.re_editor_sector(_handle, index, out EditorNative.Sector item) == 0) return null;
+        var openings = new List<(float, float)>();
+        for (uint edge = 0; edge < item.VertexCount; edge++)
+            openings.Add(EditorNative.re_editor_portal(_handle, index, edge, out float start, out float end) != 0
+                ? (start, end) : (0, 0));
+        return new SectorModel(index, item) { Openings = openings };
+    }
     private MarkerModel? TryMarker(uint index) =>
         EditorNative.re_editor_marker(_handle, index, out EditorNative.Marker item) != 0
             ? new MarkerModel(index, item)
@@ -183,7 +222,26 @@ public sealed class EditorDocument : IDisposable
                 phases.Add(new BossPhaseModel(value.Name, value.HealthThreshold,
                     value.Tracking == 0 ? "percepción" : "seguimiento constante",
                     BossActionName(value.Action), value.SpeedMultiplier, value.Cooldown, value.SummonLimit));
-        return new CharacterModel(index, item) { Animations = animations, Phases = phases };
+        uint firstCell = animations.FirstOrDefault()?.Frames.FirstOrDefault()?.Cell ?? 0;
+        string thumbnailError = string.Empty;
+        System.Windows.Media.ImageSource? thumbnail;
+        if (item.Sprite == "none" && item.CellWidth is > 0 and <= 512 && item.CellHeight is > 0 and <= 512)
+        {
+            byte[] pixels = new byte[item.CellWidth * item.CellHeight * 4];
+            thumbnail = null;
+            if (EditorNative.re_editor_placeholder(_handle, index, firstCell, pixels, (uint)pixels.Length) != 0)
+            {
+                for (int i = 0; i < pixels.Length; i += 4) (pixels[i], pixels[i + 2]) = (pixels[i + 2], pixels[i]);
+                var image = System.Windows.Media.Imaging.BitmapSource.Create(item.CellWidth, item.CellHeight,
+                    96, 96, System.Windows.Media.PixelFormats.Bgra32, null, pixels, item.CellWidth * 4);
+                image.Freeze(); thumbnail = image;
+            }
+            else thumbnailError = "No se pudo generar el sprite provisional.";
+        }
+        else thumbnail = _thumbnails.Load(Overview.Root, item.Sprite, item.CellWidth, item.CellHeight,
+            firstCell, out thumbnailError);
+        return new CharacterModel(index, item) { Animations = animations, Phases = phases,
+            Thumbnail = thumbnail, ThumbnailError = thumbnailError };
     }
 
     private RuleModel? TryRule(uint index)

@@ -5,6 +5,7 @@
  * para un editor personal. Si los límites crecen, esta implementación puede
  * sustituirse por deltas sin cambiar la ABI pública. */
 #include "retro/editor.h"
+#include "retro/character_art.h"
 #ifdef RETRO_EDITOR_SESSIONS
 #include "retro/session.h"
 #endif
@@ -160,6 +161,72 @@ void re_editor_close(ReEditorDocument *document) {
     free(document);
 }
 
+int re_editor_new(const char *manifest, ReEditorDocument **out, ReError *error) {
+    if (!manifest || !out || !error)
+        return fail(error, "Ruta de proyecto inválida");
+    FILE *existing = fopen(manifest, "rb");
+    if (existing) {
+        (void)fclose(existing);
+        return fail(error, "El proyecto ya existe");
+    }
+    ReEditorDocument *document = calloc(1, sizeof(*document));
+    if (!document)
+        return fail(error, "Memoria insuficiente");
+    document->states = calloc(RE_EDITOR_HISTORY + 1u, sizeof(*document->states));
+    if (!document->states) {
+        free(document);
+        return fail(error, "Memoria insuficiente");
+    }
+    ReProject *project = &document->states[0];
+    const char *slash = strrchr(manifest, '/'), *backslash = strrchr(manifest, '\\');
+    if (backslash && (!slash || backslash > slash))
+        slash = backslash;
+    size_t root_length = slash ? (size_t)(slash - manifest) : 0;
+    if (!slash || root_length >= sizeof(project->root) ||
+        !copy_text(project->manifest, sizeof(project->manifest), manifest)) {
+        re_editor_close(document);
+        return fail(error, "Usa una ruta absoluta más corta");
+    }
+    memcpy(project->root, manifest, root_length);
+    (void)snprintf(project->name, sizeof(project->name), "Mi_juego");
+    /* La identidad del proyecto no se deriva del nombre visible. */
+    uint32_t hash = 2166136261u;
+    for (const unsigned char *p = (const unsigned char *)manifest; *p; p++)
+        hash = (hash ^ *p) * 16777619u;
+    (void)snprintf(project->id, sizeof(project->id), "project_%08x", hash);
+    (void)snprintf(project->initial_level, sizeof(project->initial_level), "level_%08x.rmap", hash);
+    (void)snprintf(project->rules, sizeof(project->rules), "fps");
+    project->death_policy = RE_DEATH_LAST_CHECKPOINT;
+    project->format_version = 2;
+    ReWorld *world = &project->world;
+    world->sector_count = 1;
+    world->marker_count = 1;
+    world->format_version = 4;
+    world->sectors[0] = (ReSector){.floor = 0,
+                                   .ceiling = 3,
+                                   .light = .75f,
+                                   .floor_material = 1,
+                                   .ceiling_material = 2,
+                                   .count = 4,
+                                   .vertices = {{0, 0}, {6, 0}, {6, 6}, {0, 6}}};
+    for (size_t i = 0; i < 4; i++) {
+        world->sectors[0].neighbor[i] = -1;
+        world->sectors[0].neighbor_edge[i] = -1;
+        world->sectors[0].portal_end[i] = 1;
+    }
+    world->markers[0] = (ReMarker){.kind = "player",
+                                   .id = "player",
+                                   .definition = "player",
+                                   .position = {3, 3, 0},
+                                   .sector = 0};
+    document->count = 1;
+    document->saved_cursor = SIZE_MAX;
+    document->revision = 1;
+    *out = document;
+    *error = (ReError){0};
+    return 1;
+}
+
 int re_editor_overview(const ReEditorDocument *document, ReEditorOverview *out) {
     const ReProject *project = current_const(document);
     if (!project || !out)
@@ -181,6 +248,52 @@ int re_editor_overview(const ReEditorDocument *document, ReEditorOverview *out) 
     out->dirty = document->cursor != document->saved_cursor;
     out->can_undo = document->cursor > 0;
     out->can_redo = document->cursor + 1u < document->count;
+    return 1;
+}
+
+int re_editor_item(const ReEditorDocument *document, uint32_t index, ReItemDefinition *out) {
+    const ReProject *project = current_const(document);
+    if (!project || !out || index >= project->interactions.item_count)
+        return 0;
+    *out = project->interactions.items[index];
+    return 1;
+}
+
+int re_editor_placeholder(const ReEditorDocument *document, uint32_t character, uint32_t cell,
+                          void *rgba, uint32_t capacity) {
+    const ReProject *p = current_const(document);
+    if (!p || !rgba || character >= p->character_count || cell >= 64)
+        return 0;
+    const ReCharacterDef *definition = &p->characters[character];
+    if (definition->cell_width <= 0 || definition->cell_width > 512 ||
+        definition->cell_height <= 0 || definition->cell_height > 512)
+        return 0;
+    size_t width = (size_t)definition->cell_width, height = (size_t)definition->cell_height;
+    if (capacity < width * height * sizeof(RePixel))
+        return 0;
+    ReTexture atlas = {0};
+    if (!re_character_placeholder(&atlas, definition, character))
+        return 0;
+    for (size_t y = 0; y < height; y++)
+        memcpy((unsigned char *)rgba + y * width * sizeof(RePixel),
+               atlas.pixels + ((cell / 8u) * height + y) * (size_t)atlas.width +
+                   (cell % 8u) * width,
+               width * sizeof(RePixel));
+    re_texture_destroy(&atlas);
+    return 1;
+}
+
+int re_editor_portal(const ReEditorDocument *document, uint32_t sector, uint32_t edge, float *start,
+                     float *end) {
+    const ReProject *p = current_const(document);
+    if (!p || !start || !end || sector >= p->world.sector_count ||
+        edge >= p->world.sectors[sector].count)
+        return 0;
+    const ReSector *room = &p->world.sectors[sector];
+    if (room->neighbor[edge] < 0)
+        return 0;
+    *start = room->portal_start[edge];
+    *end = room->portal_end[edge];
     return 1;
 }
 
@@ -816,6 +929,169 @@ int re_editor_create_marker(ReEditorDocument *document, const char *kind, const 
     return 1;
 }
 
+/* Detectar un tramo común mediante proyección sobre la primera pared. Al
+ * enlazar, almacenamos ambos intervalos: evita asumir habitaciones iguales. */
+static void link_room(ReWorld *world, size_t added) {
+    ReSector *room = &world->sectors[added];
+    for (size_t i = 0; i < added; i++) {
+        ReSector *other = &world->sectors[i];
+        if (fminf(room->ceiling, other->ceiling) - fmaxf(room->floor, other->floor) < 1.8f)
+            continue;
+        for (size_t e = 0; e < room->count; e++) {
+            ReVec2 a = room->vertices[e], ab = re_sub2(room->vertices[(e + 1) % room->count], a);
+            float length2 = re_dot2(ab, ab);
+            for (size_t f = 0; f < other->count; f++) {
+                if (room->neighbor[e] >= 0 || other->neighbor[f] >= 0)
+                    continue;
+                ReVec2 c = other->vertices[f],
+                       cd = re_sub2(other->vertices[(f + 1) % other->count], c);
+                if (re_dot2(ab, cd) >= 0 || fabsf(re_cross2(ab, re_sub2(c, a))) > RE_EPSILON ||
+                    fabsf(re_cross2(ab, cd)) > RE_EPSILON)
+                    continue;
+                float t0 = re_dot2(re_sub2(c, a), ab) / length2;
+                float t1 = re_dot2(re_sub2(re_add2(c, cd), a), ab) / length2;
+                float lo = fmaxf(0, fminf(t0, t1)), hi = fminf(1, fmaxf(t0, t1));
+                if ((hi - lo) * sqrtf(length2) < .7f)
+                    continue;
+                room->neighbor[e] = (int)i;
+                room->neighbor_edge[e] = (int)f;
+                room->portal_start[e] = lo;
+                room->portal_end[e] = hi;
+                other->neighbor[f] = (int)added;
+                other->neighbor_edge[f] = (int)e;
+                float c2 = re_dot2(cd, cd);
+                other->portal_start[f] =
+                    re_clamp(re_dot2(re_sub2(re_add2(a, re_scale2(ab, hi)), c), cd) / c2, 0, 1);
+                other->portal_end[f] =
+                    re_clamp(re_dot2(re_sub2(re_add2(a, re_scale2(ab, lo)), c), cd) / c2, 0, 1);
+            }
+        }
+    }
+}
+
+int re_editor_create_room(ReEditorDocument *document, float x0, float y0, float x1, float y1,
+                          float floor, float ceiling, uint32_t *out_index, ReError *error) {
+    if (!document || !out_index || !error || !isfinite(x0) || !isfinite(y0) || !isfinite(x1) ||
+        !isfinite(y1) || !isfinite(floor) || !isfinite(ceiling) || x1 - x0 < 1 || y1 - y0 < 1 ||
+        ceiling - floor < 1.8f)
+        return fail(error, "La habitación necesita al menos 1 × 1 m y 1,8 m de altura");
+    ReProject *project = begin_command(document);
+    if (!project)
+        return fail(error, "No se pudo iniciar el comando");
+    ReWorld *world = &project->world;
+    if (world->sector_count == RE_MAX_SECTORS)
+        return cancel_fail(document, error, "Se alcanzó el límite de sectores");
+    size_t index = world->sector_count++;
+    ReSector *room = &world->sectors[index];
+    *room = (ReSector){.floor = floor,
+                       .ceiling = ceiling,
+                       .light = .75f,
+                       .floor_material = 1,
+                       .ceiling_material = 2,
+                       .count = 4,
+                       .vertices = {{x0, y0}, {x1, y0}, {x1, y1}, {x0, y1}}};
+    for (size_t e = 0; e < 4; e++) {
+        room->neighbor[e] = -1;
+        room->neighbor_edge[e] = -1;
+        room->portal_end[e] = 1;
+    }
+    link_room(world, index);
+    if (!re_world_validate(world, error))
+        return cancel_fail(document, error, error->message);
+    *out_index = (uint32_t)index;
+    commit_command(document);
+    *error = (ReError){0};
+    return 1;
+}
+
+int re_editor_add_barrier(ReEditorDocument *document, uint32_t sector, uint32_t edge, int kind,
+                          float width, uint32_t *out_index, ReError *error) {
+    if (!document || !out_index || !error || kind < 0 || kind > 1 || !isfinite(width) ||
+        width < .7f)
+        return fail(error, "Puerta o ventana inválida");
+    ReProject *project = begin_command(document);
+    if (!project)
+        return fail(error, "No se pudo iniciar el comando");
+    ReWorld *world = &project->world;
+    if (sector >= world->sector_count || edge >= world->sectors[sector].count ||
+        world->barrier_count == RE_MAX_BARRIERS)
+        return cancel_fail(document, error, "Pared o capacidad inválida");
+    ReSector *room = &world->sectors[sector];
+    if (room->neighbor[edge] < 0 || re_world_barrier_at(world, (int)sector, (int)edge) >= 0)
+        return cancel_fail(document, error, "Elige una abertura libre entre dos habitaciones");
+    size_t other_edge = (size_t)room->neighbor_edge[edge];
+    ReSector *other = &world->sectors[room->neighbor[edge]];
+    ReVec2 a = room->vertices[edge], ab = re_sub2(room->vertices[(edge + 1) % room->count], a);
+    float length = re_length2(ab);
+    float available = (room->portal_end[edge] - room->portal_start[edge]) * length;
+    if (width > available + RE_EPSILON)
+        return cancel_fail(document, error, "La abertura es más estrecha que la puerta");
+    float middle = (room->portal_start[edge] + room->portal_end[edge]) * .5f;
+    room->portal_start[edge] = middle - width / (2 * length);
+    room->portal_end[edge] = middle + width / (2 * length);
+    ReVec2 c = other->vertices[other_edge];
+    ReVec2 cd = re_sub2(other->vertices[(other_edge + 1) % other->count], c);
+    other->portal_start[other_edge] =
+        re_dot2(re_sub2(re_add2(a, re_scale2(ab, room->portal_end[edge])), c), cd) /
+        re_dot2(cd, cd);
+    other->portal_end[other_edge] =
+        re_dot2(re_sub2(re_add2(a, re_scale2(ab, room->portal_start[edge])), c), cd) /
+        re_dot2(cd, cd);
+    size_t index = world->barrier_count++;
+    ReBarrier *barrier = &world->barriers[index];
+    *barrier = (ReBarrier){.kind = (enum ReBarrierKind)kind,
+                           .sector = (int)sector,
+                           .edge = (int)edge,
+                           .material = kind ? 5 : 3,
+                           .blocks = kind ? 5u : 7u,
+                           .health = kind ? 25 : 0};
+    /* ID generado sin depender de un índice que pueda cambiar al borrar. */
+    for (unsigned int suffix = 1; suffix < 10000; suffix++) {
+        (void)snprintf(barrier->id, sizeof(barrier->id), "barrier_%u", suffix);
+        bool used = false;
+        for (size_t i = 0; i < index; i++)
+            if (strcmp(world->barriers[i].id, barrier->id) == 0)
+                used = true;
+        if (!used)
+            break;
+    }
+    if (!re_world_validate(world, error))
+        return cancel_fail(document, error, error->message);
+    *out_index = (uint32_t)index;
+    commit_command(document);
+    *error = (ReError){0};
+    return 1;
+}
+
+/* La cota elegida por el editor elimina la ambigüedad de una planta superior.
+ * La selección XY histórica se conserva sólo para llamantes antiguos. */
+int re_editor_create_marker_at(ReEditorDocument *document, const char *kind, const char *definition,
+                               float x, float y, float floor, uint32_t *out_index, ReError *error) {
+    if (!document || !error || !out_index || !kind || !definition || !isfinite(x) || !isfinite(y) ||
+        !isfinite(floor))
+        return fail(error, "Posición inválida");
+    ReProject *project = begin_command(document);
+    if (!project)
+        return fail(error, "No se pudo iniciar el comando");
+    ReWorld *world = &project->world;
+    int sector = re_world_sector_at(world, re_v3(x, y, floor), -1);
+    if (sector < 0 || world->marker_count >= RE_MAX_MARKERS)
+        return cancel_fail(document, error, "Suelta el objeto dentro de la planta activa");
+    ReMarker marker = {.sector = sector, .position = {x, y, world->sectors[sector].floor}};
+    if (!copy_text(marker.kind, sizeof(marker.kind), kind) ||
+        !copy_text(marker.definition, sizeof(marker.definition), definition) ||
+        !make_marker_id(world, definition, marker.id, sizeof(marker.id)))
+        return cancel_fail(document, error, "Nombre demasiado largo");
+    size_t index = world->marker_count++;
+    world->markers[index] = marker;
+    if (!re_world_validate(world, error))
+        return cancel_fail(document, error, error->message);
+    *out_index = (uint32_t)index;
+    commit_command(document);
+    *error = (ReError){0};
+    return 1;
+}
+
 int re_editor_move_marker(ReEditorDocument *document, uint32_t index, float x, float y,
                           ReError *error) {
     if (!document || !error || !isfinite(x) || !isfinite(y))
@@ -827,7 +1103,9 @@ int re_editor_move_marker(ReEditorDocument *document, uint32_t index, float x, f
     if (index >= world->marker_count)
         return cancel_fail(document, error, "La entidad ya no existe");
     ReMarker *marker = &world->markers[index];
-    int sector = re_world_sector(world, re_v2(x, y), marker->sector);
+    /* La altura pertenece a la instancia: arrastrar en planta no permite
+     * saltar accidentalmente a una habitación superpuesta. */
+    int sector = re_world_sector_at(world, re_v3(x, y, marker->position.z + .01f), marker->sector);
     if (sector < 0)
         return cancel_fail(document, error, "La entidad debe permanecer dentro de una habitación");
     marker->sector = sector;
@@ -854,7 +1132,8 @@ int re_editor_duplicate_marker(ReEditorDocument *document, uint32_t index, uint3
     bool placed = false;
     for (size_t i = 0; i < sizeof(offsets) / sizeof(offsets[0]); i++) {
         ReVec2 candidate = re_add2(re_v2(marker.position.x, marker.position.y), offsets[i]);
-        int sector = re_world_sector(world, candidate, marker.sector);
+        int sector = re_world_sector_at(
+            world, re_v3(candidate.x, candidate.y, marker.position.z + .01f), marker.sector);
         if (sector >= 0) {
             marker.sector = sector;
             marker.position = re_v3(candidate.x, candidate.y, world->sectors[sector].floor);
@@ -1027,12 +1306,6 @@ int re_editor_save(ReEditorDocument *document, ReError *error) {
         return fail(error, "No hay proyecto para guardar");
     if (!re_project_save(project, error))
         return 0;
-    char path[RE_PROJECT_PATH * 2];
-    for (size_t i = 0; i < project->character_count; i++) {
-        if (!re_project_path(project, project->actor_files[i], path, sizeof(path)) ||
-            !re_character_save(path, &project->characters[i], error))
-            return 0;
-    }
     document->saved_cursor = document->cursor;
     document->revision++;
     *error = (ReError){0};

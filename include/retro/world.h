@@ -29,7 +29,9 @@ typedef struct ReSector {
      * el cargador migra las conexiones antiguas al intervalo completo [0,1].
      *
      * La arista reciproca recorre el muro en sentido contrario; por eso su
-     * intervalo equivalente es [1-end, 1-start]. Esta representacion unica se
+     * intervalo equivalente se calcula sobre su propia longitud: las dos
+     * aberturas deben compartir extremos físicos, incluso con muros distintos.
+     * Esta representacion unica se
      * comparte entre renderer, colision, rayos y navegacion. */
     float portal_start[RE_MAX_VERTICES];
     float portal_end[RE_MAX_VERTICES];

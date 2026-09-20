@@ -20,6 +20,10 @@ compile_commands.json
 *.tmp
 *.autosave
 *.sav
+*.rf-new
+*.rf-old
+*.rf-recover
+*.rf-journal
 
 # Archivos personales del editor y del sistema operativo.
 .vs/

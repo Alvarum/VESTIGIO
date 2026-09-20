@@ -25,6 +25,12 @@ try {
             --no-restore -p:RestorePackagesPath='.nuget/packages' -p:RestoreLockedMode=true `
             -o "build/$Preset/bin"
         if ($LASTEXITCODE) { throw 'Fallo compilando RetroForge Studio' }
+        if ($Test) {
+            & dotnet build 'tests/studio/RetroForge.Studio.Tests.csproj' -c $dotnetConfiguration `
+                --no-restore -p:RestorePackagesPath='.nuget/packages' -p:RestoreLockedMode=true `
+                -o "build/$Preset/bin"
+            if ($LASTEXITCODE) { throw 'Fallo compilando las pruebas de Studio' }
+        }
     }
     if ($Test) {
         & "$toolBin\ctest.exe" --preset $Preset

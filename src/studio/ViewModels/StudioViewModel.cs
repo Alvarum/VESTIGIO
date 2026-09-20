@@ -12,6 +12,38 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
     private string _workspace = "Construir";
     private string _status = "Proyecto cargado y validado";
     private string _searchText = string.Empty;
+    private string _mapTool = "Seleccionar";
+    private float _floorElevation, _roomHeight = 3;
+    public string[] MapTools { get; } = ["Seleccionar", "Habitación", "Puerta", "Ventana"];
+    public string MapTool { get => _mapTool; set { Set(ref _mapTool, value); Raise(nameof(MapHelp)); } }
+    public string MapHelp => MapTool switch
+    {
+        "Habitación" => "Arrastra un rectángulo · mínimo 1 × 1 m · Esc: cancelar",
+        "Puerta" or "Ventana" => "Haz clic en la pared compartida entre dos habitaciones",
+        _ => "Arrastra personajes desde la biblioteca · clic: seleccionar · arrastrar: mover"
+    };
+    public float FloorElevation { get => _floorElevation; set => Set(ref _floorElevation, value); }
+    public float RoomHeight { get => _roomHeight; set => Set(ref _roomHeight, value); }
+
+    public void CreateRoom(Point a, Point b)
+    {
+        if (IsPlaying) return;
+        try {
+            SelectedItem = Document.CreateRoom((float)Math.Min(a.X,b.X), (float)Math.Min(a.Y,b.Y),
+                (float)Math.Max(a.X,b.X), (float)Math.Max(a.Y,b.Y), FloorElevation, RoomHeight);
+            Status = "Habitación creada; las paredes compartidas compatibles se conectaron";
+        } catch (Exception error) { Status = error.Message; }
+    }
+
+    public void AddBarrier(SectorModel room, int edge)
+    {
+        if (IsPlaying) return;
+        try {
+            SelectedItem = Document.AddBarrier(room.Index, (uint)edge, MapTool == "Ventana", 1.5f);
+            Status = "Barrera creada; configura su apertura en el inspector";
+            MapTool = "Seleccionar";
+        } catch (Exception error) { Status = error.Message; }
+    }
     private bool _isPlaying;
     private nint _session;
     private bool _simulationPaused, _stepRequested;
@@ -44,7 +76,7 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
             () => SelectedItem is MarkerModel && !IsPlaying);
         AddDropCommand = new RelayCommand<string>(AddDrop,
             item => SelectedItem is MarkerModel { MarkerKind: "actor" } &&
-                    !string.IsNullOrWhiteSpace(item) && !IsPlaying);
+                    Document.Items.Any(definition => definition.Id == item) && !IsPlaying);
         StartDialogueCommand = new RelayCommand(StartDialogue,
             () => SelectedItem is MarkerModel && QuickDialogue is not null && !IsPlaying);
         OpenBarrierCommand = new RelayCommand(OpenBarrier,
@@ -52,7 +84,7 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
         ShowMessageCommand = new RelayCommand(ShowMessage,
             () => SelectedItem is MarkerModel && !string.IsNullOrWhiteSpace(QuickMessage) && !IsPlaying);
         GiveItemCommand = new RelayCommand<string>(GiveItem,
-            item => SelectedItem is MarkerModel && !string.IsNullOrWhiteSpace(item) && !IsPlaying);
+            item => SelectedItem is MarkerModel && Document.Items.Any(definition => definition.Id == item) && !IsPlaying);
         RefreshPresentation();
     }
 
@@ -221,9 +253,10 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
         PlacementTools.Clear();
         foreach (CharacterModel character in Document.Characters)
             PlacementTools.Add(new PlacementTool(character.DisplayName, character.Subtitle,
-                "actor", character.Id, "◉"));
-        PlacementTools.Add(new PlacementTool("Botiquín", "Recupera salud", "pickup", "bandage", "+"));
-        PlacementTools.Add(new PlacementTool("Llave", "Objeto de inventario", "pickup", "brass_key", "◆"));
+                "actor", character.Id, "◉", character.Thumbnail));
+        foreach (EditorNative.ItemDefinition item in Document.Items)
+            PlacementTools.Add(new PlacementTool(item.Name.Replace('_', ' '), "Objeto de inventario",
+                "pickup", item.Id, "◆"));
         PlacementTools.Add(new PlacementTool("Interruptor", "Objeto interactuable", "interact", "switch", "⌁"));
         if (QuickDialogue is null || !Document.Dialogues.Any(item => item.Id == QuickDialogue.Id))
             QuickDialogue = Document.Dialogues.FirstOrDefault();
@@ -231,6 +264,8 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
             QuickBarrier = Document.Barriers.FirstOrDefault();
 
         Problems.Clear();
+        foreach (CharacterModel character in Document.Characters.Where(item => item.ThumbnailError.Length > 0))
+            Problems.Add($"{character.DisplayName}: {character.ThumbnailError}");
         if (Document.Sectors.Count == 0)
             Problems.Add("El nivel no contiene habitaciones transitables.");
         if (!Document.Markers.Any(marker => marker.MarkerKind == "player"))
@@ -476,7 +511,7 @@ internal sealed class StudioViewModel : ObservableObject, IDisposable
         ExecuteEditorAction(() =>
         {
             SelectedItem = Document.CreateMarker(tool.MarkerKind, tool.Definition,
-                (float)x, (float)y);
+                (float)x, (float)y, FloorElevation);
             Status = $"{tool.Name} colocado en el nivel";
         });
     }
@@ -635,4 +670,4 @@ internal sealed record InspectorEdit(InspectorField Field, string Value);
 internal sealed record ResourceItem(string Name, string Kind, string Path);
 internal sealed record ConnectionItem(string Label, IEditorItem Target);
 internal sealed record PlacementTool(string Name, string Description, string MarkerKind,
-    string Definition, string Symbol);
+    string Definition, string Symbol, System.Windows.Media.ImageSource? Thumbnail = null);

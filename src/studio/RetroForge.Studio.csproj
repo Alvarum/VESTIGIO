@@ -14,6 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="RetroForge.Studio.Tests" />
     <!-- Versión fijada: el layout no cambia silenciosamente entre builds. -->
     <PackageReference Include="Dirkster.AvalonDock" Version="5.0.0" />
     <PackageReference Include="Dirkster.AvalonDock.Serializer.Xml" Version="5.0.0" />

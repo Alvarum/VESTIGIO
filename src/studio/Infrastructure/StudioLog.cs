@@ -15,7 +15,7 @@ internal static class StudioLog
             Directory.CreateDirectory(DirectoryPath);
             File.AppendAllText(FilePath, $"{DateTimeOffset.Now:O}  {message}{Environment.NewLine}");
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // El diagnóstico nunca debe impedir abrir o cerrar el editor.
         }

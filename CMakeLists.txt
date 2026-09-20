@@ -48,7 +48,7 @@ endif()
 # Reglas reutilizables y formatos de proyecto. Sigue siendo una biblioteca sin
 # ventana: editor, juegos y pruebas ejecutan exactamente la misma simulación.
 add_library(retro_gameplay STATIC src/gameplay/gameplay.c src/gameplay/interaction.c
-    src/gameplay/project.c)
+    src/gameplay/project.c src/gameplay/transaction.c src/gameplay/character_art.c)
 retro_target(retro_gameplay)
 target_link_libraries(retro_gameplay PUBLIC retro_core)
 
@@ -111,6 +111,12 @@ if(RETRO_BUILD_APPS)
         target_link_libraries(retro_session_test PRIVATE retro_editor retro_session)
         set_target_properties(retro_session_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
         add_test(NAME retro_shared_session COMMAND retro_session_test)
+        if(WIN32)
+            add_test(NAME retro_studio_authoring COMMAND dotnet
+                "${CMAKE_BINARY_DIR}/bin/RetroForge.Studio.Tests.dll"
+                "${CMAKE_BINARY_DIR}/studio-evidence"
+                "${PROJECT_SOURCE_DIR}/assets/studio/haunted.retro")
+        endif()
         add_executable(retro_platform_test tests/platform_test.c)
         retro_target(retro_platform_test)
         target_link_libraries(retro_platform_test PRIVATE retro_platform)
@@ -158,6 +164,7 @@ if(BUILD_TESTING)
     retro_target(retro_tests)
     target_link_libraries(retro_tests PRIVATE fps_game retro_editor)
     target_compile_definitions(retro_tests PRIVATE RETRO_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+    target_compile_definitions(retro_tests PRIVATE RETRO_TEST_DIR="${CMAKE_CURRENT_BINARY_DIR}")
     set_target_properties(retro_tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
     add_test(NAME retro_contracts COMMAND retro_tests)
 endif()

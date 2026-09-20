@@ -38,6 +38,23 @@ public sealed class MapViewport : FrameworkElement
     private MarkerModel? _draggingMarker;
     private Point _markerDragOrigin;
     private Point? _markerPreview;
+    private Point? _roomStart, _roomEnd;
+    private bool _needsFrame = true;
+
+    /// <summary>Encuadra el nivel completo; no cambia coordenadas del documento.</summary>
+    public void FrameScene()
+    {
+        if (_viewModel is null || ActualWidth < 1 || ActualHeight < 1) return;
+        Point[] vertices = _viewModel.Document.Sectors.SelectMany(room => room.Vertices).ToArray();
+        if (vertices.Length == 0) return;
+        double minX = vertices.Min(point => point.X), maxX = vertices.Max(point => point.X);
+        double minY = vertices.Min(point => point.Y), maxY = vertices.Max(point => point.Y);
+        _zoom = Math.Clamp(Math.Min((ActualWidth - 64) / Math.Max(1, maxX - minX),
+            (ActualHeight - 96) / Math.Max(1, maxY - minY)), 8, 180);
+        _pan = new Point(-(minX + maxX) * .5 * _zoom, (minY + maxY) * .5 * _zoom);
+        _needsFrame = false;
+        InvalidateVisual();
+    }
 
     public MapViewport()
     {
@@ -56,18 +73,29 @@ public sealed class MapViewport : FrameworkElement
         if (_viewModel is null)
             return;
 
-        foreach (SectorModel sector in _viewModel.Document.Sectors)
+        if (_needsFrame) FrameScene();
+        foreach (SectorModel sector in _viewModel.Document.Sectors.OrderBy(IsActive))
+        {
+            drawing.PushOpacity(IsActive(sector) ? 1 : .16);
             DrawSector(drawing, sector);
-        foreach (BarrierModel barrier in _viewModel.Document.Barriers)
+            drawing.Pop();
+        }
+        foreach (BarrierModel barrier in _viewModel.Document.Barriers.Where(item => IsActive(item.Sector)))
             DrawBarrier(drawing, barrier);
         if (ShowTriggers)
-            foreach (TriggerModel trigger in _viewModel.Document.Triggers)
+            foreach (TriggerModel trigger in _viewModel.Document.Triggers.Where(IsActive))
                 DrawTrigger(drawing, trigger);
         if (ShowLights)
-            foreach (LightModel light in _viewModel.Document.Lights)
+            foreach (LightModel light in _viewModel.Document.Lights.Where(IsActive))
                 DrawLight(drawing, light);
-        foreach (MarkerModel marker in _viewModel.Document.Markers)
+        foreach (MarkerModel marker in _viewModel.Document.Markers.Where(item => IsActive(item.Sector)))
             DrawMarker(drawing, marker);
+        if (_roomStart is Point roomA && _roomEnd is Point roomB)
+        {
+            drawing.DrawRectangle(new SolidColorBrush(Color.FromArgb(40, 255, 190, 92)),
+                new Pen(Brushes.Goldenrod, 2) { DashStyle = DashStyles.Dash },
+                new Rect(ToScreen(roomA), ToScreen(roomB)));
+        }
         if (_draggingMarker is not null && _markerPreview is Point preview)
         {
             Point screen = ToScreen(preview);
@@ -115,7 +143,22 @@ public sealed class MapViewport : FrameworkElement
                         _viewModel?.SelectedItem is SectorModel item && item.Index == sector.Index;
         var fill = new SolidColorBrush(selected ? Color.FromArgb(60, 232, 165, 75) : Color.FromArgb(24, 116, 147, 153));
         var stroke = new Pen(new SolidColorBrush(selected ? Color.FromRgb(232, 165, 75) : Color.FromRgb(105, 135, 142)), selected ? 2.4 : 1.5);
-        drawing.DrawGeometry(fill, stroke, geometry);
+        drawing.DrawGeometry(fill, null, geometry);
+        // La pared se interrumpe exactamente en el intervalo usado por la física.
+        for (int edge = 0; edge < sector.Vertices.Count; edge++)
+        {
+            Point a = ToScreen(sector.Vertices[edge]);
+            Point b = ToScreen(sector.Vertices[(edge + 1) % sector.Vertices.Count]);
+            var opening = edge < sector.Openings.Count ? sector.Openings[edge] : (Start: 0f, End: 0f);
+            if (opening.End > opening.Start)
+            {
+                drawing.DrawLine(stroke, a, a + (b - a) * opening.Start);
+                drawing.DrawLine(stroke, a + (b - a) * opening.End, b);
+                drawing.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(120, 91, 192, 161)), 1)
+                    { DashStyle = DashStyles.Dot }, a + (b - a) * opening.Start, a + (b - a) * opening.End);
+            }
+            else drawing.DrawLine(stroke, a, b);
+        }
 
         double area = PolygonArea(sector.Vertices);
         if (area >= 8 || selected)
@@ -132,6 +175,9 @@ public sealed class MapViewport : FrameworkElement
         bool selected = _viewModel?.SelectedItem is MarkerModel item && item.Index == marker.Index;
         Brush brush = new SolidColorBrush(selected ? Color.FromRgb(255, 190, 92) : Color.FromRgb(105, 195, 154));
         drawing.DrawEllipse(new SolidColorBrush(Color.FromRgb(22, 27, 30)), new Pen(brush, 2), point, 6, 6);
+        ImageSource? thumbnail = _viewModel?.Document.Characters.FirstOrDefault(item => item.Id == marker.Definition)?.Thumbnail;
+        if (thumbnail is not null)
+            drawing.DrawImage(thumbnail, new Rect(point.X - 10, point.Y - 22, 20, 28));
         drawing.DrawText(CreateText(marker.DisplayName, 11, ((SolidColorBrush)brush).Color), point + new Vector(9, -8));
     }
 
@@ -142,8 +188,11 @@ public sealed class MapViewport : FrameworkElement
         SectorModel sector = _viewModel.Document.Sectors[barrier.Sector];
         if (barrier.Edge < 0 || barrier.Edge >= sector.Vertices.Count)
             return;
-        Point a = ToScreen(sector.Vertices[barrier.Edge]);
-        Point b = ToScreen(sector.Vertices[(barrier.Edge + 1) % sector.Vertices.Count]);
+        Point start = sector.Vertices[barrier.Edge];
+        Vector wall = sector.Vertices[(barrier.Edge + 1) % sector.Vertices.Count] - start;
+        var opening = sector.Openings[barrier.Edge];
+        Point a = ToScreen(start + wall * opening.Start);
+        Point b = ToScreen(start + wall * opening.End);
         bool selected = _viewModel.SelectedItem is BarrierModel item && item.Index == barrier.Index;
         Color color = barrier.Native.Kind == 0 ? Color.FromRgb(214, 143, 74) : Color.FromRgb(94, 181, 205);
         drawing.DrawLine(new Pen(new SolidColorBrush(color), selected ? 6 : 4), a, b);
@@ -193,8 +242,38 @@ public sealed class MapViewport : FrameworkElement
         if (_viewModel is null)
             return;
         Point mouse = e.GetPosition(this);
+        if (_viewModel.IsPlaying) return;
+        if (_viewModel.MapTool == "Habitación")
+        {
+            _roomStart = Snap(ToWorld(mouse));
+            _roomEnd = _roomStart;
+            CaptureMouse();
+            e.Handled = true;
+            return;
+        }
+        if (_viewModel.MapTool is "Puerta" or "Ventana")
+        {
+            // Seleccionar la arista en pantalla permite el mismo gesto a cualquier zoom.
+            SectorModel? nearestRoom = null;
+            int nearestEdge = -1;
+            double nearest = 12;
+            foreach (SectorModel room in _viewModel.Document.Sectors.Where(room =>
+                         _viewModel.FloorElevation >= room.Floor &&
+                         _viewModel.FloorElevation < room.Ceiling))
+                for (int edge = 0; edge < room.Vertices.Count; edge++)
+                {
+                    Point a = ToScreen(room.Vertices[edge]), b = ToScreen(room.Vertices[(edge + 1) % room.Vertices.Count]);
+                    Vector delta = b - a;
+                    double t = delta.LengthSquared > 0 ? Math.Clamp(Vector.Multiply(mouse - a, delta) / delta.LengthSquared, 0, 1) : 0;
+                    double distance = (mouse - (a + delta * t)).Length;
+                    if (distance < nearest) { nearest = distance; nearestRoom = room; nearestEdge = edge; }
+                }
+            if (nearestRoom is not null) _viewModel.AddBarrier(nearestRoom, nearestEdge);
+            e.Handled = true;
+            return;
+        }
         MarkerModel? marker = _viewModel.Document.Markers.LastOrDefault(item =>
-            (ToScreen(new Point(item.X, item.Y)) - mouse).Length <= 12);
+            IsActive(item.Sector) && (ToScreen(new Point(item.X, item.Y)) - mouse).Length <= 16);
         if (marker is not null)
         {
             _viewModel.SelectedItem = marker;
@@ -206,7 +285,7 @@ public sealed class MapViewport : FrameworkElement
             return;
         }
         BarrierModel? barrier = _viewModel.Document.Barriers.LastOrDefault(item =>
-            BarrierDistance(item, mouse) <= 9);
+            IsActive(item.Sector) && BarrierDistance(item, mouse) <= 9);
         if (barrier is not null)
         {
             _viewModel.SelectedItem = barrier;
@@ -216,7 +295,7 @@ public sealed class MapViewport : FrameworkElement
         if (ShowLights)
         {
             LightModel? light = _viewModel.Document.Lights.LastOrDefault(item =>
-                (ToScreen(new Point(item.Native.X, item.Native.Y)) - mouse).Length <= 11);
+                IsActive(item) && (ToScreen(new Point(item.Native.X, item.Native.Y)) - mouse).Length <= 11);
             if (light is not null)
             {
                 _viewModel.SelectedItem = light;
@@ -228,7 +307,7 @@ public sealed class MapViewport : FrameworkElement
         if (ShowTriggers)
         {
             TriggerModel? trigger = _viewModel.Document.Triggers.LastOrDefault(item =>
-                TriggerContains(item, world));
+                IsActive(item) && TriggerContains(item, world));
             if (trigger is not null)
             {
                 _viewModel.SelectedItem = trigger;
@@ -236,7 +315,7 @@ public sealed class MapViewport : FrameworkElement
                 return;
             }
         }
-        SectorModel? sector = _viewModel.Document.Sectors.LastOrDefault(item => Contains(item.Vertices, world));
+        SectorModel? sector = _viewModel.Document.Sectors.LastOrDefault(item => IsActive(item) && Contains(item.Vertices, world));
         _viewModel.SelectedItem = sector;
         InvalidateVisual();
     }
@@ -255,6 +334,12 @@ public sealed class MapViewport : FrameworkElement
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        if (_roomStart is not null && e.LeftButton == MouseButtonState.Pressed)
+        {
+            _roomEnd = Snap(ToWorld(e.GetPosition(this)));
+            InvalidateVisual();
+            return;
+        }
         if (_draggingMarker is not null && e.LeftButton == MouseButtonState.Pressed)
         {
             Point mouse = e.GetPosition(this);
@@ -276,6 +361,16 @@ public sealed class MapViewport : FrameworkElement
     protected override void OnMouseUp(MouseButtonEventArgs e)
     {
         base.OnMouseUp(e);
+        if (e.ChangedButton == MouseButton.Left && _roomStart is Point start)
+        {
+            Point end = Snap(ToWorld(e.GetPosition(this)));
+            _roomStart = _roomEnd = null;
+            ReleaseMouseCapture();
+            _viewModel?.CreateRoom(start, end);
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
         if (e.ChangedButton == MouseButton.Left && _draggingMarker is not null)
         {
             MarkerModel marker = _draggingMarker;
@@ -335,6 +430,15 @@ public sealed class MapViewport : FrameworkElement
         base.OnKeyDown(e);
         if (_viewModel is null)
             return;
+        if (e.Key == Key.F) { FrameScene(); e.Handled = true; return; }
+        if (e.Key == Key.Escape && _roomStart is not null)
+        {
+            _roomStart = _roomEnd = null;
+            ReleaseMouseCapture();
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
         if (e.Key == Key.Delete && _viewModel.DeleteCommand.CanExecute(null))
         {
             _viewModel.DeleteCommand.Execute(null);
@@ -359,10 +463,37 @@ public sealed class MapViewport : FrameworkElement
     private void Attach(StudioViewModel? viewModel)
     {
         if (_viewModel is not null)
+        {
             _viewModel.Document.Changed -= DocumentChanged;
+            _viewModel.PropertyChanged -= ViewModelChanged;
+        }
         _viewModel = viewModel;
         if (_viewModel is not null)
+        {
             _viewModel.Document.Changed += DocumentChanged;
+            _viewModel.PropertyChanged += ViewModelChanged;
+        }
+        InvalidateVisual();
+    }
+
+    private bool IsActive(SectorModel sector) => _viewModel is not null &&
+        _viewModel.FloorElevation >= sector.Floor - .001 && _viewModel.FloorElevation < sector.Ceiling;
+    private bool IsActive(int sector) => _viewModel is not null && sector >= 0 &&
+        sector < _viewModel.Document.Sectors.Count && IsActive(_viewModel.Document.Sectors[sector]);
+    private bool IsActive(TriggerModel trigger) => trigger.Native.Shape == 2 ? IsActive(trigger.Native.Sector) :
+        _viewModel is not null && _viewModel.FloorElevation >= trigger.Native.Z - trigger.Native.SizeZ &&
+        _viewModel.FloorElevation <= trigger.Native.Z + trigger.Native.SizeZ;
+    private bool IsActive(LightModel light) => _viewModel?.Document.Sectors.Any(room => IsActive(room) &&
+        light.Native.Z >= room.Floor && light.Native.Z < room.Ceiling &&
+        Contains(room.Vertices, new Point(light.Native.X, light.Native.Y))) == true;
+    private void ViewModelChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args) => InvalidateVisual();
+
+    protected override void OnLostMouseCapture(MouseEventArgs e)
+    {
+        base.OnLostMouseCapture(e);
+        _roomStart = _roomEnd = _markerPreview = null;
+        _draggingMarker = null;
+        _panning = false;
         InvalidateVisual();
     }
 
@@ -371,6 +502,7 @@ public sealed class MapViewport : FrameworkElement
         ActualHeight / 2 + _pan.Y - world.Y * _zoom);
     private Point ToWorld(Point screen) => new((screen.X - ActualWidth / 2 - _pan.X) / _zoom,
         -(screen.Y - ActualHeight / 2 - _pan.Y) / _zoom);
+    private static Point Snap(Point point) => new(Math.Round(point.X * 4) / 4, Math.Round(point.Y * 4) / 4);
 
     private double BarrierDistance(BarrierModel barrier, Point mouse)
     {
@@ -379,8 +511,11 @@ public sealed class MapViewport : FrameworkElement
         SectorModel sector = _viewModel.Document.Sectors[barrier.Sector];
         if (barrier.Edge < 0 || barrier.Edge >= sector.Vertices.Count)
             return double.PositiveInfinity;
-        Point a = ToScreen(sector.Vertices[barrier.Edge]);
-        Point b = ToScreen(sector.Vertices[(barrier.Edge + 1) % sector.Vertices.Count]);
+        Point start = sector.Vertices[barrier.Edge];
+        Vector wall = sector.Vertices[(barrier.Edge + 1) % sector.Vertices.Count] - start;
+        var opening = sector.Openings[barrier.Edge];
+        Point a = ToScreen(start + wall * opening.Start);
+        Point b = ToScreen(start + wall * opening.End);
         Vector edge = b - a;
         double lengthSquared = edge.LengthSquared;
         if (lengthSquared <= double.Epsilon)

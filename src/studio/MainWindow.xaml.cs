@@ -64,6 +64,8 @@ public partial class MainWindow : Window
             _viewModel.SelectedItem = item;
     }
 
+    private void FrameMap_Click(object sender, RoutedEventArgs e) => MapView.FrameScene();
+
     private void DialogueList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (DialogueList.SelectedItem is IEditorItem item)
@@ -147,6 +149,32 @@ public partial class MainWindow : Window
         _viewModel.WorkspaceCommand.Execute(label);
     }
 
+    private void NewProject_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog {
+            Title = "Crear proyecto en una carpeta propia", Filter = "Proyecto RetroForge|*.retro",
+            FileName = "project.retro", DefaultExt = ".retro" };
+        if (dialog.ShowDialog(this) != true) return;
+        try { EditorDocument.CreateProject(dialog.FileName); OpenProjectWindow(dialog.FileName); }
+        catch (Exception error) { MessageBox.Show(this, error.Message, "No se pudo crear el proyecto"); }
+    }
+
+    private void OpenProject_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "Proyecto RetroForge|*.retro" };
+        if (dialog.ShowDialog(this) == true) OpenProjectWindow(dialog.FileName);
+    }
+
+    private void OpenProjectWindow(string manifest)
+    {
+        // Cada documento obtiene su propio bloqueo al iniciar. La ventana actual
+        // conserva los cambios pendientes y no se reemplaza silenciosamente.
+        string executable = Path.Combine(AppContext.BaseDirectory, "retro_studio.exe");
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(executable) {
+            UseShellExecute = false, ArgumentList = { "--project", manifest }
+        });
+    }
+
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if ((Keyboard.Modifiers & ModifierKeys.Control) == 0)
@@ -215,7 +243,15 @@ public partial class MainWindow : Window
                 return;
             }
             if (answer == MessageBoxResult.Yes)
+            {
                 _viewModel.SaveCommand.Execute(null);
+                if (_viewModel.Overview.Dirty)
+                {
+                    // Un fallo de guardado debe mantener la ventana y el documento.
+                    e.Cancel = true;
+                    return;
+                }
+            }
         }
         if (e.Cancel)
             return;
