@@ -1,0 +1,18 @@
+{
+  "license": "CC0-1.0",
+  "origin": "Generated specifically for Vestigio M01; no third-party artistic content",
+  "sha256": {
+    "external_dependencies.gltf": "35b63dbb3499d95bc5bfbc0bd3c9f861cbab4dd2ea08589771c25a8cb4c42017",
+    "nonindexed.gltf": "fadccfd830da8acf69f79862547b594fd0a8948812501f15be3d553f7d9de16b",
+    "nonfinite_material.gltf": "e2601af28394df77407de6233655afc70b45cc0c73f44440417f2056f7e15971",
+    "nonfinite_transform.gltf": "b3f9c1072e1dc6a5fcca22089711cd25dfcfb96727b0363c006191a40d64ca12",
+    "out_of_bounds.gltf": "915a10d3ca92fcce48104e8395329604cebe9d494c15650fde62cdc919c23ede",
+    "pixel.png": "f5028121e685ad318099418d1875322e3d7d9e5823eb7923e5c9e32be8c5614e",
+    "required_extension.gltf": "057750390f37fd47ec77640217b87a032e602cb85a4f9cce8cfd54833e2d8080",
+    "static_scene.gltf": "7a9cdb7b322eb95ae03af3fe511d6f79303a5f74dcb321db70262aa6678879ba",
+    "static_triangle.glb": "f09226810ca2a66d5d8871b45787022da5e456bf5a365bc38e000929a76bfbe7",
+    "triangle.bin": "d8b87038ed2ace74ed183166f6b0a541eab77f7184d50e65edc4bca5ccb5445a",
+    "truncated.gltf": "406d83741cf28c767a78e5e192a2cd1963add3074cdbc293105f4273a73ae189",
+    "unsafe_uri.gltf": "12f126672d730872b92987693f8b3644c6ecfaa83399ed83dcf94274f3769640"
+  }
+}

@@ -64,6 +64,28 @@ if(NOT WIN32)
 endif()
 add_library(Vestigio::Runtime ALIAS vestigio_runtime)
 
+# cgltf is vendored and compiled separately so third-party diagnostics do not
+# weaken the warnings-as-errors policy applied to Vestigio's importer.
+add_library(vestigio_cgltf STATIC src/assets/import/cgltf_impl.c)
+set_target_properties(vestigio_cgltf PROPERTIES
+    C_STANDARD 11
+    C_STANDARD_REQUIRED YES
+    C_EXTENSIONS NO)
+target_include_directories(vestigio_cgltf SYSTEM PRIVATE
+    "${PROJECT_SOURCE_DIR}/third_party/cgltf")
+
+add_library(vestigio_gltf_import STATIC
+    src/assets/import/gltf_import.c
+    src/assets/import/sha256.c)
+retro_target(vestigio_gltf_import)
+target_include_directories(vestigio_gltf_import PRIVATE "${PROJECT_SOURCE_DIR}/src")
+target_include_directories(vestigio_gltf_import SYSTEM PRIVATE
+    "${PROJECT_SOURCE_DIR}/third_party/cgltf")
+target_link_libraries(vestigio_gltf_import PRIVATE vestigio_cgltf)
+if(NOT WIN32)
+    target_link_libraries(vestigio_gltf_import PRIVATE m)
+endif()
+
 configure_package_config_file(
     "${PROJECT_SOURCE_DIR}/cmake/VestigioConfig.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/VestigioConfig.cmake"
@@ -276,6 +298,21 @@ if(BUILD_TESTING)
     target_link_libraries(vestigio_asset_test PRIVATE vestigio_runtime)
     target_include_directories(vestigio_asset_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
     add_test(NAME vestigio_assets COMMAND vestigio_asset_test)
+
+    add_executable(vestigio_gltf_import_test tests/assets/gltf_import_test.c)
+    retro_target(vestigio_gltf_import_test)
+    if(RETRO_ANALYZE AND CMAKE_C_COMPILER_ID STREQUAL "GNU")
+        # CHECK exits the short-lived test process immediately; GCC's analyzer
+        # otherwise reports those assertion-only paths as leaks/null accesses.
+        target_compile_options(vestigio_gltf_import_test PRIVATE
+            -Wno-analyzer-malloc-leak -Wno-analyzer-null-dereference)
+    endif()
+    target_include_directories(vestigio_gltf_import_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
+    target_link_libraries(vestigio_gltf_import_test PRIVATE vestigio_gltf_import)
+    add_test(NAME vestigio_gltf_import
+        COMMAND vestigio_gltf_import_test "tests/assets/fixtures")
+    set_tests_properties(vestigio_gltf_import PROPERTIES
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 
     add_executable(vestigio_game_test tests/sdk/game_test.c)
     retro_target(vestigio_game_test)

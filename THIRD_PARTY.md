@@ -22,6 +22,17 @@
   material de terceros; el prompt y el método se registran en la entrega.
 - La investigación aportada por el usuario se conserva sin modificaciones.
 
+## cgltf
+
+- Versión 1.15, vendorizada como dependencia privada del importador.
+- Origen: `third_party/cgltf/cgltf.h`, copia byte por byte de
+  `src/external/cgltf.h` en el archivo fuente fijado de raylib, commit
+  `dbc56a87da87d973a9c5baa4e7438a9d20121d28`.
+- Upstream: https://github.com/jkuhlmann/cgltf
+- Licencia MIT; aviso completo en `third_party/cgltf/LICENSE` y en el header.
+- SHA-256: `efb169dee911696b5d35fc8e3f7ea0c56d679debc529eba9ca6aa6443ba9d5e9`.
+- El build compila el header vendorizado y no necesita acceso a red.
+
 El proyecto no presupone una licencia de publicación para el trabajo del
 usuario. Antes de distribuir públicamente el código propio, el titular puede
 elegirla.
