@@ -122,7 +122,7 @@ Desbloquea: Recursos, game callbacks y documentos genéricos.
 
 Evidencia: docs/implementation/evidence/R01.md.
 
-Commit integrado: `9744dae`.
+Commit integrado: `9ed4d5e`.
 
 ## G02 — Resolver superficie GPU de Studio mediante spike
 
@@ -156,7 +156,7 @@ Commit integrado: `9811b03`.
 
 ## R02 — Registro de assets y ownership CPU/GPU mínimo
 
-Fase: **P2** · Rol: **runtime** · Estado: **IN_PROGRESS**.
+Fase: **P2** · Rol: **runtime** · Estado: **INTEGRATED**.
 
 Dependencias integradas: R01.
 
@@ -180,9 +180,13 @@ Verificación: V-CORE, V-ASSET.
 
 Desbloquea: Importer y residencia GPU compartida.
 
+Evidencia: docs/implementation/evidence/R02.md.
+
+Commit integrado: `9ed4d5e`.
+
 ## R03 — Game callbacks y primer SDK instalable externo
 
-Fase: **P2** · Rol: **runtime** · Estado: **PLANNED**.
+Fase: **P2** · Rol: **runtime** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: R02.
 
@@ -234,7 +238,7 @@ Desbloquea: Controlador, preferencias y paridad entre hosts.
 
 ## D01 — Formato canónico y validadores de contenido
 
-Fase: **P4** · Rol: **content** · Estado: **PLANNED**.
+Fase: **P4** · Rol: **content** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: R01.
 
@@ -260,7 +264,7 @@ Desbloquea: Documento transaccional, migraciones y formatos de agentes.
 
 ## M01 — Importación GLB/glTF estática a representación propia
 
-Fase: **P3** · Rol: **content** · Estado: **PLANNED**.
+Fase: **P3** · Rol: **content** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: R02.
 

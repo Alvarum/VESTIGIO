@@ -30,7 +30,7 @@
       "validation": ["V-CORE", "V-APP", "V-GPU"], "unlocks": "Backend real para modelos y prueba WPF."
     },
     {
-      "id": "R01", "phase": "P2", "title": "Contexto, mundo, entidades y Transform con handles", "role": "runtime", "dependencies": ["F01"], "locks": ["runtime-core", "public-api"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/R01.md"], "integrated_commit": "9744dae",
+      "id": "R01", "phase": "P2", "title": "Contexto, mundo, entidades y Transform con handles", "role": "runtime", "dependencies": ["F01"], "locks": ["runtime-core", "public-api"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/R01.md"], "integrated_commit": "9ed4d5e",
       "paths": ["include/vestigio/", "src/runtime/", "src/world/", "src/engine/math.c", "tests/runtime/"],
       "steps": ["Implementar contexto/mundos y pools por tipo con handles generacionales validados por contexto/mundo; UUID documental separado.", "Implementar TRS local/world y padre opcional, rechazo de ciclos y política explícita de shear/escala; operaciones fallidas transaccionales.", "Añadir creación/destrucción diferida durante iteración y reserva de capacidad; mantener ReWorld/ReEntityId legacy detrás de adaptadores sin renombrado global."],
       "acceptance": ["Stale handle, tipo/contexto/mundo incorrecto y agotamiento de capacidad devuelven error sin UB ni truncado.", "Reparent preserve-world/local cumple contrato; ciclos y transform no finito se rechazan dejando estado anterior.", "Crear/destruir mundos repetidamente y fallar allocations no deja recursos retenidos; pruebas no necesitan GPU."],
@@ -44,14 +44,14 @@
       "validation": ["V-APP", "V-GPU", "V-WPF"], "unlocks": "Autoría 3D integrada; gate arquitectónico de WPF."
     },
     {
-      "id": "R02", "phase": "P2", "title": "Registro de assets y ownership CPU/GPU mínimo", "role": "runtime", "dependencies": ["R01"], "locks": ["asset-core", "public-api"], "status": "IN_PROGRESS",
+      "id": "R02", "phase": "P2", "title": "Registro de assets y ownership CPU/GPU mínimo", "role": "runtime", "dependencies": ["R01"], "locks": ["asset-core", "public-api"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/R02.md"], "integrated_commit": "9ed4d5e",
       "paths": ["src/assets/", "include/vestigio/", "tests/assets/"],
       "steps": ["Implementar AssetId, handles y estados loading/ready/failed para Texture/Mesh; catálogo fuente/meta separado de residente.", "Definir acquire/release y retenciones de componentes; deduplicar por identidad/versión/opciones, no por cada instancia o alias de ruta.", "Separar decode CPU de upload/release del hilo gráfico y definir reemplazo candidato; contabilidad RAM/VRAM estimada, purge y errores."],
       "acceptance": ["Dos usuarios comparten un recurso y destruir uno no invalida otro; refcounts no liberan objetos de GPU fuera de su contexto.", "Fallo de parse/allocation/upload no publica un asset medio válido y conserva versión anterior si existe.", "Tras descargar mundos y purgar caché no quedan retenciones propias inesperadas; counters distinguen caché evictable de fuga."],
       "validation": ["V-CORE", "V-ASSET"], "unlocks": "Importer y residencia GPU compartida."
     },
     {
-      "id": "R03", "phase": "P2", "title": "Game callbacks y primer SDK instalable externo", "role": "runtime", "dependencies": ["R02"], "locks": ["runtime-core", "public-api", "session-bridge", "build"], "status": "PLANNED",
+      "id": "R03", "phase": "P2", "title": "Game callbacks y primer SDK instalable externo", "role": "runtime", "dependencies": ["R02"], "locks": ["runtime-core", "public-api", "session-bridge", "build"], "status": "IN_PROGRESS",
       "paths": ["include/vestigio/", "src/api/", "src/runtime/", "src/session/session.c", "src/player/main.c", "cmake/", "tests/sdk/"],
       "steps": ["Implementar init/world_ready/fixed_update/event/draw_ui/shutdown y stepping embebido; separar composición de juego de lifecycle en un cambio acotado.", "Instalar SDK estático con headers y paquete CMake; exports explícitos de tooling al tocar su frontera, conservando ABI necesaria para Studio actual.", "Crear consumidor C externo que cree mundo/cámara/entidades y lógica propia sin ReProject ni headers internos; backend GPU se conectará al integrar G03."],
       "acceptance": ["find_package y enlace desde fuera del repo funcionan sin Studio/.NET ni include de src; el ejemplo es un consumidor real, no target con acceso privilegiado al árbol.", "Orden/reentrancia de callbacks, init fallido, eventos limitados y shutdown parcial se prueban; no hay game DLL/hot reload implícitos.", "Juego legacy y pruebas de sesión siguen funcionando; diferencias de input se resuelven en I01, no con un segundo loop divergente."],
@@ -65,14 +65,14 @@
       "validation": ["V-CORE", "V-APP", "V-WPF"], "unlocks": "Controlador, preferencias y paridad entre hosts."
     },
     {
-      "id": "D01", "phase": "P4", "title": "Formato canónico y validadores de contenido", "role": "content", "dependencies": ["R01"], "locks": ["document-schema"], "status": "PLANNED",
+      "id": "D01", "phase": "P4", "title": "Formato canónico y validadores de contenido", "role": "content", "dependencies": ["R01"], "locks": ["document-schema"], "status": "IN_PROGRESS",
       "paths": ["src/content/", "docs/formats/", "tests/content/", "docs/implementation/CONTRACTS.md"],
       "steps": ["Especificar e implementar parse/validate project/level JSON versionados usando un parser de procedencia revisada; fijar límites de lectura y tipos de componentes iniciales.", "Definir UUIDs, referencias, TRS quaternion, environment, geometry legacy y extensiones; campos desconocidos optional se retienen y required se rechazan.", "Añadir corpus de datos inválidos y diagnósticos con archivo/ruta/ID; no crear serializer C# paralelo ni representar todos los tipos futuros como implementados."],
       "acceptance": ["Validación rechaza duplicados, refs inexistentes, NaN/inf y versiones/capacidades incompatibles sin instanciar parcialmente mundo.", "Representación canónica de transforms/colores coincide con CONTRACTS y SDK; precisión y locale son explícitos.", "Round-trip estructural de componentes soportados y preservación de campos opcionales desconocidos tienen pruebas."],
       "validation": ["V-CORE", "V-DATA"], "unlocks": "Documento transaccional, migraciones y formatos de agentes."
     },
     {
-      "id": "M01", "phase": "P3", "title": "Importación GLB/glTF estática a representación propia", "role": "content", "dependencies": ["R02"], "locks": ["asset-import"], "status": "PLANNED",
+      "id": "M01", "phase": "P3", "title": "Importación GLB/glTF estática a representación propia", "role": "content", "dependencies": ["R02"], "locks": ["asset-import"], "status": "IN_PROGRESS",
       "paths": ["src/assets/import/", "tests/assets/fixtures/", "THIRD_PARTY.md"],
       "steps": ["Integrar cgltf fijado con avisos correspondientes, sin exponer sus structs ni Model de raylib; parse, load buffers, validate y normalizar a IR propia.", "Soportar malla indexada/no indexada, nodos/submeshes, UV/normales/texturas y materiales retro definidos; aplicar cambio de base Y-up a Z-up sin recenter de pivots.", "Crear fixtures propias o con licencia registrada para GLB y glTF externo; declarar rechazo de skins/morphs/extensiones no soportadas en esta etapa."],
       "acceptance": ["Escala, ejes, jerarquía/pivot, winding, normales y alpha se validan con geometría de referencia numérica.", "Archivos truncados, índices/accesores fuera de rango y required extension no soportada devuelven error, sin crash ni lectura fuera de límite.", "Importar no necesita GPU; mismo source/opciones produce la misma IR y dependencias/fingerprint reproducibles."],
