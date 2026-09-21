@@ -164,20 +164,32 @@ bool vg_matrix_to_transform(VgMatrix matrix, VgTransform *out_transform) {
 
 VgResult vg_world_entity_matrix(const VgWorldState *world, uint32_t entity_index,
                                 uint32_t override_index, const VgTransform *override_local,
-                                uint16_t override_parent, VgMatrix *out_matrix) {
+                                uint16_t override_parent, uint16_t override_parent_generation,
+                                VgMatrix *out_matrix) {
     if (world == NULL || out_matrix == NULL || entity_index >= world->entity_capacity)
         return VG_ERROR_INVALID_ARGUMENT;
     uint16_t chain[VG_HANDLE_ENTITY_MAX];
     uint32_t depth = 0u;
     uint32_t current = entity_index;
+    uint16_t required_generation = 0u;
+    bool validate_generation = false;
     while (current != VG_NO_PARENT) {
         if (current >= world->entity_capacity || depth >= VG_HANDLE_ENTITY_MAX)
             return VG_ERROR_CONFLICT;
         const VgEntitySlot *slot = &world->entities[current];
         if (slot->state == VG_ENTITY_FREE || slot->state == VG_ENTITY_RETIRED)
             return VG_ERROR_INVALID_HANDLE;
+        if (validate_generation && slot->generation != required_generation)
+            return VG_ERROR_INVALID_HANDLE;
         chain[depth++] = (uint16_t)current;
-        current = current == override_index ? override_parent : slot->parent_index;
+        if (current == override_index) {
+            current = override_parent;
+            required_generation = override_parent_generation;
+        } else {
+            current = slot->parent_index;
+            required_generation = slot->parent_generation;
+        }
+        validate_generation = current != VG_NO_PARENT;
     }
     VgMatrix matrix = {{1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
                         0.0f, 0.0f, 0.0f, 1.0f}};
@@ -192,15 +204,16 @@ VgResult vg_world_entity_matrix(const VgWorldState *world, uint32_t entity_index
 }
 
 VgResult vg_world_validate_transform_change(const VgWorldState *world, uint32_t entity_index,
-                                            VgTransform local, uint16_t parent_index) {
+                                            VgTransform local, uint16_t parent_index,
+                                            uint16_t parent_generation) {
     for (uint32_t index = 0u; index < world->entity_capacity; ++index) {
         uint8_t state = world->entities[index].state;
         if (state == VG_ENTITY_FREE || state == VG_ENTITY_RETIRED)
             continue;
         VgMatrix matrix;
         VgTransform decomposed;
-        VgResult result =
-            vg_world_entity_matrix(world, index, entity_index, &local, parent_index, &matrix);
+        VgResult result = vg_world_entity_matrix(world, index, entity_index, &local, parent_index,
+                                                 parent_generation, &matrix);
         if (result != VG_OK)
             return result;
         if (!vg_matrix_to_transform(matrix, &decomposed))

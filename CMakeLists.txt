@@ -44,6 +44,7 @@ endfunction()
 # público permite que los consumidores de R01 enlacen el lifecycle ya real.
 add_library(vestigio_runtime STATIC
     src/runtime/context.c
+    src/assets/asset_registry.c
     src/world/world.c
     src/world/transform.c)
 retro_target(vestigio_runtime)
@@ -208,6 +209,7 @@ if(BUILD_TESTING)
     add_executable(vestigio_runtime_test tests/runtime/runtime_test.c)
     retro_target(vestigio_runtime_test)
     target_link_libraries(vestigio_runtime_test PRIVATE vestigio_runtime)
+    target_include_directories(vestigio_runtime_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
     add_test(NAME vestigio_runtime COMMAND vestigio_runtime_test)
 
     add_executable(vestigio_runtime_cpp_test tests/runtime/runtime_link_cpp_test.cpp)
@@ -215,6 +217,12 @@ if(BUILD_TESTING)
     set_target_properties(vestigio_runtime_cpp_test PROPERTIES
         CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS NO)
     add_test(NAME vestigio_runtime_cpp11 COMMAND vestigio_runtime_cpp_test)
+
+    add_executable(vestigio_asset_test tests/assets/asset_registry_test.c)
+    retro_target(vestigio_asset_test)
+    target_link_libraries(vestigio_asset_test PRIVATE vestigio_runtime)
+    target_include_directories(vestigio_asset_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
+    add_test(NAME vestigio_assets COMMAND vestigio_asset_test)
 
     add_executable(vestigio_runtime_c_test tests/runtime/runtime_link_c_test.c)
     target_link_libraries(vestigio_runtime_c_test PRIVATE vestigio_runtime)

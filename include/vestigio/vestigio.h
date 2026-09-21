@@ -48,7 +48,8 @@ enum {
     VG_ERROR_CONFLICT = -11,
     VG_ERROR_REENTRANT = -12,
     VG_ERROR_WRONG_WORLD = -13,
-    VG_ERROR_WRONG_TYPE = -14
+    VG_ERROR_WRONG_TYPE = -14,
+    VG_ERROR_WRONG_THREAD = -15
 };
 
 typedef uint32_t VgBackend;
@@ -88,12 +89,37 @@ typedef struct VgTransform {
     VgVec3 scale;
 } VgTransform;
 
+/* AssetId is persistent project identity (UUID bytes in canonical network
+ * order). VgAsset is a context-local, generational lease and must never be
+ * serialized. Each acquire/clone returns an independent lease. */
+typedef struct VgAssetId {
+    uint8_t bytes[16];
+} VgAssetId;
+
+typedef uint32_t VgAssetType;
+enum { VG_ASSET_TYPE_TEXTURE = 1u, VG_ASSET_TYPE_MESH = 2u };
+
+typedef uint32_t VgAssetState;
+enum { VG_ASSET_LOADING = 1u, VG_ASSET_READY = 2u, VG_ASSET_FAILED = 3u };
+
+typedef uint32_t VgAssetResidency;
+enum { VG_ASSET_RESIDENCY_CPU = 1u << 0u, VG_ASSET_RESIDENCY_GPU = 1u << 1u };
+
+typedef uint32_t VgAssetInfoFlags;
+enum {
+    VG_ASSET_INFO_CPU_RESIDENT = 1u << 0u,
+    VG_ASSET_INFO_GPU_RESIDENT = 1u << 1u,
+    VG_ASSET_INFO_RELOAD_PENDING = 1u << 2u,
+    VG_ASSET_INFO_EVICTABLE = 1u << 3u,
+    VG_ASSET_INFO_HAS_USABLE_VERSION = 1u << 4u
+};
+
 /* Runtime transforms use right-handed Z-up coordinates, metres and radians.
  * Rotations are normalized on write. Scale must be finite and strictly
  * positive. Hierarchy operations that would require shear are rejected. */
 
 typedef void (*VgLogFn)(void *user, VgLogSeverity severity, const char *utf8_message);
-typedef void *(*VgAllocateFn)(void *user, size_t size);
+typedef void *(*VgAllocateFn)(void *user, uint64_t size);
 typedef void (*VgDeallocateFn)(void *user, void *allocation);
 
 typedef struct VgContextDesc {
@@ -107,10 +133,13 @@ typedef struct VgContextDesc {
     VgAllocateFn allocate;
     VgDeallocateFn deallocate;
     uint32_t max_worlds;
+    uint32_t max_assets;
+    uint32_t max_asset_leases;
 } VgContextDesc;
 
 typedef struct VgWorldDesc {
     uint32_t struct_size;
+    uint32_t api_version;
     uint32_t initial_entity_capacity;
     uint32_t max_entities;
 } VgWorldDesc;
@@ -126,6 +155,58 @@ typedef struct VgVersion {
     uint32_t patch;
 } VgVersion;
 
+typedef struct VgAssetRequest {
+    uint32_t struct_size;
+    uint32_t api_version;
+    VgAssetId id;
+    VgAssetType type;
+    VgAssetResidency required_residency;
+    uint64_t variant;
+} VgAssetRequest;
+
+typedef struct VgAssetInfo {
+    uint32_t struct_size;
+    uint32_t api_version;
+    VgAssetId id;
+    VgAssetType type;
+    VgAssetState state;
+    VgAssetInfoFlags flags;
+    uint32_t external_refs;
+    uint32_t component_refs;
+    uint64_t variant;
+    uint64_t published_version;
+    uint64_t candidate_version;
+    VgResult last_result;
+    VgResult last_reload_result;
+    uint64_t source_ram_bytes;
+    uint64_t derived_ram_bytes;
+    uint64_t staging_ram_bytes;
+    uint64_t estimated_gpu_bytes;
+} VgAssetInfo;
+
+typedef struct VgAssetCounters {
+    uint32_t struct_size;
+    uint32_t api_version;
+    uint32_t catalog_entries;
+    uint32_t resident_entries;
+    uint32_t live_leases;
+    uint32_t component_refs;
+    uint32_t loading;
+    uint32_t ready;
+    uint32_t failed;
+    uint32_t evictable;
+    uint32_t pending_gpu_releases;
+    uint64_t source_ram_bytes;
+    uint64_t derived_ram_bytes;
+    uint64_t staging_ram_bytes;
+    uint64_t estimated_gpu_bytes;
+    uint64_t decode_count;
+    uint64_t upload_count;
+    uint64_t gpu_release_count;
+    uint64_t cache_hit_count;
+    uint64_t purge_count;
+} VgAssetCounters;
+
 /* Pure query with no runtime allocation. Implemented with the first runtime
  * library target; declared now so consumers can negotiate the contract. */
 VG_API VgResult vg_get_version(VgVersion *out_version);
@@ -134,6 +215,8 @@ VG_API VgResult vg_get_version(VgVersion *out_version);
  * max selects an implementation default. A custom allocator must provide both
  * callbacks. All allocations owned by a context use that allocator. */
 VG_API VgResult vg_context_create(const VgContextDesc *description, VgContext **out_context);
+/* When a GPU executor is attached, destroy must run on its owner thread. A
+ * wrong-thread call logs an error and leaves the context alive and unchanged. */
 VG_API void vg_context_destroy(VgContext *context);
 VG_API VgResult vg_world_create(VgContext *context, const VgWorldDesc *description,
                                 VgWorld *out_world);
@@ -162,6 +245,20 @@ VG_API VgResult vg_entity_set_world_transform(VgContext *context, VgEntity entit
 VG_API VgResult vg_entity_get_parent(VgContext *context, VgEntity entity, VgEntity *out_parent);
 VG_API VgResult vg_entity_set_parent(VgContext *context, VgEntity entity, VgEntity parent,
                                      VgReparentMode mode);
+
+/* Asset acquisition resolves a catalog entry already registered by the
+ * project/content layer. Zero required_residency means CPU. GPU residency is
+ * completed only when the owning backend flushes its private upload queue. */
+VG_API VgResult vg_asset_acquire(VgContext *context, const VgAssetRequest *request,
+                                 VgAsset *out_asset);
+VG_API VgResult vg_asset_clone(VgContext *context, VgAsset source, VgAsset *out_asset);
+VG_API VgResult vg_asset_release(VgContext *context, VgAsset asset);
+VG_API VgResult vg_asset_reload(VgContext *context, VgAsset asset);
+VG_API VgResult vg_asset_get_info(VgContext *context, VgAsset asset, VgAssetInfo *out_info);
+VG_API VgResult vg_asset_get_error(VgContext *context, VgAsset asset, char *utf8, uint32_t capacity,
+                                   uint32_t *out_required);
+VG_API VgResult vg_assets_get_counters(VgContext *context, VgAssetCounters *out_counters);
+VG_API VgResult vg_assets_purge_unused(VgContext *context, uint32_t *out_purged);
 
 #ifdef __cplusplus
 } /* extern "C" */

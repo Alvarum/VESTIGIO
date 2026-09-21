@@ -1,3 +1,4 @@
+#include "runtime/runtime_internal.h"
 #include "vestigio/vestigio.h"
 
 #include <math.h>
@@ -20,12 +21,14 @@ typedef struct TestAllocator {
     size_t fail_call;
 } TestAllocator;
 
-static void *test_allocate(void *user, size_t size) {
+static void *test_allocate(void *user, uint64_t size) {
     TestAllocator *allocator = user;
     ++allocator->calls;
     if (allocator->fail_call != 0u && allocator->calls == allocator->fail_call)
         return NULL;
-    void *allocation = malloc(size);
+    if (size > (uint64_t)SIZE_MAX)
+        return NULL;
+    void *allocation = malloc((size_t)size);
     if (allocation != NULL)
         ++allocator->outstanding;
     return allocation;
@@ -62,13 +65,15 @@ static int test_context_world_and_handles(void) {
     CHECK(vg_context_create(&description, &first) == VG_OK);
     CHECK(vg_context_create(&description, &second) == VG_OK);
 
-    VgWorldDesc world_description = {sizeof(world_description), 2u, 8u};
+    VgWorldDesc world_description = {sizeof(world_description), VG_API_VERSION, 2u, 8u};
     VgWorld world = {0};
     VgWorld other_world = {0};
     VgWorld second_context_world = {0};
     CHECK(vg_world_create(first, &world_description, &world) == VG_OK);
     CHECK(vg_world_create(first, &world_description, &other_world) == VG_OK);
     CHECK(vg_world_create(second, &world_description, &second_context_world) == VG_OK);
+    CHECK(vg_world_reserve_entities(first, (VgWorld){world.value | UINT64_C(1)}, 4u) ==
+          VG_ERROR_INVALID_HANDLE);
 
     VgEntity parent = {0};
     VgEntity child = {0};
@@ -216,24 +221,26 @@ static int test_iteration_and_capacity(void) {
     context_description.api_version = VG_API_VERSION;
     VgContext *context = NULL;
     CHECK(vg_context_create(&context_description, &context) == VG_OK);
-    VgWorldDesc description = {sizeof(description), 1u, 2u};
+    VgWorldDesc description = {sizeof(description), VG_API_VERSION, 1u, 2u};
     VgWorld world = {0};
     CHECK(vg_world_create(context, &description, &world) == VG_OK);
     VgEntity first = {0};
     CHECK(vg_entity_create(context, world, &first) == VG_OK);
     uint32_t count = 0u;
+    VgEntity iterated = {0};
+    CHECK(vg_world_entity_at(context, world, 0u, &iterated) == VG_ERROR_REENTRANT);
     CHECK(vg_world_begin_iteration(context, world, &count) == VG_OK);
     CHECK(count == 1u);
     CHECK(vg_world_begin_iteration(context, world, &count) == VG_ERROR_REENTRANT);
     VgEntity created = {0};
     CHECK(vg_entity_create(context, world, &created) == VG_OK);
     CHECK(vg_entity_destroy(context, first) == VG_OK);
-    VgEntity iterated = {0};
     CHECK(vg_world_entity_at(context, world, 0u, &iterated) == VG_OK);
     CHECK(iterated.value == first.value);
     CHECK(vg_world_entity_at(context, world, 1u, &iterated) == VG_ERROR_NOT_FOUND);
     CHECK(vg_world_destroy(context, world) == VG_ERROR_REENTRANT);
     CHECK(vg_world_end_iteration(context, world) == VG_OK);
+    CHECK(vg_world_entity_at(context, world, 0u, &iterated) == VG_ERROR_REENTRANT);
     VgTransform output;
     CHECK(vg_entity_get_local_transform(context, first, &output) == VG_ERROR_INVALID_HANDLE);
     CHECK(vg_entity_get_local_transform(context, created, &output) == VG_OK);
@@ -271,16 +278,18 @@ static int test_allocation_failures_and_cleanup(void) {
     description.deallocate = test_deallocate;
     description.max_worlds = 1u;
 
-    allocator.fail_call = 2u;
     VgContext *context = (VgContext *)(uintptr_t)1u;
-    CHECK(vg_context_create(&description, &context) == VG_ERROR_OUT_OF_MEMORY);
-    CHECK(context == (VgContext *)(uintptr_t)1u);
-    CHECK(allocator.outstanding == 0u);
+    for (uint32_t attempt = 0u; attempt < 32u; ++attempt) {
+        allocator.fail_call = allocator.calls + 2u;
+        CHECK(vg_context_create(&description, &context) == VG_ERROR_OUT_OF_MEMORY);
+        CHECK(context == (VgContext *)(uintptr_t)1u);
+        CHECK(allocator.outstanding == 0u);
+    }
 
     allocator.fail_call = 0u;
     CHECK(vg_context_create(&description, &context) == VG_OK);
     CHECK(allocator.outstanding == 2u);
-    VgWorldDesc world_description = {sizeof(world_description), 1u, 2u};
+    VgWorldDesc world_description = {sizeof(world_description), VG_API_VERSION, 1u, 2u};
     VgWorld world = {UINT64_C(0xBEEF)};
     allocator.fail_call = allocator.calls + 2u;
     CHECK(vg_world_create(context, &world_description, &world) == VG_ERROR_OUT_OF_MEMORY);
@@ -311,13 +320,114 @@ static int test_allocation_failures_and_cleanup(void) {
     return 0;
 }
 
+static int test_pending_parent_cancel_does_not_alias_replacement(void) {
+    VgContextDesc context_description = {0};
+    context_description.struct_size = sizeof(context_description);
+    context_description.api_version = VG_API_VERSION;
+    VgContext *context = NULL;
+    CHECK(vg_context_create(&context_description, &context) == VG_OK);
+
+    VgWorldDesc invalid_description = {sizeof(invalid_description), VG_API_VERSION + 1u, 2u, 2u};
+    VgWorld invalid_world = {UINT64_C(0xABCD)};
+    CHECK(vg_world_create(context, &invalid_description, &invalid_world) ==
+          VG_ERROR_INVALID_ARGUMENT);
+    CHECK(invalid_world.value == UINT64_C(0xABCD));
+
+    VgWorldDesc description = {sizeof(description), VG_API_VERSION, 2u, 2u};
+    VgWorld world = {0};
+    CHECK(vg_world_create(context, &description, &world) == VG_OK);
+    VgEntity child = {0};
+    CHECK(vg_entity_create(context, world, &child) == VG_OK);
+    VgTransform child_world = transform(5.0f, 2.0f, 1.0f);
+    CHECK(vg_entity_set_world_transform(context, child, &child_world) == VG_OK);
+
+    uint32_t count = 0u;
+    CHECK(vg_world_begin_iteration(context, world, &count) == VG_OK);
+    CHECK(count == 1u);
+    VgEntity pending_parent = {0};
+    CHECK(vg_entity_create(context, world, &pending_parent) == VG_OK);
+    VgTransform parent_transform = transform(10.0f, 0.0f, 0.0f);
+    CHECK(vg_entity_set_local_transform(context, pending_parent, &parent_transform) == VG_OK);
+    CHECK(vg_entity_set_parent(context, child, pending_parent, VG_REPARENT_KEEP_WORLD) == VG_OK);
+    CHECK(vg_entity_destroy(context, pending_parent) == VG_OK);
+
+    VgEntity unavailable = {UINT64_C(0xCAFE)};
+    CHECK(vg_entity_create(context, world, &unavailable) == VG_ERROR_CAPACITY);
+    CHECK(unavailable.value == UINT64_C(0xCAFE));
+    VgTransform during_cancel;
+    CHECK(vg_entity_get_world_transform(context, child, &during_cancel) == VG_OK);
+    CHECK(close_enough(during_cancel.position.x, child_world.position.x));
+    CHECK(vg_world_end_iteration(context, world) == VG_OK);
+
+    VgEntity parent_after_cancel = {UINT64_C(1)};
+    CHECK(vg_entity_get_parent(context, child, &parent_after_cancel) == VG_OK);
+    CHECK(parent_after_cancel.value == VG_INVALID_HANDLE_VALUE);
+    VgTransform after_cancel;
+    CHECK(vg_entity_get_world_transform(context, child, &after_cancel) == VG_OK);
+    CHECK(close_enough(after_cancel.position.x, child_world.position.x));
+    CHECK(close_enough(after_cancel.position.y, child_world.position.y));
+
+    VgEntity replacement = {0};
+    CHECK(vg_entity_create(context, world, &replacement) == VG_OK);
+    CHECK(replacement.value != pending_parent.value);
+    CHECK(vg_entity_get_parent(context, child, &parent_after_cancel) == VG_OK);
+    CHECK(parent_after_cancel.value == VG_INVALID_HANDLE_VALUE);
+    CHECK(vg_entity_get_world_transform(context, child, &after_cancel) == VG_OK);
+    CHECK(close_enough(after_cancel.position.x, child_world.position.x));
+    vg_context_destroy(context);
+    return 0;
+}
+
+static int test_destroy_rejects_unrepresentable_child_detach(void) {
+    VgContextDesc context_description = {0};
+    context_description.struct_size = sizeof(context_description);
+    context_description.api_version = VG_API_VERSION;
+    VgContext *context = NULL;
+    CHECK(vg_context_create(&context_description, &context) == VG_OK);
+    VgWorld world = {0};
+    CHECK(vg_world_create(context, NULL, &world) == VG_OK);
+    VgEntity parent = {0};
+    VgEntity child = {0};
+    CHECK(vg_entity_create(context, world, &parent) == VG_OK);
+    CHECK(vg_entity_create(context, world, &child) == VG_OK);
+    VgTransform non_uniform = transform(0.0f, 0.0f, 0.0f);
+    non_uniform.scale = (VgVec3){2.0f, 1.0f, 1.0f};
+    CHECK(vg_entity_set_local_transform(context, parent, &non_uniform) == VG_OK);
+    CHECK(vg_entity_set_parent(context, child, parent, VG_REPARENT_KEEP_LOCAL) == VG_OK);
+
+    VgWorldState *world_state = NULL;
+    uint32_t child_index = 0u;
+    CHECK(vg_runtime_resolve_entity(context, child, NULL, &world_state, &child_index) == VG_OK);
+    world_state->entities[child_index].local.rotation =
+        (VgQuat){0.0f, 0.0f, 0.38268343236f, 0.92387953251f};
+    CHECK(vg_entity_destroy(context, parent) == VG_ERROR_UNSUPPORTED);
+    VgEntity actual_parent = {0};
+    CHECK(vg_entity_get_parent(context, child, &actual_parent) == VG_OK);
+    CHECK(actual_parent.value == parent.value);
+    VgTransform parent_still_alive;
+    CHECK(vg_entity_get_local_transform(context, parent, &parent_still_alive) == VG_OK);
+
+    uint32_t count = 0u;
+    CHECK(vg_world_begin_iteration(context, world, &count) == VG_OK);
+    CHECK(vg_entity_destroy(context, parent) == VG_OK);
+    CHECK(vg_world_end_iteration(context, world) == VG_ERROR_UNSUPPORTED);
+    CHECK(vg_entity_get_parent(context, child, &actual_parent) == VG_OK);
+    CHECK(actual_parent.value == parent.value);
+    world_state->entities[child_index].local.rotation = (VgQuat){0.0f, 0.0f, 0.0f, 1.0f};
+    CHECK(vg_world_end_iteration(context, world) == VG_OK);
+    CHECK(vg_entity_get_parent(context, child, &actual_parent) == VG_OK);
+    CHECK(actual_parent.value == VG_INVALID_HANDLE_VALUE);
+    vg_context_destroy(context);
+    return 0;
+}
+
 static int test_generation_retirement(void) {
     VgContextDesc context_description = {0};
     context_description.struct_size = sizeof(context_description);
     context_description.api_version = VG_API_VERSION;
     VgContext *context = NULL;
     CHECK(vg_context_create(&context_description, &context) == VG_OK);
-    VgWorldDesc world_description = {sizeof(world_description), 1u, 1u};
+    VgWorldDesc world_description = {sizeof(world_description), VG_API_VERSION, 1u, 1u};
     VgWorld world = {0};
     CHECK(vg_world_create(context, &world_description, &world) == VG_OK);
     VgEntity first = {0};
@@ -345,6 +455,8 @@ int main(void) {
     CHECK(test_transform_hierarchy() == 0);
     CHECK(test_iteration_and_capacity() == 0);
     CHECK(test_allocation_failures_and_cleanup() == 0);
+    CHECK(test_pending_parent_cancel_does_not_alias_replacement() == 0);
+    CHECK(test_destroy_rejects_unrepresentable_child_detach() == 0);
     CHECK(test_generation_retirement() == 0);
     puts("PASS vestigio runtime lifecycle, handles, hierarchy, iteration, capacity and OOM");
     return 0;
