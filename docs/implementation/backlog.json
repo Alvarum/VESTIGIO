@@ -16,14 +16,14 @@
       "validation": ["V-CORE", "V-APP"], "unlocks": "Contratos e implementación sobre una base conocida."
     },
     {
-      "id": "F01", "phase": "P0", "title": "Congelar contratos mínimos entre agentes", "role": "integrator", "dependencies": ["F00"], "locks": ["public-api", "build", "contracts"], "status": "VERIFIED", "evidence": ["docs/implementation/evidence/F01.md"],
+      "id": "F01", "phase": "P0", "title": "Congelar contratos mínimos entre agentes", "role": "integrator", "dependencies": ["F00"], "locks": ["public-api", "build", "contracts"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/F01.md"], "integrated_commit": "2052e5b4d69f8ae169df073f3ed8a761b80c62dc",
       "paths": ["docs/implementation/CONTRACTS.md", "include/vestigio/", "src/runtime/", "src/render/", "CMakeLists.txt", "tests/sdk/"],
       "steps": ["Convertir C01-C08 de CONTRACTS.md en declaraciones mínimas de tipos, responsabilidades y errores; fijar nombres y export macros sin implementar toda la API hipotética del informe.", "Preparar límites de targets Runtime/Tooling/backend y lugar de pruebas; preservar targets actuales. Definir qué crea/posee ventana y contexto y cómo se integra código nuevo.", "Versionar contrato v0.1 y acordar con los responsables de GPU/runtime los puntos que el spike puede ajustar. Añadir consumidores mínimos de header C11/C++ sin arrastrar tipos internos."],
       "acceptance": ["Header público mínimo compilable en C11 y C++; sin raylib, ReProject, HWND ni dependencias WPF en la API de juego.", "Ownership, IDs, convención espacial, superficie y documento tienen un único contrato publicado; los nombres de directorios nuevos se registran.", "G01 y R01 pueden avanzar en archivos disjuntos; la incertidumbre de embedding está explícita y no se declara resuelta."],
       "validation": ["V-CORE", "V-SDK"], "unlocks": "Trabajo paralelo GPU/runtime con integración definida."
     },
     {
-      "id": "G01", "phase": "P1", "title": "Primer frame de geometría GPU en ventana propia", "role": "gpu", "dependencies": ["F01"], "locks": ["gpu-backend", "platform-window"], "status": "PLANNED",
+      "id": "G01", "phase": "P1", "title": "Primer frame de geometría GPU en ventana propia", "role": "gpu", "dependencies": ["F01"], "locks": ["gpu-backend", "platform-window"], "status": "VERIFIED", "evidence": ["docs/implementation/evidence/G01.md"],
       "paths": ["src/render/gpu_raylib/", "src/platform/raylib_platform.c", "src/lab/", "tests/gpu/"],
       "steps": ["Crear backend raylib/rlgl con un dueño de contexto y recursos mesh, textura, shader y render target; escena sintética independiente del juego incorporado.", "Dibujar malla y billboard en color/depth GPU; upscale nearest/letterbox configurable sin readback normal; conservar renderer CPU existente.", "Añadir contadores uploads/readbacks/draws/recursos y captura solicitada; probar fallos de shader/target y cleanup parcial."],
       "acceptance": ["Captura o inspección de comandos acredita draw de geometría en GPU; UpdateTexture del framebuffer CPU no satisface el ticket.", "Resize, depth, alpha-cutout y aspecto funcionan con 320x180 y 640x360; una captura puntual es distinta del camino normal sin readbacks.", "Abrir/cerrar y errores liberan recursos propios; escenario y hardware quedan registrados."],

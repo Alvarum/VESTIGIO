@@ -122,6 +122,6 @@ flowchart TD
 
 ## Elegibilidad actual
 
-Por estado de dependencias: ningún ticket PLANNED elegible.
+Por estado de dependencias: R01.
 
 Filtrar después por alcance encargado y locks. BLOCKED requiere resolver su motivo y actualizar estado; no se relanza automáticamente.

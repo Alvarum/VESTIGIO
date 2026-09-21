@@ -36,7 +36,7 @@ Commit integrado: `fe43b83de2f8579ecad715991de5c04252d61dd0`.
 
 ## F01 — Congelar contratos mínimos entre agentes
 
-Fase: **P0** · Rol: **integrator** · Estado: **VERIFIED**.
+Fase: **P0** · Rol: **integrator** · Estado: **INTEGRATED**.
 
 Dependencias integradas: F00.
 
@@ -62,9 +62,11 @@ Desbloquea: Trabajo paralelo GPU/runtime con integración definida.
 
 Evidencia: docs/implementation/evidence/F01.md.
 
+Commit integrado: `2052e5b4d69f8ae169df073f3ed8a761b80c62dc`.
+
 ## G01 — Primer frame de geometría GPU en ventana propia
 
-Fase: **P1** · Rol: **gpu** · Estado: **PLANNED**.
+Fase: **P1** · Rol: **gpu** · Estado: **VERIFIED**.
 
 Dependencias integradas: F01.
 
@@ -87,6 +89,8 @@ Puntos de entrada: `src/render/gpu_raylib/`, `src/platform/raylib_platform.c`, `
 Verificación: V-CORE, V-APP, V-GPU.
 
 Desbloquea: Backend real para modelos y prueba WPF.
+
+Evidencia: docs/implementation/evidence/G01.md.
 
 ## R01 — Contexto, mundo, entidades y Transform con handles
 
