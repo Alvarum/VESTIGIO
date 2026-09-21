@@ -40,6 +40,20 @@ function(retro_target target)
     endif()
 endfunction()
 
+# Runtime VESTIGIO independiente de ventana, GPU y del motor legacy. El target
+# público permite que los consumidores de R01 enlacen el lifecycle ya real.
+add_library(vestigio_runtime STATIC
+    src/runtime/context.c
+    src/world/world.c
+    src/world/transform.c)
+retro_target(vestigio_runtime)
+target_include_directories(vestigio_runtime PRIVATE "${PROJECT_SOURCE_DIR}/src")
+target_link_libraries(vestigio_runtime PUBLIC vestigio_sdk_headers)
+if(NOT WIN32)
+    target_link_libraries(vestigio_runtime PRIVATE m)
+endif()
+add_library(Vestigio::Runtime ALIAS vestigio_runtime)
+
 add_library(retro_core STATIC src/engine/math.c src/engine/map.c src/engine/world.c
     src/engine/render.c src/engine/canvas.c src/engine/input.c)
 retro_target(retro_core)
@@ -191,6 +205,23 @@ if(RETRO_BUILD_APPS)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(vestigio_runtime_test tests/runtime/runtime_test.c)
+    retro_target(vestigio_runtime_test)
+    target_link_libraries(vestigio_runtime_test PRIVATE vestigio_runtime)
+    add_test(NAME vestigio_runtime COMMAND vestigio_runtime_test)
+
+    add_executable(vestigio_runtime_cpp_test tests/runtime/runtime_link_cpp_test.cpp)
+    target_link_libraries(vestigio_runtime_cpp_test PRIVATE vestigio_runtime)
+    set_target_properties(vestigio_runtime_cpp_test PROPERTIES
+        CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS NO)
+    add_test(NAME vestigio_runtime_cpp11 COMMAND vestigio_runtime_cpp_test)
+
+    add_executable(vestigio_runtime_c_test tests/runtime/runtime_link_c_test.c)
+    target_link_libraries(vestigio_runtime_c_test PRIVATE vestigio_runtime)
+    set_target_properties(vestigio_runtime_c_test PROPERTIES
+        C_STANDARD 11 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+    add_test(NAME vestigio_runtime_c11 COMMAND vestigio_runtime_c_test)
+
     add_executable(vestigio_header_c_test tests/sdk/header_c_test.c)
     target_link_libraries(vestigio_header_c_test PRIVATE vestigio_sdk_headers)
     set_target_properties(vestigio_header_c_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

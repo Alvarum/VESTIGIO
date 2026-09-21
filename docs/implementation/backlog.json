@@ -30,14 +30,14 @@
       "validation": ["V-CORE", "V-APP", "V-GPU"], "unlocks": "Backend real para modelos y prueba WPF."
     },
     {
-      "id": "R01", "phase": "P2", "title": "Contexto, mundo, entidades y Transform con handles", "role": "runtime", "dependencies": ["F01"], "locks": ["runtime-core", "public-api"], "status": "IN_PROGRESS",
+      "id": "R01", "phase": "P2", "title": "Contexto, mundo, entidades y Transform con handles", "role": "runtime", "dependencies": ["F01"], "locks": ["runtime-core", "public-api"], "status": "VERIFIED", "evidence": ["docs/implementation/evidence/R01.md"],
       "paths": ["include/vestigio/", "src/runtime/", "src/world/", "src/engine/math.c", "tests/runtime/"],
       "steps": ["Implementar contexto/mundos y pools por tipo con handles generacionales validados por contexto/mundo; UUID documental separado.", "Implementar TRS local/world y padre opcional, rechazo de ciclos y política explícita de shear/escala; operaciones fallidas transaccionales.", "Añadir creación/destrucción diferida durante iteración y reserva de capacidad; mantener ReWorld/ReEntityId legacy detrás de adaptadores sin renombrado global."],
       "acceptance": ["Stale handle, tipo/contexto/mundo incorrecto y agotamiento de capacidad devuelven error sin UB ni truncado.", "Reparent preserve-world/local cumple contrato; ciclos y transform no finito se rechazan dejando estado anterior.", "Crear/destruir mundos repetidamente y fallar allocations no deja recursos retenidos; pruebas no necesitan GPU."],
       "validation": ["V-CORE", "V-SDK"], "unlocks": "Recursos, game callbacks y documentos genéricos."
     },
     {
-      "id": "G02", "phase": "P1", "title": "Resolver superficie GPU de Studio mediante spike", "role": "gpu", "dependencies": ["G01"], "locks": ["gpu-backend", "platform-window", "wpf-viewport"], "status": "VERIFIED", "evidence": ["docs/implementation/evidence/G02.md"],
+      "id": "G02", "phase": "P1", "title": "Resolver superficie GPU de Studio mediante spike", "role": "gpu", "dependencies": ["G01"], "locks": ["gpu-backend", "platform-window", "wpf-viewport"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/G02.md"], "integrated_commit": "9811b03",
       "paths": ["src/studio/Controls/GameViewport.cs", "src/studio/Controls/", "src/studio/Native/", "src/platform/", "tests/studio/", "docs/implementation/CONTRACTS.md"],
       "steps": ["Probar HwndHost/superficie nativa con el backend G01 y fijar lifecycle/foco/DPI/contexto; no asumir que GetWindowHandle permite adoptar cualquier HWND.", "Mantener una superficie/contexto inicial y documentar relación con Edit/Play, docking y ventana Player; dibujar overlays de viewport en GPU.", "Si raylib impide hosting correcto, comparar adaptación acotada de plataforma frente a otra superficie y documentar decisión. No reescribir Studio ni introducir D3D/Vulkan completos por defecto."],
       "acceptance": ["50 ciclos abrir/cerrar, resize/minimizar, foco/Tab/Escape, DPI y docking cuentan con evidencia según entorno disponible; capacidades sin probar se declaran.", "El camino normal embebido presenta GPU sin copia por frame a WriteableBitmap; ventana externa sola no cierra este ticket.", "Decisión de superficie y límites está publicada; si no hay vía viable, ticket BLOCKED y continuidad de runtime/modelos independiente, nunca PASS ficticio."],

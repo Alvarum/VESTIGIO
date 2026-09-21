@@ -6,11 +6,13 @@ Estado: **contrato v0.1 materializado por F01** para vocabulario mínimo, owners
 
 Runtime interno C23; header público consumible C11/C++ sin tipos privados/raylib/WPF. Contextos opacos, handles tipados y descriptores POD con tamaño/versión. `create`/`get` por punteros de salida y `Result` explícito; enums/flags de ABI con ancho fijo. UTF-8 con ownership y unidades documentados. Librería estática primero; DLL de tooling con exports explícitos. SDK no incluye una Game DLL como requisito.
 
-F01 fija Windows x64 como primera ABI, C calling convention por defecto, `VG_API_VERSION=0.1`, `VgResult`, `VgContext` opaco, handles de 64 bits, descriptores con `struct_size/api_version`, target `Vestigio::Headers` y `#include <vestigio/vestigio.h>`. R03 añade paquete CMake y lifecycle; G03 incorpora draw de modelo al consumidor. No someter headers de consumidor C11/C++ a la función CMake interna que fuerza flags C23 y avisos sólo válidos para C.
+F01 fija Windows x64 como primera ABI, C calling convention por defecto, `VG_API_VERSION=0.1`, `VgResult`, `VgContext` opaco, handles de 64 bits, descriptores con `struct_size/api_version`, target `Vestigio::Headers` y `#include <vestigio/vestigio.h>`. R01 materializa `Vestigio::Runtime`, contexto/mundo/entidad y consumidores C11/C++11; R03 añade instalación/package CMake y callbacks de juego. G03 incorpora draw de modelo al consumidor. No someter fuentes de consumidor C11/C++ a la función CMake interna que fuerza flags C23 y avisos sólo válidos para C.
 
 ## C02 — Identidad, Transform y memoria
 
 Entity/World/Asset handles no son UUID persistentes. Validación considera tipo, contexto, mundo y generación; cero inválido. Entidad destruida durante iteración se retira en frontera definida. Componentes retienen assets; contexto posee servicios y cleanup ordenado. Operación inválida/OOM no publica estado parcial.
+
+R01 codifica tipo, serial de contexto, slot de mundo/generación y slot de entidad/generación en 64 bits. Los slots se retiran al agotar la generación en vez de revivir handles obsoletos. Un `VgUuid` es sólo identidad documental. Contextos aceptan allocator emparejado, capacidades deterministas y descriptores extensibles leídos por alcance de campo. Crear durante iteración publica un handle pendiente que se activa al cerrar la iteración; destruir se difiere a la misma frontera. El runtime legacy permanece separado.
 
 Mundo diestro Z-up, metros, radianes, segundos; quaternion `[x,y,z,w]`. F01 fija layout/multiplicación de matrices y local→world. Cambio glTF: `(x,y,z) → (x,-z,y)` y matrices `C M C^-1`, no recenter arbitrario. Reparent declara conservar local o world; escala cero, no finitos, ciclos y shear no representable se rechazan o se soportan explícitamente. Una rotación de padre no admite descomposición TRS falsa.
 
@@ -56,10 +58,10 @@ Registro que debe completar F01:
 
 | Frontera | Decisión/archivo definitivo | Owner | Versión | Consumidores verificados |
 |---|---|---|---|---|
-| SDK/context/world | `include/vestigio/vestigio.h`, `Vestigio::Headers` | integrator/runtime | v0.1 | Tests C11/C++11; lifecycle pendiente R01/R03 |
+| SDK/context/world | `include/vestigio/vestigio.h`, `Vestigio::Headers`, `Vestigio::Runtime` | integrator/runtime | v0.1 | Context/world/entity/TRS y enlace C11/C++11 verificados; instalación/callbacks pendientes R03 |
 | Surface/backend/draw packets | `src/render/render_contract.h`, `src/platform/gpu_host.*` privados | integrator/gpu | v0.1 interno | G01/G02 verificados en OpenGL 3.3 y WPF/HwndHost; conexión a World pendiente G03 |
 | Asset/IR/retenciones | `VgAsset` público + C04 | runtime/content/gpu | v0.1 vocabulario | Implementación pendiente R02/M01/G03 |
 | Documento/schema/Tool API | C05; sin declaraciones públicas prematuras | integrator/content/editor | v0.1 semántico | Implementación pendiente D01/D02 |
 | Input/callbacks/eventos | C06; sin tabla incompleta en header | runtime | v0.1 semántico | Implementación pendiente R03/I01 |
 
-El header declara sólo `vg_get_version`; su definición llega con el target de runtime de R01/R03. Esta ausencia deliberada evita stubs que aparenten lifecycle funcional. Los demás conceptos se agregan cuando exista su primer consumidor y pruebas, manteniendo las reglas C01–C08.
+El header declara sólo funciones ya respaldadas por `Vestigio::Runtime`: versión, contexto, mundo, entidades, iteración y Transform. Assets, callbacks, input y Tool API se agregan cuando exista su primer consumidor y pruebas, manteniendo las reglas C01–C08.
