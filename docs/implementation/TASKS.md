@@ -96,7 +96,7 @@ Commit integrado: `a13fb8beb89691d842709773abadb0b755d8f9a6`.
 
 ## R01 — Contexto, mundo, entidades y Transform con handles
 
-Fase: **P2** · Rol: **runtime** · Estado: **VERIFIED**.
+Fase: **P2** · Rol: **runtime** · Estado: **INTEGRATED**.
 
 Dependencias integradas: F01.
 
@@ -121,6 +121,8 @@ Verificación: V-CORE, V-SDK.
 Desbloquea: Recursos, game callbacks y documentos genéricos.
 
 Evidencia: docs/implementation/evidence/R01.md.
+
+Commit integrado: `9744dae`.
 
 ## G02 — Resolver superficie GPU de Studio mediante spike
 
@@ -154,7 +156,7 @@ Commit integrado: `9811b03`.
 
 ## R02 — Registro de assets y ownership CPU/GPU mínimo
 
-Fase: **P2** · Rol: **runtime** · Estado: **PLANNED**.
+Fase: **P2** · Rol: **runtime** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: R01.
 
