@@ -2,7 +2,7 @@
 
 Fecha de preparación del plan: 2026-09-20.
 
-- Estado global: **IMPLEMENTACIÓN_EN_CURSO — F00/F01/G01/G02/R01/R02/R03/D01/M01 INTEGRADOS / I01, G03 Y D02 EN CURSO**.
+- Estado global: **IMPLEMENTACIÓN_EN_CURSO — F00/F01/G01/G02/R01/R02/R03/D01/M01/D02 INTEGRADOS / I01 Y G03 EN CURSO**.
 - HEAD observado para redactar: `28dafa949ff68ed3dc52bf93d287863037bf8578`.
 - Checkout observado limpio antes de crear `docs/implementation/`.
 - Cambios de código desde `ae48d31` hasta esa base: ninguno; se incorporó la investigación.
@@ -15,7 +15,7 @@ Verificación del paquete: **PASS**, 31 tickets, 61 dependencias, 15 oleadas te�
 
 ## Registro del coordinador
 
-F00/F01/G01/G02/R01/R02/R03/D01/M01 integrados. I01, G03 y D02 avanzan en paralelo con archivos y locks separados.
+F00/F01/G01/G02/R01/R02/R03/D01/M01/D02 integrados. I01 y G03 avanzan en paralelo con archivos y locks separados.
 
 | Ticket | Responsable / checkout | Base y resultado | Locks / archivos compartidos | Evidencia / siguiente paso |
 |---|---|---|---|---|
@@ -30,7 +30,7 @@ F00/F01/G01/G02/R01/R02/R03/D01/M01 integrados. I01, G03 y D02 avanzan en parale
 | D01 | integrado | `1acbd03` | libre | formato/validadores y corpus CPU |
 | M01 | agente `r01_review` + integrador | `656fda7` / 12 de 12 por perfil | liberado | importer glTF/GLB e IR propia |
 | G03 | agente `r01_review` / checkout compartido | `656fda7` / en curso | gpu-backend, asset-gpu | renderables/modelos GPU compartidos |
-| D02 | agente `r01_runtime` / checkout compartido | `1acbd03` / en curso | document-core, tool-api | documento/transacciones y Tool API |
+| D02 | agente `r01_runtime` + integrador | `2e15e5e` / 14 de 14 por perfil | liberado | [evidence/D02.md](evidence/D02.md); documento, Tool API e instanciador transaccional |
 
 ## Bloqueos y decisiones pendientes
 

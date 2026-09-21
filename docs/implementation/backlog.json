@@ -93,7 +93,7 @@
       "validation": ["V-CORE", "V-APP", "V-GPU"], "unlocks": "Transición incremental sin perder niveles existentes."
     },
     {
-      "id": "D02", "phase": "P4", "title": "Documento nativo, transacciones y Tool API", "role": "content", "dependencies": ["D01", "R02"], "locks": ["document-core", "tool-api"], "status": "IN_PROGRESS",
+      "id": "D02", "phase": "P4", "title": "Documento nativo, transacciones y Tool API", "role": "content", "dependencies": ["D01", "R02"], "locks": ["document-core", "tool-api"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/D02.md"], "integrated_commit": "2e15e5e",
       "paths": ["src/content/", "src/editor/editor.c", "src/gameplay/transaction.c", "include/vestigio/", "tests/content/"],
       "steps": ["Implementar documento/instanciador con mismos constructores/validadores de componentes del runtime y assets por ID; mantener blobs y GPU fuera del historial.", "Implementar begin(expected revision), comandos tipados, validate/commit/cancel, mapping de IDs y save transaccional recuperable.", "Conservar semántica undo/redo actual, duplicación con remap y unknown fields; autosave separado del guardado manual."],
       "acceptance": ["Lote inválido no cambia documento ni destruye redo; conflicto de revisión no pisa edición concurrente.", "Crear/duplicar/reparentar/guardar/reabrir conserva campos y refs; asset pesado no se copia por cada undo.", "Fallo entre archivos de commit tiene recuperación reproducible y no sobrescribe una versión futura."],

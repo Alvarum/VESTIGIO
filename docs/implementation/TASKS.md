@@ -354,7 +354,7 @@ Desbloquea: Transición incremental sin perder niveles existentes.
 
 ## D02 — Documento nativo, transacciones y Tool API
 
-Fase: **P4** · Rol: **content** · Estado: **IN_PROGRESS**.
+Fase: **P4** · Rol: **content** · Estado: **INTEGRATED**.
 
 Dependencias integradas: D01, R02.
 
@@ -377,6 +377,10 @@ Puntos de entrada: `src/content/`, `src/editor/editor.c`, `src/gameplay/transact
 Verificación: V-CORE, V-DATA.
 
 Desbloquea: Editor y automatización sobre una autoridad documental.
+
+Evidencia: docs/implementation/evidence/D02.md.
+
+Commit integrado: `2e15e5e`.
 
 ## D03 — Migración legacy y round-trip de proyecto completo
 
