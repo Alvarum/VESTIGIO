@@ -115,9 +115,10 @@ if(RETRO_BUILD_APPS)
         target_compile_definitions(vestigio_gpu_host PRIVATE VG_GPU_HOST_BUILD)
         target_include_directories(vestigio_gpu_host PRIVATE "${PROJECT_SOURCE_DIR}/src")
         target_include_directories(vestigio_gpu_host SYSTEM PRIVATE "${raylib_SOURCE_DIR}/src")
-        target_link_libraries(vestigio_gpu_host PRIVATE vestigio_gpu_raylib raylib)
+        target_link_libraries(vestigio_gpu_host PRIVATE vestigio_gpu_raylib raylib comctl32)
         set_target_properties(vestigio_gpu_host PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin" PREFIX "" WINDOWS_EXPORT_ALL_SYMBOLS NO)
+        install(TARGETS vestigio_gpu_host RUNTIME DESTINATION . COMPONENT Runtime)
     endif()
     # La DLL comparte simulación, presentación CPU y recursos entre WPF y Player.
     add_library(retro_session SHARED src/session/session.c)

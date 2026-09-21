@@ -157,6 +157,8 @@ bool vg_gpu_renderer_draw_demo(VgGpuRenderer *renderer) {
     DrawBillboardRec(renderer->camera, renderer->sprite, (Rectangle){0, 0, 4, 4},
                      (Vector3){1.6f, 0.0f, 1.0f}, (Vector2){1.0f, 1.0f}, WHITE);
     EndMode3D();
+    DrawRectangle(5, 5, 92, 14, (Color){5, 8, 12, 220});
+    DrawText("GPU OPENGL 3.3", 9, 8, 7, (Color){244, 174, 66, 255});
     EndTextureMode();
     renderer->stats.frame_index++;
     renderer->stats.draw_calls = 3u;
@@ -181,6 +183,26 @@ void vg_gpu_renderer_present(VgGpuRenderer *renderer) {
                                draw_width, draw_height},
                    (Vector2){0, 0}, 0.0f, WHITE);
     EndDrawing();
+}
+
+void vg_gpu_renderer_present_embedded(VgGpuRenderer *renderer) {
+    if (!renderer || !renderer->target.id)
+        return;
+    float width = (float)GetRenderWidth(), height = (float)GetRenderHeight();
+    float scale = fminf(width / (float)renderer->width, height / (float)renderer->height);
+    if (scale >= 1.0f)
+        scale = floorf(scale);
+    float draw_width = (float)renderer->width * scale;
+    float draw_height = (float)renderer->height * scale;
+    BeginDrawing();
+    ClearBackground((Color){5, 8, 12, 255});
+    DrawTexturePro(renderer->target.texture,
+                   (Rectangle){0, 0, (float)renderer->width, -(float)renderer->height},
+                   (Rectangle){(width - draw_width) * 0.5f, (height - draw_height) * 0.5f,
+                               draw_width, draw_height},
+                   (Vector2){0, 0}, 0.0f, WHITE);
+    rlDrawRenderBatchActive();
+    SwapScreenBuffer();
 }
 
 bool vg_gpu_renderer_capture(VgGpuRenderer *renderer, const char *path) {

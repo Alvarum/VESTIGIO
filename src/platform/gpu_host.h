@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #if defined(_WIN32) && defined(VG_GPU_HOST_BUILD)
 #define VG_GPU_HOST_API __declspec(dllexport)
@@ -18,11 +19,14 @@ VG_GPU_HOST_API VgGpuHost *vg_gpu_host_create(void *parent_window, unsigned int 
                                               unsigned int height, char *error,
                                               size_t error_capacity);
 VG_GPU_HOST_API void *vg_gpu_host_window(const VgGpuHost *host);
-VG_GPU_HOST_API bool vg_gpu_host_render(VgGpuHost *host);
-VG_GPU_HOST_API bool vg_gpu_host_resize(VgGpuHost *host, unsigned int width, unsigned int height);
-VG_GPU_HOST_API bool vg_gpu_host_capture(VgGpuHost *host, const char *path);
-VG_GPU_HOST_API bool vg_gpu_host_focus(VgGpuHost *host);
-VG_GPU_HOST_API bool vg_gpu_host_has_focus(const VgGpuHost *host);
-VG_GPU_HOST_API void vg_gpu_host_destroy(VgGpuHost *host);
+VG_GPU_HOST_API int32_t vg_gpu_host_render(VgGpuHost *host);
+VG_GPU_HOST_API int32_t vg_gpu_host_resize(VgGpuHost *host, unsigned int width,
+                                           unsigned int height);
+VG_GPU_HOST_API int32_t vg_gpu_host_size(VgGpuHost *host, unsigned int *width,
+                                         unsigned int *height);
+VG_GPU_HOST_API int32_t vg_gpu_host_capture(VgGpuHost *host, const char *path);
+VG_GPU_HOST_API int32_t vg_gpu_host_focus(VgGpuHost *host);
+VG_GPU_HOST_API int32_t vg_gpu_host_has_focus(const VgGpuHost *host);
+VG_GPU_HOST_API int32_t vg_gpu_host_destroy(VgGpuHost *host);
 
 #endif /* VESTIGIO_GPU_HOST_H */

@@ -26,6 +26,8 @@ void vg_gpu_renderer_destroy(VgGpuRenderer *renderer);
 /* G01 diagnostic scene: indexed by the backend as real mesh/billboard draws. */
 bool vg_gpu_renderer_draw_demo(VgGpuRenderer *renderer);
 void vg_gpu_renderer_present(VgGpuRenderer *renderer);
+/* WPF owns the thread message pump; this variant swaps without PollInputEvents. */
+void vg_gpu_renderer_present_embedded(VgGpuRenderer *renderer);
 
 /* Explicit capture is the only G01 path that reads pixels back from the GPU. */
 bool vg_gpu_renderer_capture(VgGpuRenderer *renderer, const char *path);

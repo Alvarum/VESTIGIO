@@ -36,17 +36,35 @@ internal static class Program
                     $"No se pudo crear el host GPU en ciclo {cycle}: {GpuHostNative.Error(error)}");
                 Check(GpuHostNative.vg_gpu_host_window(host) != 0,
                     $"El host GPU no expuso HWND en ciclo {cycle}.");
+                if (cycle == 0)
+                {
+                    byte[] duplicateError = new byte[512];
+                    nint duplicate = GpuHostNative.vg_gpu_host_create(parent.Handle, 320, 180,
+                        duplicateError, (nuint)duplicateError.Length);
+                    Check(duplicate == 0 && GpuHostNative.Error(duplicateError).Contains("existe"),
+                        "Un segundo contexto GPU simult\u00e1neo debe rechazarse con diagn\u00f3stico.");
+                }
                 Check(GpuHostNative.vg_gpu_host_render(host) != 0,
                     $"El host GPU no renderiz\u00f3 en ciclo {cycle}.");
+                if (cycle == 0)
+                {
+                    Check(Task.Run(() => GpuHostNative.vg_gpu_host_render(host)).Result == 0,
+                        "Render GPU desde un hilo ajeno debe rechazarse.");
+                    Check(Task.Run(() => GpuHostNative.vg_gpu_host_destroy(host)).Result == 0,
+                        "Destroy GPU desde un hilo ajeno debe rechazarse.");
+                }
                 Check(GpuHostNative.vg_gpu_host_resize(host, 640, 360) != 0,
                     $"El host GPU no cambi\u00f3 de tama\u00f1o en ciclo {cycle}.");
+                Check(GpuHostNative.vg_gpu_host_size(host, out uint clientWidth,
+                    out uint clientHeight) != 0 && clientWidth == 640 && clientHeight == 360,
+                    $"El HWND GPU no midi\u00f3 640x360 en ciclo {cycle}.");
                 Check(GpuHostNative.vg_gpu_host_render(host) != 0,
                     $"El host GPU no renderiz\u00f3 tras resize en ciclo {cycle}.");
             }
             finally
             {
                 if (host != 0)
-                    GpuHostNative.vg_gpu_host_destroy(host);
+                    _ = GpuHostNative.vg_gpu_host_destroy(host);
             }
         }
         Console.WriteLine("PASS GPU native host create/render/resize/destroy x50");
@@ -67,7 +85,24 @@ internal static class Program
         viewport.Arrange(new Rect(0, 0, 640, 360));
         viewport.UpdateLayout();
         Check(viewport.IsNativeReady, "HwndHost no cre\u00f3 la superficie GPU nativa.");
+        Check(viewport.FocusNativeForTest() && viewport.NativeHasFocus,
+            "HwndHost no transfiri\u00f3 el foco al HWND GPU.");
         Check(viewport.RenderForTest(), "HwndHost no present\u00f3 un frame GPU.");
+        using (var duplicateSource = new HwndSource(new HwndSourceParameters("GPU fallback")
+            { Width = 320, Height = 180, WindowStyle = unchecked((int)0x80000000) }))
+        {
+            var duplicateViewport = new GpuViewportHost { Width = 320, Height = 180 };
+            duplicateSource.RootVisual = duplicateViewport;
+            Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            duplicateViewport.Measure(new Size(320, 180));
+            duplicateViewport.Arrange(new Rect(0, 0, 320, 180));
+            duplicateViewport.UpdateLayout();
+            Check(!duplicateViewport.IsNativeReady && duplicateViewport.IsFallback &&
+                duplicateViewport.LastError.Contains("existe"),
+                "El segundo viewport debe degradar a diagn\u00f3stico sin cerrar Studio.");
+            duplicateSource.RootVisual = null;
+            duplicateViewport.Dispose();
+        }
         viewport.Width = 426;
         viewport.Height = 240;
         viewport.Measure(new Size(426, 240));

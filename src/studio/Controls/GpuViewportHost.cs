@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace RetroForge.Studio;
@@ -12,9 +13,11 @@ namespace RetroForge.Studio;
 public sealed class GpuViewportHost : HwndHost
 {
     private nint _nativeHost;
+    private nint _fallbackWindow;
     private bool _subscribed;
 
     internal bool IsNativeReady => _nativeHost != 0;
+    internal bool IsFallback => _fallbackWindow != 0;
     internal long RenderCount { get; private set; }
     internal string LastError { get; private set; } = string.Empty;
 
@@ -30,12 +33,21 @@ public sealed class GpuViewportHost : HwndHost
         uint width = PixelSize(ActualWidth, dpi.DpiScaleX);
         uint height = PixelSize(ActualHeight, dpi.DpiScaleY);
         byte[] error = new byte[512];
-        _nativeHost = GpuHostNative.vg_gpu_host_create(hwndParent.Handle, width, height,
-            error, (nuint)error.Length);
+        try
+        {
+            _nativeHost = GpuHostNative.vg_gpu_host_create(hwndParent.Handle, width, height,
+                error, (nuint)error.Length);
+        }
+        catch (Exception exception) when (exception is DllNotFoundException or
+            EntryPointNotFoundException or BadImageFormatException)
+        {
+            LastError = $"GPU no disponible: {exception.Message}";
+            return BuildFallback(hwndParent);
+        }
         if (_nativeHost == 0)
         {
             LastError = GpuHostNative.Error(error);
-            throw new Win32Exception(LastError);
+            return BuildFallback(hwndParent);
         }
         nint child = GpuHostNative.vg_gpu_host_window(_nativeHost);
         if (child == 0)
@@ -61,11 +73,22 @@ public sealed class GpuViewportHost : HwndHost
             GpuHostNative.vg_gpu_host_destroy(_nativeHost);
             _nativeHost = 0;
         }
+        if (_fallbackWindow != 0)
+        {
+            _ = GpuHostNative.DestroyWindow(_fallbackWindow);
+            _fallbackWindow = 0;
+        }
     }
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
     {
         base.OnRenderSizeChanged(sizeInfo);
+        ResizeNative();
+    }
+
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
         ResizeNative();
     }
 
@@ -76,6 +99,11 @@ public sealed class GpuViewportHost : HwndHost
             _ = GpuHostNative.vg_gpu_host_focus(_nativeHost);
         base.OnMouseDown(e);
     }
+
+    protected override bool TabIntoCore(TraversalRequest request) =>
+        _nativeHost != 0 && GpuHostNative.vg_gpu_host_focus(_nativeHost) != 0;
+
+    protected override bool HasFocusWithinCore() => NativeHasFocus;
 
     internal bool RenderForTest()
     {
@@ -88,13 +116,35 @@ public sealed class GpuViewportHost : HwndHost
     internal bool NativeHasFocus =>
         _nativeHost != 0 && GpuHostNative.vg_gpu_host_has_focus(_nativeHost) != 0;
 
+    internal bool FocusNativeForTest() =>
+        _nativeHost != 0 && GpuHostNative.vg_gpu_host_focus(_nativeHost) != 0;
+
     internal bool CaptureForTest(string path) =>
         _nativeHost != 0 && GpuHostNative.vg_gpu_host_capture(_nativeHost, path) != 0;
 
     private void RenderFrame(object? sender, EventArgs e)
     {
-        if (IsVisible)
-            _ = RenderForTest();
+        Window? window = Window.GetWindow(this);
+        if (IsVisible && PresentationSource.FromVisual(this) is not null &&
+            window?.WindowState != WindowState.Minimized && ActualWidth > 0 && ActualHeight > 0)
+        {
+            if (!RenderForTest())
+            {
+                LastError = "La superficie GPU dej\u00f3 de responder.";
+                CompositionTarget.Rendering -= RenderFrame;
+                _subscribed = false;
+            }
+        }
+    }
+
+    private HandleRef BuildFallback(HandleRef hwndParent)
+    {
+        if (string.IsNullOrWhiteSpace(LastError))
+            LastError = "No se pudo inicializar la superficie GPU.";
+        _fallbackWindow = GpuHostNative.CreateFallbackWindow(hwndParent.Handle, LastError);
+        if (_fallbackWindow == 0)
+            throw new Win32Exception(Marshal.GetLastWin32Error(), LastError);
+        return new HandleRef(this, _fallbackWindow);
     }
 
     private void ResizeNative()
