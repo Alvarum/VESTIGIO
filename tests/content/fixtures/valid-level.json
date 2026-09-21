@@ -1,0 +1,56 @@
+{
+  "format": "vestigio.level",
+  "version": 1,
+  "id": "20000000-0000-0000-0000-000000000001",
+  "name": "Canonical chamber",
+  "coordinates": "right-handed-z-up-meters",
+  "required": ["core", "transform", "environment", "legacy-geometry", "component.engine.camera.v1"],
+  "environment": {
+    "ambient_linear": [0.08, 0.09, 0.12],
+    "clear_linear": [0.01, 0.02, 0.03],
+    "fog": { "mode": "linear", "start": 8.5, "end": 60, "color_linear": [0.1, 0.1, 0.14] }
+  },
+  "geometry": {
+    "kind": "legacy.sectors",
+    "version": 1,
+    "sectors": [
+      {
+        "id": "30000000-0000-0000-0000-000000000002",
+        "floor": 0,
+        "ceiling": 4,
+        "vertices": [[4,0],[8,0],[8,4],[4,4]],
+        "portals": [{"edge":3,"target":"30000000-0000-0000-0000-000000000001","opening":[0.25,0.75]}]
+      },
+      {
+        "id": "30000000-0000-0000-0000-000000000001",
+        "floor": -0.5,
+        "ceiling": 3.5,
+        "vertices": [[0,0],[4,0],[4,4],[0,4]],
+        "portals": [{"edge":1,"target":"30000000-0000-0000-0000-000000000002","opening":[0,1]}]
+      }
+    ]
+  },
+  "entities": [
+    {
+      "id": "40000000-0000-0000-0000-000000000002",
+      "parent": null,
+      "transform": {"position":[0,0,1.6],"rotation":[0,0,0,1],"scale":[1,1,1]},
+      "required_components": ["engine.camera"],
+      "components": {
+        "engine.camera": {"version":1,"fov_y_radians":1.0471975511965976,"near":0.05,"far":500},
+        "vendor.marker": {"version":7,"label":"optional survives","unicode":"caf\u00e9"}
+      }
+    },
+    {
+      "id": "40000000-0000-0000-0000-000000000001",
+      "parent": "40000000-0000-0000-0000-000000000002",
+      "transform": {"position":[1.25,-2.5,0],"rotation":[0,0,0,1],"scale":[1,2,1]},
+      "components": {
+        "engine.mesh": {"version":1,"asset":"50000000-0000-0000-0000-000000000001"},
+        "engine.collider": {"version":1,"shape":"box","motion":"static","center":[0,0,0.5],"half_extents":[0.5,0.5,0.5]}
+      }
+    }
+  ],
+  "extensions": {"vendor.level-note":{"enabled":true,"values":[3,2,1]}},
+  "vendor_optional": {"untouched":"yes"}
+}

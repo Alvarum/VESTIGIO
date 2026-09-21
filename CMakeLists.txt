@@ -55,6 +55,17 @@ if(NOT WIN32)
 endif()
 add_library(Vestigio::Runtime ALIAS vestigio_runtime)
 
+# Documentos de proyecto y nivel. Este target no depende del runtime ni de una
+# plataforma grafica, de modo que los validadores se pueden ejecutar en CI CPU.
+add_library(vestigio_content STATIC
+    src/content/json.c
+    src/content/content.c)
+retro_target(vestigio_content)
+target_include_directories(vestigio_content PUBLIC "${PROJECT_SOURCE_DIR}/src")
+if(NOT WIN32)
+    target_link_libraries(vestigio_content PRIVATE m)
+endif()
+
 add_library(retro_core STATIC src/engine/math.c src/engine/map.c src/engine/world.c
     src/engine/render.c src/engine/canvas.c src/engine/input.c)
 retro_target(retro_core)
@@ -206,6 +217,13 @@ if(RETRO_BUILD_APPS)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(vestigio_content_test tests/content/content_test.c)
+    retro_target(vestigio_content_test)
+    target_link_libraries(vestigio_content_test PRIVATE vestigio_content)
+    target_compile_definitions(vestigio_content_test PRIVATE
+        VG_CONTENT_FIXTURES="${PROJECT_SOURCE_DIR}/tests/content/fixtures")
+    add_test(NAME vestigio_content COMMAND vestigio_content_test)
+
     add_executable(vestigio_runtime_test tests/runtime/runtime_test.c)
     retro_target(vestigio_runtime_test)
     target_link_libraries(vestigio_runtime_test PRIVATE vestigio_runtime)

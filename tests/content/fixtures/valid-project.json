@@ -1,0 +1,15 @@
+{
+  "format": "vestigio.project",
+  "version": 1,
+  "id": "10000000-0000-0000-0000-000000000001",
+  "name": "D01 fixture",
+  "engine": { "api_major": 0, "min_minor": 1 },
+  "entry_level": "levels/start.level.json",
+  "game": { "kind": "builtin", "module": "fps" },
+  "defaults": "config/defaults.json",
+  "asset_roots": ["assets"],
+  "definition_roots": ["definitions"],
+  "required": ["core"],
+  "extensions": { "vendor.project-note": { "text": "preserve me" } },
+  "vendor_optional": { "precision": 0.10000000000000001 }
+}
