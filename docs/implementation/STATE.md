@@ -2,7 +2,7 @@
 
 Fecha de preparación del plan: 2026-09-20.
 
-- Estado global: **IMPLEMENTACIÓN_EN_CURSO — F00/F01/G01/G02/R01/R02 INTEGRADOS / R03, D01 Y M01 EN CURSO**.
+- Estado global: **IMPLEMENTACIÓN_EN_CURSO — F00/F01/G01/G02/R01/R02/D01 INTEGRADOS / R03, M01 Y D02 EN CURSO**.
 - HEAD observado para redactar: `28dafa949ff68ed3dc52bf93d287863037bf8578`.
 - Checkout observado limpio antes de crear `docs/implementation/`.
 - Cambios de código desde `ae48d31` hasta esa base: ninguno; se incorporó la investigación.
@@ -15,7 +15,7 @@ Verificación del paquete: **PASS**, 31 tickets, 61 dependencias, 15 oleadas te�
 
 ## Registro del coordinador
 
-F00/F01/G01/G02/R01/R02 integrados. R03 continúa runtime/SDK; D01 y M01 avanzan en contenido/importación.
+F00/F01/G01/G02/R01/R02/D01 integrados. R03 continúa runtime/SDK; M01 avanza en importación y D02 en documento/transacciones.
 
 | Ticket | Responsable / checkout | Base y resultado | Locks / archivos compartidos | Evidencia / siguiente paso |
 |---|---|---|---|---|
@@ -26,8 +26,9 @@ F00/F01/G01/G02/R01/R02 integrados. R03 continúa runtime/SDK; D01 y M01 avanzan
 | R01 | agente `r01_runtime` + `r02_design` + integrador | `9811b03` / `9ed4d5e` | liberado | [evidence/R01.md](evidence/R01.md); auditoría corregida y regresiones PASS |
 | R02 | agente `r02_design` + integrador | `9744dae` / `9ed4d5e` | liberado | [evidence/R02.md](evidence/R02.md); leases, candidatos CPU/GPU y ownership PASS |
 | R03 | agente `r02_design` / checkout compartido | `9ed4d5e` / en curso | runtime-core, public-api, build | callbacks y SDK instalable |
-| D01 | agente `r01_runtime` / checkout compartido | `9ed4d5e` / revisión de integración | document-schema | formato/validadores y corpus CPU |
+| D01 | integrado | `1acbd03` | libre | formato/validadores y corpus CPU |
 | M01 | agente `r01_review` / checkout compartido | `9ed4d5e` / en curso | asset-import | importer glTF/GLB e IR propia |
+| D02 | agente `r01_runtime` / checkout compartido | `1acbd03` / en curso | document-core, tool-api | documento/transacciones y Tool API |
 
 ## Bloqueos y decisiones pendientes
 

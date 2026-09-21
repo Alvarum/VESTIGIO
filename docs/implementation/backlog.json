@@ -65,7 +65,7 @@
       "validation": ["V-CORE", "V-APP", "V-WPF"], "unlocks": "Controlador, preferencias y paridad entre hosts."
     },
     {
-      "id": "D01", "phase": "P4", "title": "Formato canónico y validadores de contenido", "role": "content", "dependencies": ["R01"], "locks": ["document-schema"], "status": "IN_PROGRESS",
+      "id": "D01", "phase": "P4", "title": "Formato canónico y validadores de contenido", "role": "content", "dependencies": ["R01"], "locks": ["document-schema"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/D01.md"], "integrated_commit": "1acbd03",
       "paths": ["src/content/", "docs/formats/", "tests/content/", "docs/implementation/CONTRACTS.md"],
       "steps": ["Especificar e implementar parse/validate project/level JSON versionados usando un parser de procedencia revisada; fijar límites de lectura y tipos de componentes iniciales.", "Definir UUIDs, referencias, TRS quaternion, environment, geometry legacy y extensiones; campos desconocidos optional se retienen y required se rechazan.", "Añadir corpus de datos inválidos y diagnósticos con archivo/ruta/ID; no crear serializer C# paralelo ni representar todos los tipos futuros como implementados."],
       "acceptance": ["Validación rechaza duplicados, refs inexistentes, NaN/inf y versiones/capacidades incompatibles sin instanciar parcialmente mundo.", "Representación canónica de transforms/colores coincide con CONTRACTS y SDK; precisión y locale son explícitos.", "Round-trip estructural de componentes soportados y preservación de campos opcionales desconocidos tienen pruebas."],
@@ -93,7 +93,7 @@
       "validation": ["V-CORE", "V-APP", "V-GPU"], "unlocks": "Transición incremental sin perder niveles existentes."
     },
     {
-      "id": "D02", "phase": "P4", "title": "Documento nativo, transacciones y Tool API", "role": "content", "dependencies": ["D01", "R02"], "locks": ["document-core", "tool-api"], "status": "PLANNED",
+      "id": "D02", "phase": "P4", "title": "Documento nativo, transacciones y Tool API", "role": "content", "dependencies": ["D01", "R02"], "locks": ["document-core", "tool-api"], "status": "IN_PROGRESS",
       "paths": ["src/content/", "src/editor/editor.c", "src/gameplay/transaction.c", "include/vestigio/", "tests/content/"],
       "steps": ["Implementar documento/instanciador con mismos constructores/validadores de componentes del runtime y assets por ID; mantener blobs y GPU fuera del historial.", "Implementar begin(expected revision), comandos tipados, validate/commit/cancel, mapping de IDs y save transaccional recuperable.", "Conservar semántica undo/redo actual, duplicación con remap y unknown fields; autosave separado del guardado manual."],
       "acceptance": ["Lote inválido no cambia documento ni destruye redo; conflicto de revisión no pisa edición concurrente.", "Crear/duplicar/reparentar/guardar/reabrir conserva campos y refs; asset pesado no se copia por cada undo.", "Fallo entre archivos de commit tiene recuperación reproducible y no sobrescribe una versión futura."],

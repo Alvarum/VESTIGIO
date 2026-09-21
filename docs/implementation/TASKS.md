@@ -238,7 +238,7 @@ Desbloquea: Controlador, preferencias y paridad entre hosts.
 
 ## D01 — Formato canónico y validadores de contenido
 
-Fase: **P4** · Rol: **content** · Estado: **IN_PROGRESS**.
+Fase: **P4** · Rol: **content** · Estado: **INTEGRATED**.
 
 Dependencias integradas: R01.
 
@@ -261,6 +261,10 @@ Puntos de entrada: `src/content/`, `docs/formats/`, `tests/content/`, `docs/impl
 Verificación: V-CORE, V-DATA.
 
 Desbloquea: Documento transaccional, migraciones y formatos de agentes.
+
+Evidencia: docs/implementation/evidence/D01.md.
+
+Commit integrado: `1acbd03`.
 
 ## M01 — Importación GLB/glTF estática a representación propia
 
@@ -342,7 +346,7 @@ Desbloquea: Transición incremental sin perder niveles existentes.
 
 ## D02 — Documento nativo, transacciones y Tool API
 
-Fase: **P4** · Rol: **content** · Estado: **PLANNED**.
+Fase: **P4** · Rol: **content** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: D01, R02.
 
