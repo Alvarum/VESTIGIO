@@ -123,6 +123,14 @@ if(NOT WIN32)
     target_link_libraries(vestigio_content PRIVATE m)
 endif()
 
+add_library(vestigio_tool STATIC
+    src/content/document.c
+    src/content/document_runtime.c
+    src/tooling/tool_api.c)
+retro_target(vestigio_tool)
+target_include_directories(vestigio_tool PUBLIC "${PROJECT_SOURCE_DIR}/src")
+target_link_libraries(vestigio_tool PUBLIC vestigio_content vestigio_runtime)
+
 add_library(retro_core STATIC src/engine/math.c src/engine/map.c src/engine/world.c
     src/engine/render.c src/engine/canvas.c src/engine/input.c)
 retro_target(retro_core)
@@ -280,6 +288,21 @@ if(BUILD_TESTING)
     target_compile_definitions(vestigio_content_test PRIVATE
         VG_CONTENT_FIXTURES="${PROJECT_SOURCE_DIR}/tests/content/fixtures")
     add_test(NAME vestigio_content COMMAND vestigio_content_test)
+
+    add_executable(vestigio_document_test tests/content/document_test.c)
+    retro_target(vestigio_document_test)
+    target_link_libraries(vestigio_document_test PRIVATE vestigio_tool)
+    target_compile_definitions(vestigio_document_test PRIVATE
+        VG_CONTENT_FIXTURES="${PROJECT_SOURCE_DIR}/tests/content/fixtures"
+        VG_CONTENT_TEST_DIR="${CMAKE_CURRENT_BINARY_DIR}/document-test")
+    add_test(NAME vestigio_document COMMAND vestigio_document_test)
+
+    add_executable(vestigio_document_runtime_test tests/content/document_runtime_test.c)
+    retro_target(vestigio_document_runtime_test)
+    target_link_libraries(vestigio_document_runtime_test PRIVATE vestigio_tool)
+    target_compile_definitions(vestigio_document_runtime_test PRIVATE
+        VG_CONTENT_FIXTURES="${PROJECT_SOURCE_DIR}/tests/content/fixtures")
+    add_test(NAME vestigio_document_runtime COMMAND vestigio_document_runtime_test)
 
     add_executable(vestigio_runtime_test tests/runtime/runtime_test.c)
     retro_target(vestigio_runtime_test)
