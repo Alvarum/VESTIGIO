@@ -4,12 +4,17 @@
 #define RETRO_PLATFORM_H
 #include "retro/input.h"
 #include "retro/render.h"
+#include "vestigio/vestigio.h"
 
 typedef struct RePlatform RePlatform;
 typedef struct RePlatformConfig {
     const char *title;
     int framebuffer_width, framebuffer_height;
     bool hidden, audio;
+    bool fullscreen, vsync;
+    uint32_t frame_cap;
+    const VgInputBinding *bindings;
+    uint32_t binding_count;
 } RePlatformConfig;
 [[nodiscard]] RePlatform *re_platform_open(RePlatformConfig config, ReError *error);
 void re_platform_close(RePlatform *platform);

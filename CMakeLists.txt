@@ -49,6 +49,7 @@ add_library(vestigio_runtime STATIC
     src/runtime/context.c
     src/runtime/camera.c
     src/runtime/game.c
+    src/config/settings.c
     src/assets/asset_registry.c
     src/world/world.c
     src/world/transform.c)
@@ -214,7 +215,7 @@ if(RETRO_BUILD_APPS)
     # La DLL comparte simulación, presentación CPU y recursos entre WPF y Player.
     add_library(retro_session SHARED src/session/session.c)
     retro_target(retro_session)
-    target_link_libraries(retro_session PRIVATE retro_gameplay retro_platform)
+    target_link_libraries(retro_session PRIVATE retro_gameplay retro_platform vestigio_runtime)
     set_target_properties(retro_session PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin" PREFIX "" WINDOWS_EXPORT_ALL_SYMBOLS YES)
     target_link_libraries(retro_editor PRIVATE retro_session)

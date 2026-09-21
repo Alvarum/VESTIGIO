@@ -4,6 +4,7 @@
 #include "retro/editor.h"
 #include "retro/gameplay.h"
 #include "retro/project.h"
+#include "vestigio/vestigio.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,16 @@
         }                                                                                          \
     } while (0)
 #define NEAR(a, b) (fabsf((a) - (b)) < 0.001f)
+
+static_assert(RE_JUMP == VG_ACTION_JUMP && RE_PRIMARY == VG_ACTION_PRIMARY &&
+                  RE_INTERACT == VG_ACTION_INTERACT && RE_PAUSE == VG_ACTION_PAUSE &&
+                  RE_ACCEPT == VG_ACTION_ACCEPT && RE_UP == VG_ACTION_UI_UP &&
+                  RE_DOWN == VG_ACTION_UI_DOWN && RE_LEFT == VG_ACTION_UI_LEFT &&
+                  RE_RIGHT == VG_ACTION_UI_RIGHT && RE_MAP == VG_ACTION_MAP &&
+                  RE_WIRE == VG_ACTION_WIREFRAME && RE_DEPTH == VG_ACTION_DEPTH &&
+                  RE_STATS == VG_ACTION_STATS && RE_QUICK_SAVE == VG_ACTION_QUICK_SAVE &&
+                  RE_QUICK_LOAD == VG_ACTION_QUICK_LOAD,
+              "legacy Player and Studio actions must match the public action ABI");
 
 static bool geometry(void) {
     CHECK(NEAR(re_length2(re_v2(3, 4)), 5));
@@ -36,12 +47,20 @@ static bool geometry(void) {
 }
 static bool input_clock(void) {
     ReInput pending = {0};
-    re_input_accumulate(&pending,
-                        (ReInput){.pressed = RE_JUMP, .held = RE_PRIMARY, .look = {2, 3}});
-    re_input_accumulate(&pending, (ReInput){.held = RE_PRIMARY, .look = {4, 5}});
+    re_input_accumulate(
+        &pending,
+        (ReInput){.pressed = RE_JUMP, .held = RE_PRIMARY, .look = {2, 3}, .focused = true});
+    re_input_accumulate(
+        &pending,
+        (ReInput){.held = RE_PRIMARY, .released = RE_JUMP, .look = {4, 5}, .focused = true});
     ReInput first = re_input_consume(&pending), second = re_input_consume(&pending);
-    CHECK(first.pressed == RE_JUMP && first.look.x == 6 && first.look.y == 8);
-    CHECK(second.pressed == 0 && second.look.x == 0 && second.held == RE_PRIMARY);
+    CHECK(first.pressed == RE_JUMP && first.released == RE_JUMP && first.look.x == 6 &&
+          first.look.y == 8);
+    CHECK(second.pressed == 0 && second.released == 0 && second.look.x == 0 &&
+          second.held == RE_PRIMARY);
+    re_input_accumulate(&pending, (ReInput){.quit = true, .focused = false});
+    CHECK(pending.pressed == 0 && pending.held == 0 && pending.released == 0 &&
+          pending.look.x == 0 && pending.look.y == 0 && !pending.focused && pending.quit);
     ReClock c = {0};
     CHECK(re_clock_advance(&c, 0.008, true) == 0);
     CHECK(re_clock_advance(&c, 0.010, true) == 1);

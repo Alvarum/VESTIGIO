@@ -17,8 +17,13 @@ static bool has_scene_pixels(const ReTexture *capture) {
 
 int main(int argc, char **argv) {
     ReError error = {0};
-    RePlatform *platform = re_platform_open(
-        (RePlatformConfig){"VESTIGIO GPU verification", 320, 180, true, false}, &error);
+    RePlatform *platform = re_platform_open((RePlatformConfig){.title = "VESTIGIO GPU verification",
+                                                               .framebuffer_width = 320,
+                                                               .framebuffer_height = 180,
+                                                               .hidden = true,
+                                                               .audio = false,
+                                                               .frame_cap = 120u},
+                                            &error);
     if (!platform) {
         (void)fprintf(stderr, "FAIL platform: %s\n", error.message);
         return 1;

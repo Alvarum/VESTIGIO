@@ -73,8 +73,13 @@ int main(int argc, char **argv) {
     ReRenderer r = {0};
     ReTexture materials[RE_MAX_MATERIALS] = {0};
     ReWorld *world = calloc(1, sizeof(*world));
-    RePlatform *platform = re_platform_open(
-        (RePlatformConfig){"RetroForge | Laboratorio", 480, 270, smoke > 0, false}, &error);
+    RePlatform *platform = re_platform_open((RePlatformConfig){.title = "RetroForge | Laboratorio",
+                                                               .framebuffer_width = 480,
+                                                               .framebuffer_height = 270,
+                                                               .hidden = smoke > 0,
+                                                               .audio = false,
+                                                               .frame_cap = 120u},
+                                            &error);
     int result = 1;
     char path[2048];
     if (!platform || !world || !re_platform_asset_path("lab.map", path, sizeof(path)) ||

@@ -23,15 +23,15 @@ enum ReAction {
 typedef struct ReInput {
     ReVec2 movement; /* x=strafe, y=adelante, longitud <=1. */
     ReVec2 look;     /* Desplazamiento del ratón, en píxeles relativos. */
-    uint32_t pressed, held;
+    uint32_t pressed, held, released;
     bool focused, quit;
 } ReInput;
 typedef struct ReClock {
     double accumulator;
     unsigned int dropped_ticks;
 } ReClock;
-/* Un frame sin tick conserva pulsaciones y movimiento de ratón. consume borra
- * sólo eventos; las teclas mantenidas siguen activas en ticks posteriores. */
+/* Un frame sin tick conserva transiciones y movimiento de ratón. Perder foco
+ * limpia todo el estado; consume borra pressed/released/look y conserva held. */
 void re_input_accumulate(ReInput *pending, ReInput frame);
 ReInput re_input_consume(ReInput *pending);
 /* Añade tiempo real acotado. Devuelve <=8 ticks y deja resto para interpolar. */

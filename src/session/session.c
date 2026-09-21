@@ -29,6 +29,8 @@ struct ReGameSession {
     ReRenderer renderer;
     ReClock clock;
     ReInput pending;
+    VgSettingsLayer settings;
+    float look_sensitivity;
     bool preview;
     ReProject project;
     ReGameplay gameplay;
@@ -626,9 +628,9 @@ static void tick(PlayerApp *app, ReInput input) {
     app->weapon_flash = fmaxf(0, app->weapon_flash - RE_FIXED_DT);
     app->damage_flash = fmaxf(0, app->damage_flash - RE_FIXED_DT);
     app->previous_camera = app->camera;
-    app->camera.yaw += input.look.x * .0025f;
-    app->camera.pitch = re_clamp(app->camera.pitch - input.look.y * .0025f, -85 * RE_PI / 180.0f,
-                                 85 * RE_PI / 180.0f);
+    app->camera.yaw += input.look.x * app->look_sensitivity;
+    app->camera.pitch = re_clamp(app->camera.pitch - input.look.y * app->look_sensitivity,
+                                 -85 * RE_PI / 180.0f, 85 * RE_PI / 180.0f);
     ReVec2 forward = re_v2(sinf(app->camera.yaw), cosf(app->camera.yaw));
     ReVec2 right = re_v2(cosf(app->camera.yaw), -sinf(app->camera.yaw));
     ReVec2 movement =
@@ -959,8 +961,59 @@ static void wrap_text(const char *source, char *destination, size_t capacity, si
 
 /* API de sesión. Todos los recursos pertenecen a este handle y se liberan
  * simétricamente, incluso si falla la creación a mitad de la carga. */
-int re_session_create(const ReProject *project, int preview, int menu, ReGameSession **out,
-                      ReError *error) {
+int re_session_resolve_settings(const ReProject *project, const VgSettingsLayer *session_overrides,
+                                VgSettingsLayer *out, ReError *error) {
+    if (!project || !out || !error)
+        return 0;
+    VgSettingsLayer project_layer = {0}, user_layer = {0};
+    project_layer.struct_size = sizeof(project_layer);
+    project_layer.api_version = VG_API_VERSION;
+    user_layer.struct_size = sizeof(user_layer);
+    user_layer.api_version = VG_API_VERSION;
+    VgSettingsDiagnostic diagnostic = {0};
+    diagnostic.struct_size = sizeof(diagnostic);
+    diagnostic.api_version = VG_API_VERSION;
+    const VgSettingsLayer *project_ptr = NULL;
+    const VgSettingsLayer *user_ptr = NULL;
+    char path[RE_PROJECT_PATH * 2];
+    if (re_project_path(project, "settings.vgs", path, sizeof(path))) {
+        VgResult loaded = vg_settings_load_file(path, &project_layer, &diagnostic);
+        if (loaded == VG_OK)
+            project_ptr = &project_layer;
+        else if (loaded != VG_ERROR_IO) {
+            (void)snprintf(error->message, sizeof(error->message), "Settings de proyecto: %s",
+                           diagnostic.message);
+            error->line = diagnostic.line;
+            return 0;
+        }
+    }
+    if (re_platform_user_path(project->id, "settings.vgs", path, sizeof(path))) {
+        VgResult loaded = vg_settings_load_file(path, &user_layer, &diagnostic);
+        if (loaded == VG_OK)
+            user_ptr = &user_layer;
+        else if (loaded != VG_ERROR_IO) {
+            (void)snprintf(error->message, sizeof(error->message), "Settings de usuario: %s",
+                           diagnostic.message);
+            error->line = diagnostic.line;
+            return 0;
+        }
+    }
+    out->struct_size = sizeof(*out);
+    out->api_version = VG_API_VERSION;
+    VgResult result =
+        vg_settings_resolve(project_ptr, user_ptr, session_overrides, out, &diagnostic);
+    if (result != VG_OK) {
+        (void)snprintf(error->message, sizeof(error->message), "Settings: %s", diagnostic.message);
+        error->line = diagnostic.line;
+        return 0;
+    }
+    *error = (ReError){0};
+    return 1;
+}
+
+int re_session_create_configured(const ReProject *project, int preview, int menu,
+                                 const VgSettingsLayer *session_overrides, ReGameSession **out,
+                                 ReError *error) {
     if (!project || !out || !error)
         return 0;
     *out = nullptr;
@@ -968,7 +1021,20 @@ int re_session_create(const ReProject *project, int preview, int menu, ReGameSes
     if (!session)
         return 0;
     session->preview = preview != 0;
-    if (!app_init(session, project) || !re_renderer_init(&session->renderer, 480, 270)) {
+    if (!re_session_resolve_settings(project, session_overrides, &session->settings, error)) {
+        free(session);
+        return 0;
+    }
+    if (session->settings.internal_width > 4096u || session->settings.internal_height > 4096u) {
+        (void)snprintf(error->message, sizeof(error->message),
+                       "La sesión legacy admite resolución interna máxima 4096x4096");
+        free(session);
+        return 0;
+    }
+    session->look_sensitivity = session->settings.look_sensitivity;
+    if (!app_init(session, project) ||
+        !re_renderer_init(&session->renderer, (int)session->settings.internal_width,
+                          (int)session->settings.internal_height)) {
         (void)snprintf(error->message, sizeof(error->message),
                        "No se pudo crear la sesión: revisa el inicio del jugador y los recursos");
         re_session_destroy(session);
@@ -978,6 +1044,11 @@ int re_session_create(const ReProject *project, int preview, int menu, ReGameSes
     *out = session;
     *error = (ReError){0};
     return 1;
+}
+
+int re_session_create(const ReProject *project, int preview, int menu, ReGameSession **out,
+                      ReError *error) {
+    return re_session_create_configured(project, preview, menu, NULL, out, error);
 }
 
 void re_session_destroy(ReGameSession *session) {
@@ -996,14 +1067,15 @@ void re_session_destroy(ReGameSession *session) {
 }
 
 void re_session_frame(ReGameSession *session, double elapsed, float move_x, float move_y,
-                      float look_x, float look_y, uint32_t pressed, uint32_t held, int focused,
-                      int single_step) {
+                      float look_x, float look_y, uint32_t pressed, uint32_t held,
+                      uint32_t released, int focused, int single_step) {
     if (!session)
         return;
     ReInput input = {.movement = {move_x, move_y},
                      .look = {look_x, look_y},
                      .pressed = pressed,
                      .held = held,
+                     .released = released,
                      .focused = focused != 0};
     if (elapsed > 0 && elapsed < 1)
         session->frame_ms = (float)(elapsed * 1000);
@@ -1026,10 +1098,33 @@ const ReRenderer *re_session_renderer(const ReGameSession *session) {
 }
 
 int re_session_copy_pixels(const ReGameSession *session, void *destination, uint32_t bytes) {
-    const size_t required = 480u * 270u * 4u;
-    if (!session || !destination || bytes < required)
+    if (!session || !destination)
+        return 0;
+    size_t required = (size_t)session->renderer.width * (size_t)session->renderer.height * 4u;
+    if ((uint64_t)bytes < (uint64_t)required)
         return 0;
     memcpy(destination, session->renderer.pixels, required);
+    return 1;
+}
+
+int re_session_dimensions(const ReGameSession *session, uint32_t *width, uint32_t *height) {
+    if (!session || !width || !height)
+        return 0;
+    *width = (uint32_t)session->renderer.width;
+    *height = (uint32_t)session->renderer.height;
+    return 1;
+}
+
+uint32_t re_session_binding_count(const ReGameSession *session) {
+    return session ? session->settings.binding_count : 0u;
+}
+
+int re_session_binding(const ReGameSession *session, uint32_t index, uint64_t *action,
+                       uint32_t *code) {
+    if (!session || !action || !code || index >= session->settings.binding_count)
+        return 0;
+    *action = session->settings.bindings[index].action;
+    *code = session->settings.bindings[index].code;
     return 1;
 }
 
@@ -1044,7 +1139,9 @@ int re_session_flags(const ReGameSession *session) {
 size_t re_session_memory(const ReGameSession *session) {
     if (!session)
         return 0;
-    size_t total = sizeof(*session) + 480u * 270u * 8u + texture_bytes(&session->title_art);
+    size_t total = sizeof(*session) +
+                   (size_t)session->renderer.width * (size_t)session->renderer.height * 8u +
+                   texture_bytes(&session->title_art);
     for (size_t i = 0; i < RE_MAX_MATERIALS; i++)
         total += texture_bytes(&session->materials[i]);
     for (size_t i = 0; i < RE_MAX_CHARACTER_DEFS; i++)

@@ -8,6 +8,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #define CHECK(condition)                                                                           \
     do {                                                                                           \
         if (!(condition)) {                                                                        \
@@ -15,6 +19,36 @@
             return 1;                                                                              \
         }                                                                                          \
     } while (0)
+
+static int remove_utf8(const char *path) {
+#ifdef _WIN32
+    wchar_t wide[1024];
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide,
+                            (int)(sizeof(wide) / sizeof(wide[0]))) == 0)
+        return -1;
+    return _wremove(wide);
+#else
+    return remove(path);
+#endif
+}
+
+static bool overwrite_text(const char *path, const char *text) {
+    FILE *file = fopen(path, "wb");
+    if (file == NULL)
+        return false;
+    const bool written = fputs(text, file) >= 0;
+    const bool closed = fclose(file) == 0;
+    return written && closed;
+}
+
+static bool read_first_line(const char *path, char *buffer, size_t capacity) {
+    FILE *file = fopen(path, "rb");
+    if (file == NULL)
+        return false;
+    const bool read = fgets(buffer, (int)capacity, file) != NULL;
+    const bool closed = fclose(file) == 0;
+    return read && closed;
+}
 
 typedef struct TestAllocator {
     uint32_t calls;
@@ -46,6 +80,13 @@ typedef struct GameState {
     VgResult nested_create;
     VgResult emitted_result;
 } GameState;
+
+typedef struct InputProbe {
+    VgGame *game;
+    VgInputState states[8];
+    float deltas[8];
+    uint32_t count;
+} InputProbe;
 
 static void *test_allocate(void *user, uint64_t size) {
     TestAllocator *allocator = user;
@@ -165,6 +206,226 @@ static VgGameCallbacks callbacks_for(GameState *state) {
     callbacks.draw_ui = game_draw_ui;
     callbacks.shutdown = game_shutdown;
     return callbacks;
+}
+
+static void input_fixed_update(VgContext *context, VgWorld world, float dt_seconds, void *user) {
+    (void)context;
+    (void)world;
+    InputProbe *probe = user;
+    if (probe->count >= 8u)
+        return;
+    VgInputState *state = &probe->states[probe->count];
+    memset(state, 0, sizeof(*state));
+    state->struct_size = sizeof(*state);
+    state->api_version = VG_API_VERSION;
+    if (vg_game_get_input(probe->game, state) == VG_OK) {
+        probe->deltas[probe->count] = dt_seconds;
+        ++probe->count;
+    }
+}
+
+static int test_input_accumulation_and_focus(void) {
+    VgContextDesc context_desc = {0};
+    context_desc.struct_size = sizeof(context_desc);
+    context_desc.api_version = VG_API_VERSION;
+    VgContext *context = NULL;
+    CHECK(vg_context_create(&context_desc, &context) == VG_OK);
+    VgWorld world = {0};
+    CHECK(vg_world_create(context, NULL, &world) == VG_OK);
+    InputProbe probe = {0};
+    VgGameCallbacks callbacks = {0};
+    callbacks.struct_size = sizeof(callbacks);
+    callbacks.api_version = VG_API_VERSION;
+    callbacks.user = &probe;
+    callbacks.fixed_update = input_fixed_update;
+    VgGameDesc description = {sizeof(description), VG_API_VERSION, 0.1, 1.0, 4u, 4u, 4u, 0u};
+    CHECK(vg_game_create(context, &description, &callbacks, &probe.game) == VG_OK);
+    CHECK(vg_game_set_world(probe.game, world) == VG_OK);
+
+    VgInputSample sample = {
+        sizeof(sample), VG_API_VERSION, 0u, VG_ACTION_JUMP, 0u, 1.0f, 1.5f, 1u, 0u};
+    VgStepInfo step = {0};
+    step.struct_size = sizeof(step);
+    step.api_version = VG_API_VERSION;
+    CHECK(vg_game_submit_input(probe.game, &sample) == VG_OK);
+    CHECK(vg_game_step(probe.game, 0.05, &step) == VG_OK && probe.count == 0u);
+    sample.look_delta_x = 2.0f;
+    sample.look_delta_y = 2.5f;
+    CHECK(vg_game_submit_input(probe.game, &sample) == VG_OK);
+    CHECK(vg_game_step(probe.game, 0.05, &step) == VG_OK && probe.count == 1u);
+    CHECK(probe.states[0].pressed == VG_ACTION_JUMP && probe.states[0].held == VG_ACTION_JUMP &&
+          probe.states[0].released == 0u);
+    CHECK(fabsf(probe.states[0].look_delta_x - 3.0f) < 0.0001f &&
+          fabsf(probe.states[0].look_delta_y - 4.0f) < 0.0001f);
+    CHECK(vg_game_step(probe.game, 0.1, &step) == VG_OK && probe.count == 2u);
+    CHECK(probe.states[1].pressed == 0u && probe.states[1].held == VG_ACTION_JUMP &&
+          probe.states[1].released == 0u && probe.states[1].look_delta_x == 0.0f);
+
+    sample.held = 0u;
+    sample.look_delta_x = 0.0f;
+    sample.look_delta_y = 0.0f;
+    CHECK(vg_game_submit_input(probe.game, &sample) == VG_OK);
+    CHECK(vg_game_step(probe.game, 0.1, &step) == VG_OK && probe.count == 3u);
+    CHECK(probe.states[2].pressed == 0u && probe.states[2].held == 0u &&
+          probe.states[2].released == VG_ACTION_JUMP);
+
+    sample.held = VG_ACTION_PRIMARY;
+    CHECK(vg_game_submit_input(probe.game, &sample) == VG_OK);
+    sample.held = 0u;
+    CHECK(vg_game_submit_input(probe.game, &sample) == VG_OK);
+    CHECK(vg_game_step(probe.game, 0.1, &step) == VG_OK && probe.count == 4u);
+    CHECK(probe.states[3].pressed == VG_ACTION_PRIMARY && probe.states[3].held == 0u &&
+          probe.states[3].released == VG_ACTION_PRIMARY);
+
+    sample.held = VG_ACTION_PRIMARY;
+    CHECK(vg_game_submit_input(probe.game, &sample) == VG_OK);
+    CHECK(vg_game_step(probe.game, 0.05, &step) == VG_OK && probe.count == 4u);
+    sample.focused = 0u;
+    sample.held = 0u;
+    CHECK(vg_game_submit_input(probe.game, &sample) == VG_OK);
+    CHECK(vg_game_step(probe.game, 0.09, &step) == VG_OK && probe.count == 4u);
+    sample.focused = 1u;
+    CHECK(vg_game_submit_input(probe.game, &sample) == VG_OK);
+    CHECK(vg_game_step(probe.game, 0.01, &step) == VG_OK && probe.count == 4u);
+    CHECK(vg_game_step(probe.game, 0.091, &step) == VG_OK && probe.count == 5u);
+    CHECK(probe.states[4].pressed == 0u && probe.states[4].held == 0u &&
+          probe.states[4].released == 0u && probe.states[4].focused == 1u);
+    CHECK(fabsf(probe.deltas[4] - 0.1f) < 0.0001f);
+
+    struct {
+        uint32_t struct_size;
+        uint32_t api_version;
+        uint64_t canary;
+    } prefix = {offsetof(VgInputState, pressed), VG_API_VERSION, UINT64_C(0xA5A5A5A5A5A5A5A5)};
+    CHECK(vg_game_get_input(probe.game, (VgInputState *)&prefix) == VG_OK);
+    CHECK(vg_game_get_input(probe.game, (VgInputState *)&prefix) == VG_OK);
+    CHECK(prefix.struct_size == offsetof(VgInputState, pressed));
+    CHECK(prefix.canary == UINT64_C(0xA5A5A5A5A5A5A5A5));
+
+    CHECK(vg_game_destroy(probe.game) == VG_OK);
+    CHECK(vg_world_destroy(context, world) == VG_OK);
+    vg_context_destroy(context);
+    return 0;
+}
+
+static VgSettingsLayer settings_layer(VgSettingMask present) {
+    VgSettingsLayer layer;
+    memset(&layer, 0, sizeof(layer));
+    layer.struct_size = sizeof(layer);
+    layer.api_version = VG_API_VERSION;
+    layer.present = present;
+    return layer;
+}
+
+static int test_settings_layers_validation_and_persistence(void) {
+    const char *path = "i01-settings-test.vgs";
+    const char *unicode_path = "i01-configuración-测试.vgs";
+    VgSettingsLayer defaults = settings_layer(0u);
+    CHECK(vg_settings_defaults(&defaults) == VG_OK);
+    CHECK(defaults.present == VG_SETTINGS_ALL && defaults.internal_width == 480u &&
+          defaults.internal_height == 270u && defaults.vsync == 1u && defaults.frame_cap == 120u &&
+          defaults.binding_count != 0u);
+    struct {
+        uint32_t struct_size;
+        uint32_t api_version;
+        VgSettingMask present;
+        uint32_t canary;
+    } settings_prefix = {offsetof(VgSettingsLayer, internal_width), VG_API_VERSION, 0u,
+                         UINT32_C(0xA5A5A5A5)};
+    CHECK(vg_settings_defaults((VgSettingsLayer *)&settings_prefix) == VG_OK);
+    CHECK(vg_settings_defaults((VgSettingsLayer *)&settings_prefix) == VG_OK);
+    CHECK(settings_prefix.struct_size == offsetof(VgSettingsLayer, internal_width));
+    CHECK(settings_prefix.present == 0u && settings_prefix.canary == UINT32_C(0xA5A5A5A5));
+    CHECK(vg_settings_validate((const VgSettingsLayer *)&settings_prefix, NULL) == VG_OK);
+
+    VgSettingsLayer project = settings_layer(VG_SETTING_INTERNAL_RESOLUTION | VG_SETTING_FRAME_CAP);
+    project.internal_width = 640u;
+    project.internal_height = 360u;
+    project.frame_cap = 90u;
+    VgSettingsLayer user =
+        settings_layer(VG_SETTING_FULLSCREEN | VG_SETTING_VSYNC | VG_SETTING_LOOK_SENSITIVITY);
+    user.fullscreen = 1u;
+    user.vsync = 0u;
+    user.look_sensitivity = 0.004f;
+    VgSettingsLayer session = settings_layer(VG_SETTING_FRAME_CAP);
+    session.frame_cap = 144u;
+    VgSettingsLayer project_before = project;
+    VgSettingsLayer user_before = user;
+    VgSettingsLayer session_before = session;
+    VgSettingsLayer resolved = settings_layer(0u);
+    VgSettingsDiagnostic diagnostic = {sizeof(diagnostic), VG_API_VERSION, VG_OK, 0u, {0}};
+    CHECK(vg_settings_resolve(&project, &user, &session, &resolved, &diagnostic) == VG_OK);
+    CHECK(resolved.internal_width == 640u && resolved.internal_height == 360u &&
+          resolved.fullscreen == 1u && resolved.vsync == 0u && resolved.frame_cap == 144u &&
+          fabsf(resolved.look_sensitivity - 0.004f) < 0.0001f);
+    CHECK(memcmp(&project, &project_before, sizeof(project)) == 0 &&
+          memcmp(&user, &user_before, sizeof(user)) == 0 &&
+          memcmp(&session, &session_before, sizeof(session)) == 0);
+
+    VgSettingsChanges changes = {sizeof(changes), VG_API_VERSION, 0u, 0u, 0u};
+    CHECK(vg_settings_diff(&defaults, &resolved, &changes) == VG_OK);
+    CHECK((changes.immediate & VG_SETTING_FRAME_CAP) != 0u &&
+          (changes.immediate & VG_SETTING_LOOK_SENSITIVITY) != 0u);
+    CHECK(changes.recreate_targets == VG_SETTING_INTERNAL_RESOLUTION);
+    CHECK((changes.recreate_surface & VG_SETTING_FULLSCREEN) != 0u &&
+          (changes.recreate_surface & VG_SETTING_VSYNC) != 0u);
+    struct {
+        uint32_t struct_size;
+        uint32_t api_version;
+        uint32_t canary;
+    } changes_prefix = {offsetof(VgSettingsChanges, immediate), VG_API_VERSION,
+                        UINT32_C(0xC3C3C3C3)};
+    CHECK(vg_settings_diff(&defaults, &resolved, (VgSettingsChanges *)&changes_prefix) == VG_OK);
+    CHECK(vg_settings_diff(&defaults, &resolved, (VgSettingsChanges *)&changes_prefix) == VG_OK);
+    CHECK(changes_prefix.struct_size == offsetof(VgSettingsChanges, immediate));
+    CHECK(changes_prefix.canary == UINT32_C(0xC3C3C3C3));
+
+    VgSettingsLayer conflict = settings_layer(VG_SETTING_BINDINGS);
+    conflict.binding_count = 2u;
+    conflict.bindings[0] = (VgInputBinding){VG_ACTION_JUMP, VG_INPUT_KEY_SPACE, 0u};
+    conflict.bindings[1] = (VgInputBinding){VG_ACTION_ACCEPT, VG_INPUT_KEY_SPACE, 0u};
+    VgSettingsLayer untouched = resolved;
+    CHECK(vg_settings_resolve(NULL, &conflict, NULL, &resolved, &diagnostic) == VG_ERROR_CONFLICT);
+    CHECK(memcmp(&resolved, &untouched, sizeof(resolved)) == 0);
+    CHECK(diagnostic.result == VG_ERROR_CONFLICT && diagnostic.message[0] != '\0');
+
+    CHECK(vg_settings_save_file(path, &user, &diagnostic) == VG_OK);
+    VgSettingsLayer loaded = settings_layer(0u);
+    CHECK(vg_settings_load_file(path, &loaded, &diagnostic) == VG_OK);
+    CHECK(loaded.present == user.present && loaded.fullscreen == user.fullscreen &&
+          loaded.vsync == user.vsync && loaded.look_sensitivity == user.look_sensitivity);
+    conflict.bindings[1].code = 0u;
+    CHECK(vg_settings_save_file(path, &conflict, &diagnostic) == VG_ERROR_INVALID_ARGUMENT);
+    loaded = settings_layer(0u);
+    CHECK(vg_settings_load_file(path, &loaded, &diagnostic) == VG_OK);
+    CHECK(loaded.present == user.present && loaded.look_sensitivity == user.look_sensitivity);
+
+    VgSettingsLayer sentinel = loaded;
+    sentinel.frame_cap = UINT32_C(0xA5A5A5A5);
+    VgSettingsLayer sentinel_before = sentinel;
+    CHECK(overwrite_text(path, "not settings\n"));
+    CHECK(vg_settings_load_file(path, &sentinel, &diagnostic) == VG_ERROR_INVALID_ARGUMENT);
+    CHECK(memcmp(&sentinel, &sentinel_before, sizeof(sentinel)) == 0);
+    CHECK(diagnostic.line == 1u && diagnostic.message[0] != '\0');
+    CHECK(vg_settings_save_file(path, &defaults, &diagnostic) == VG_ERROR_INVALID_ARGUMENT);
+    char preserved[32] = {0};
+    CHECK(read_first_line(path, preserved, sizeof(preserved)));
+    CHECK(strcmp(preserved, "not settings\n") == 0);
+    CHECK(overwrite_text(path, "VESTIGIO_SETTINGS 999\n"));
+    CHECK(vg_settings_load_file(path, &sentinel, &diagnostic) == VG_ERROR_FORMAT_VERSION);
+    CHECK(memcmp(&sentinel, &sentinel_before, sizeof(sentinel)) == 0);
+    CHECK(diagnostic.line == 1u && diagnostic.message[0] != '\0');
+    CHECK(vg_settings_save_file(path, &defaults, &diagnostic) == VG_ERROR_FORMAT_VERSION);
+    memset(preserved, 0, sizeof(preserved));
+    CHECK(read_first_line(path, preserved, sizeof(preserved)));
+    CHECK(strcmp(preserved, "VESTIGIO_SETTINGS 999\n") == 0);
+    CHECK(remove_utf8(path) == 0);
+    CHECK(vg_settings_save_file(unicode_path, &user, &diagnostic) == VG_OK);
+    loaded = settings_layer(0u);
+    CHECK(vg_settings_load_file(unicode_path, &loaded, &diagnostic) == VG_OK);
+    CHECK(loaded.present == user.present && loaded.look_sensitivity == user.look_sensitivity);
+    CHECK(remove_utf8(unicode_path) == 0);
+    return 0;
 }
 
 static int create_context_world(GameState *state, TestAllocator *allocator, VgContext **context) {
@@ -391,6 +652,8 @@ static int test_oom_and_context_cleanup_order(void) {
 }
 
 int main(void) {
+    CHECK(test_input_accumulation_and_focus() == 0);
+    CHECK(test_settings_layers_validation_and_persistence() == 0);
     CHECK(test_lifecycle_stepping_events_and_camera() == 0);
     CHECK(test_failure_and_transaction_boundaries() == 0);
     CHECK(test_oom_and_context_cleanup_order() == 0);

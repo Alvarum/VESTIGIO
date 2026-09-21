@@ -30,6 +30,11 @@ struct VgGame {
     double max_frame_delta;
     double accumulator;
     float interpolation_alpha;
+    VgInputState input_pending;
+    VgInputState input_current;
+    VgActionSet sampled_held;
+    uint64_t input_tick;
+    bool input_suspended;
     bool initialized;
     bool world_is_ready;
     bool operating;
@@ -76,6 +81,30 @@ static void vg_game_release(VgGame *game) {
     game->magic = 0u;
     vg_runtime_deallocate(context, events);
     vg_runtime_deallocate(context, game);
+}
+
+static void vg_game_clear_input(VgGame *game) {
+    uint64_t tick = game->input_tick;
+    memset(&game->input_pending, 0, sizeof(game->input_pending));
+    memset(&game->input_current, 0, sizeof(game->input_current));
+    game->input_pending.struct_size = sizeof(VgInputState);
+    game->input_pending.api_version = VG_API_VERSION;
+    game->input_current.struct_size = sizeof(VgInputState);
+    game->input_current.api_version = VG_API_VERSION;
+    game->input_current.tick_index = tick;
+    game->sampled_held = 0u;
+    game->accumulator = 0.0;
+    game->interpolation_alpha = 0.0f;
+}
+
+static void vg_game_publish_input(VgGame *game) {
+    ++game->input_tick;
+    game->input_current = game->input_pending;
+    game->input_current.tick_index = game->input_tick;
+    game->input_pending.pressed = 0u;
+    game->input_pending.released = 0u;
+    game->input_pending.look_delta_x = 0.0f;
+    game->input_pending.look_delta_y = 0.0f;
 }
 
 VgResult vg_game_create(VgContext *context, const VgGameDesc *description,
@@ -140,6 +169,7 @@ VgResult vg_game_create(VgContext *context, const VgGameDesc *description,
     game->max_fixed_steps = max_fixed_steps;
     game->fixed_delta = fixed_delta;
     game->max_frame_delta = max_frame_delta;
+    vg_game_clear_input(game);
     size_t callback_bytes = callbacks->struct_size;
     if (callback_bytes > sizeof(game->callbacks))
         callback_bytes = sizeof(game->callbacks);
@@ -271,6 +301,65 @@ VgResult vg_game_emit_event(VgGame *game, const VgEvent *event) {
     return VG_OK;
 }
 
+VgResult vg_game_submit_input(VgGame *game, const VgInputSample *sample) {
+    if (!vg_game_valid(game) || sample == NULL ||
+        sample->struct_size < offsetof(VgInputSample, focused) + sizeof(sample->focused) ||
+        sample->api_version != VG_API_VERSION || sample->focused > 1u ||
+        !isfinite(sample->look_delta_x) || !isfinite(sample->look_delta_y))
+        return VG_ERROR_INVALID_ARGUMENT;
+    if (vg_game_field_present(sample->struct_size, offsetof(VgInputSample, reserved),
+                              sizeof(sample->reserved)) &&
+        sample->reserved != 0u)
+        return VG_ERROR_INVALID_ARGUMENT;
+    if (game->operating || game->context->game_callback_depth != 0u || game->context->destroying)
+        return VG_ERROR_REENTRANT;
+    if (sample->focused == 0u) {
+        vg_game_clear_input(game);
+        game->input_suspended = true;
+        return VG_OK;
+    }
+    float look_x = game->input_pending.look_delta_x + sample->look_delta_x;
+    float look_y = game->input_pending.look_delta_y + sample->look_delta_y;
+    if (!isfinite(look_x) || !isfinite(look_y))
+        return VG_ERROR_INVALID_ARGUMENT;
+    VgActionSet transitions_pressed = sample->held & ~game->sampled_held;
+    VgActionSet transitions_released = game->sampled_held & ~sample->held;
+    game->input_pending.pressed |= sample->pressed | transitions_pressed;
+    game->input_pending.released |= sample->released | transitions_released;
+    game->input_pending.held = sample->held;
+    game->input_pending.look_delta_x = look_x;
+    game->input_pending.look_delta_y = look_y;
+    game->input_pending.focused = 1u;
+    game->sampled_held = sample->held;
+    game->input_suspended = false;
+    return VG_OK;
+}
+
+VgResult vg_game_get_input(VgGame *game, VgInputState *out_state) {
+    if (!vg_game_valid(game) || out_state == NULL ||
+        out_state->struct_size <
+            offsetof(VgInputState, api_version) + sizeof(out_state->api_version) ||
+        out_state->api_version != VG_API_VERSION)
+        return VG_ERROR_INVALID_ARGUMENT;
+    uint32_t capacity = out_state->struct_size;
+#define VG_WRITE_INPUT_FIELD(field)                                                                \
+    do {                                                                                           \
+        if ((uint64_t)capacity >=                                                                  \
+            (uint64_t)offsetof(VgInputState, field) + sizeof(out_state->field))                    \
+            out_state->field = game->input_current.field;                                          \
+    } while (0)
+    VG_WRITE_INPUT_FIELD(pressed);
+    VG_WRITE_INPUT_FIELD(held);
+    VG_WRITE_INPUT_FIELD(released);
+    VG_WRITE_INPUT_FIELD(look_delta_x);
+    VG_WRITE_INPUT_FIELD(look_delta_y);
+    VG_WRITE_INPUT_FIELD(focused);
+    VG_WRITE_INPUT_FIELD(reserved);
+    VG_WRITE_INPUT_FIELD(tick_index);
+#undef VG_WRITE_INPUT_FIELD
+    return VG_OK;
+}
+
 static uint32_t vg_game_drain_events(VgGame *game) {
     uint32_t dispatched = 0u;
     while (dispatched < game->max_events_per_tick && game->event_count != 0u) {
@@ -302,6 +391,8 @@ VgResult vg_game_step(VgGame *game, double elapsed_seconds, VgStepInfo *out_info
         return result;
 
     double accepted_elapsed = elapsed_seconds;
+    if (game->input_suspended)
+        accepted_elapsed = 0.0;
     if (accepted_elapsed > game->max_frame_delta)
         accepted_elapsed = game->max_frame_delta;
     game->accumulator += accepted_elapsed;
@@ -309,6 +400,7 @@ VgResult vg_game_step(VgGame *game, double elapsed_seconds, VgStepInfo *out_info
     uint32_t events = 0u;
     game->operating = true;
     while (game->accumulator >= game->fixed_delta && steps < game->max_fixed_steps) {
+        vg_game_publish_input(game);
         if (game->callbacks.fixed_update != NULL) {
             vg_game_enter_callback(game);
             game->callbacks.fixed_update(game->context, game->world, (float)game->fixed_delta,

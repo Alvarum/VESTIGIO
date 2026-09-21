@@ -42,8 +42,13 @@ int main(int argc, char **argv) {
         }
     }
     ReError error = {0};
-    RePlatform *platform = re_platform_open(
-        (RePlatformConfig){"FOUNDRY | RetroForge", 480, 270, smoke_frames > 0, !no_audio}, &error);
+    RePlatform *platform = re_platform_open((RePlatformConfig){.title = "FOUNDRY | RetroForge",
+                                                               .framebuffer_width = 480,
+                                                               .framebuffer_height = 270,
+                                                               .hidden = smoke_frames > 0,
+                                                               .audio = !no_audio,
+                                                               .frame_cap = 120u},
+                                            &error);
     if (!platform) {
         (void)fprintf(stderr, "%s\n", error.message);
         return 1;

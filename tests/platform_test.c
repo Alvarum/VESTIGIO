@@ -7,8 +7,13 @@ int main(void) {
     ReError error = {0};
     ReRenderer renderer = {0};
     ReTexture capture = {0};
-    RePlatform *platform = re_platform_open(
-        (RePlatformConfig){"RetroForge verification", 480, 270, true, false}, &error);
+    RePlatform *platform = re_platform_open((RePlatformConfig){.title = "RetroForge verification",
+                                                               .framebuffer_width = 480,
+                                                               .framebuffer_height = 270,
+                                                               .hidden = true,
+                                                               .audio = false,
+                                                               .frame_cap = 120u},
+                                            &error);
     if (!platform) {
         (void)fprintf(stderr, "%s\n", error.message);
         return 1;

@@ -2,16 +2,23 @@
 #include "retro/input.h"
 
 void re_input_accumulate(ReInput *pending, ReInput frame) {
+    if (!frame.focused) {
+        bool quit = pending->quit || frame.quit;
+        *pending = (ReInput){.quit = quit};
+        return;
+    }
     pending->movement = frame.movement;
     pending->held = frame.held;
     pending->pressed |= frame.pressed;
+    pending->released |= frame.released;
     pending->look = re_add2(pending->look, frame.look);
     pending->focused = frame.focused;
-    pending->quit = frame.quit;
+    pending->quit = pending->quit || frame.quit;
 }
 ReInput re_input_consume(ReInput *pending) {
     ReInput result = *pending;
     pending->pressed = 0;
+    pending->released = 0;
     pending->look = re_v2(0, 0);
     return result;
 }

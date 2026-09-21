@@ -16,9 +16,67 @@
 struct RePlatform {
     Texture2D presentation;
     Sound sounds[16];
+    VgInputBinding bindings[VG_SETTINGS_MAX_BINDINGS];
     size_t sound_count;
+    uint32_t binding_count;
     bool audio, hidden, captured;
 };
+
+static const VgInputBinding default_bindings[] = {
+    {VG_ACTION_MOVE_FORWARD, VG_INPUT_KEY_W, 0u}, {VG_ACTION_MOVE_BACKWARD, VG_INPUT_KEY_S, 0u},
+    {VG_ACTION_MOVE_LEFT, VG_INPUT_KEY_A, 0u},    {VG_ACTION_MOVE_RIGHT, VG_INPUT_KEY_D, 0u},
+    {VG_ACTION_JUMP, VG_INPUT_KEY_SPACE, 0u},     {VG_ACTION_PRIMARY, VG_INPUT_MOUSE_PRIMARY, 0u},
+    {VG_ACTION_INTERACT, VG_INPUT_KEY_E, 0u},     {VG_ACTION_PAUSE, VG_INPUT_KEY_ESCAPE, 0u},
+    {VG_ACTION_ACCEPT, VG_INPUT_KEY_ENTER, 0u},   {VG_ACTION_UI_UP, VG_INPUT_KEY_UP, 0u},
+    {VG_ACTION_UI_DOWN, VG_INPUT_KEY_DOWN, 0u},   {VG_ACTION_UI_LEFT, VG_INPUT_KEY_LEFT, 0u},
+    {VG_ACTION_UI_RIGHT, VG_INPUT_KEY_RIGHT, 0u}, {VG_ACTION_MAP, VG_INPUT_KEY_F1, 0u},
+    {VG_ACTION_WIREFRAME, VG_INPUT_KEY_F2, 0u},   {VG_ACTION_DEPTH, VG_INPUT_KEY_F3, 0u},
+    {VG_ACTION_STATS, VG_INPUT_KEY_F4, 0u},       {VG_ACTION_QUICK_SAVE, VG_INPUT_KEY_F5, 0u},
+    {VG_ACTION_QUICK_LOAD, VG_INPUT_KEY_F9, 0u},
+};
+
+static int key_from_input_code(VgInputCode code) {
+    switch (code) {
+    case VG_INPUT_KEY_A:
+        return KEY_A;
+    case VG_INPUT_KEY_D:
+        return KEY_D;
+    case VG_INPUT_KEY_E:
+        return KEY_E;
+    case VG_INPUT_KEY_S:
+        return KEY_S;
+    case VG_INPUT_KEY_W:
+        return KEY_W;
+    case VG_INPUT_KEY_ENTER:
+        return KEY_ENTER;
+    case VG_INPUT_KEY_ESCAPE:
+        return KEY_ESCAPE;
+    case VG_INPUT_KEY_SPACE:
+        return KEY_SPACE;
+    case VG_INPUT_KEY_F1:
+        return KEY_F1;
+    case VG_INPUT_KEY_F2:
+        return KEY_F2;
+    case VG_INPUT_KEY_F3:
+        return KEY_F3;
+    case VG_INPUT_KEY_F4:
+        return KEY_F4;
+    case VG_INPUT_KEY_F5:
+        return KEY_F5;
+    case VG_INPUT_KEY_F9:
+        return KEY_F9;
+    case VG_INPUT_KEY_RIGHT:
+        return KEY_RIGHT;
+    case VG_INPUT_KEY_LEFT:
+        return KEY_LEFT;
+    case VG_INPUT_KEY_DOWN:
+        return KEY_DOWN;
+    case VG_INPUT_KEY_UP:
+        return KEY_UP;
+    default:
+        return KEY_NULL;
+    }
+}
 
 RePlatform *re_platform_open(RePlatformConfig config, ReError *error) {
     RePlatform *p = calloc(1, sizeof(*p));
@@ -30,6 +88,10 @@ RePlatform *re_platform_open(RePlatformConfig config, ReError *error) {
     unsigned int flags = FLAG_WINDOW_RESIZABLE;
     if (config.hidden)
         flags |= FLAG_WINDOW_HIDDEN;
+    if (config.fullscreen)
+        flags |= FLAG_FULLSCREEN_MODE;
+    if (config.vsync)
+        flags |= FLAG_VSYNC_HINT;
     SetConfigFlags(flags);
     InitWindow(config.framebuffer_width * 3, config.framebuffer_height * 3, config.title);
     if (!IsWindowReady()) {
@@ -52,13 +114,26 @@ RePlatform *re_platform_open(RePlatformConfig config, ReError *error) {
     }
     SetTextureFilter(p->presentation, TEXTURE_FILTER_POINT);
     p->hidden = config.hidden;
+    if (config.binding_count > VG_SETTINGS_MAX_BINDINGS ||
+        (config.binding_count != 0u && config.bindings == NULL)) {
+        (void)snprintf(error->message, sizeof(error->message), "Bindings de plataforma inválidos");
+        re_platform_close(p);
+        return nullptr;
+    }
+    p->binding_count = config.binding_count;
+    if (config.binding_count != 0u) {
+        memcpy(p->bindings, config.bindings, sizeof(p->bindings[0]) * config.binding_count);
+    } else {
+        p->binding_count = (uint32_t)(sizeof(default_bindings) / sizeof(default_bindings[0]));
+        memcpy(p->bindings, default_bindings, sizeof(default_bindings));
+    }
     if (config.audio) {
         InitAudioDevice();
         p->audio = IsAudioDeviceReady();
         if (!p->audio)
             (void)fprintf(stderr, "Audio no disponible: el juego continuara sin sonido.\n");
     }
-    SetTargetFPS(config.hidden ? 0 : 120);
+    SetTargetFPS(config.hidden ? 0 : (int)config.frame_cap);
     return p;
 }
 void re_platform_close(RePlatform *p) {
@@ -74,34 +149,41 @@ void re_platform_close(RePlatform *p) {
 }
 ReInput re_platform_input(RePlatform *p) {
     ReInput input = {.focused = p->hidden || IsWindowFocused(), .quit = WindowShouldClose()};
-    const struct {
-        int key;
-        uint32_t action;
-    } bindings[] = {{KEY_SPACE, RE_JUMP},    {KEY_E, RE_INTERACT},   {KEY_ESCAPE, RE_PAUSE},
-                    {KEY_ENTER, RE_ACCEPT},  {KEY_UP, RE_UP},        {KEY_DOWN, RE_DOWN},
-                    {KEY_LEFT, RE_LEFT},     {KEY_RIGHT, RE_RIGHT},  {KEY_F1, RE_MAP},
-                    {KEY_F2, RE_WIRE},       {KEY_F3, RE_DEPTH},     {KEY_F4, RE_STATS},
-                    {KEY_F5, RE_QUICK_SAVE}, {KEY_F9, RE_QUICK_LOAD}};
-    for (size_t i = 0; i < sizeof(bindings) / sizeof(bindings[0]); i++) {
-        if (IsKeyPressed(bindings[i].key))
-            input.pressed |= bindings[i].action;
-        if (IsKeyDown(bindings[i].key))
-            input.held |= bindings[i].action;
+    for (uint32_t i = 0u; i < p->binding_count; ++i) {
+        VgInputBinding binding = p->bindings[i];
+        int key = key_from_input_code(binding.code);
+        bool pressed = binding.code == VG_INPUT_MOUSE_PRIMARY
+                           ? IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
+                           : key != KEY_NULL && IsKeyPressed(key);
+        bool held = binding.code == VG_INPUT_MOUSE_PRIMARY ? IsMouseButtonDown(MOUSE_BUTTON_LEFT)
+                                                           : key != KEY_NULL && IsKeyDown(key);
+        bool released = binding.code == VG_INPUT_MOUSE_PRIMARY
+                            ? IsMouseButtonReleased(MOUSE_BUTTON_LEFT)
+                            : key != KEY_NULL && IsKeyReleased(key);
+        if (binding.action == VG_ACTION_MOVE_FORWARD)
+            input.movement.y += held ? 1.0f : 0.0f;
+        else if (binding.action == VG_ACTION_MOVE_BACKWARD)
+            input.movement.y -= held ? 1.0f : 0.0f;
+        else if (binding.action == VG_ACTION_MOVE_LEFT)
+            input.movement.x -= held ? 1.0f : 0.0f;
+        else if (binding.action == VG_ACTION_MOVE_RIGHT)
+            input.movement.x += held ? 1.0f : 0.0f;
+        else {
+            uint32_t action = (uint32_t)binding.action;
+            if (pressed)
+                input.pressed |= action;
+            if (held)
+                input.held |= action;
+            if (released)
+                input.released |= action;
+        }
     }
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-        input.pressed |= RE_PRIMARY;
-    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-        input.held |= RE_PRIMARY;
-    input.movement = re_v2((float)(IsKeyDown(KEY_D) - IsKeyDown(KEY_A)),
-                           (float)(IsKeyDown(KEY_W) - IsKeyDown(KEY_S)));
     if (re_length2(input.movement) > 1)
         input.movement = re_normalize2(input.movement);
     if (p->captured && input.focused) {
         Vector2 mouse = GetMouseDelta();
         input.look = re_v2(mouse.x, mouse.y);
     }
-    if (IsKeyPressed(KEY_F11))
-        ToggleBorderlessWindowed();
     return input;
 }
 void re_platform_capture_mouse(RePlatform *p, bool captured) {

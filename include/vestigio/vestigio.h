@@ -90,6 +90,129 @@ typedef struct VgTransform {
     VgVec3 scale;
 } VgTransform;
 
+typedef uint64_t VgActionSet;
+#define VG_ACTION_JUMP (UINT64_C(1) << 0u)
+#define VG_ACTION_PRIMARY (UINT64_C(1) << 1u)
+#define VG_ACTION_INTERACT (UINT64_C(1) << 2u)
+#define VG_ACTION_PAUSE (UINT64_C(1) << 3u)
+#define VG_ACTION_ACCEPT (UINT64_C(1) << 4u)
+#define VG_ACTION_UI_UP (UINT64_C(1) << 5u)
+#define VG_ACTION_UI_DOWN (UINT64_C(1) << 6u)
+#define VG_ACTION_UI_LEFT (UINT64_C(1) << 7u)
+#define VG_ACTION_UI_RIGHT (UINT64_C(1) << 8u)
+#define VG_ACTION_MAP (UINT64_C(1) << 9u)
+#define VG_ACTION_WIREFRAME (UINT64_C(1) << 10u)
+#define VG_ACTION_DEPTH (UINT64_C(1) << 11u)
+#define VG_ACTION_STATS (UINT64_C(1) << 12u)
+#define VG_ACTION_QUICK_SAVE (UINT64_C(1) << 13u)
+#define VG_ACTION_QUICK_LOAD (UINT64_C(1) << 14u)
+#define VG_ACTION_MOVE_FORWARD (UINT64_C(1) << 15u)
+#define VG_ACTION_MOVE_BACKWARD (UINT64_C(1) << 16u)
+#define VG_ACTION_MOVE_LEFT (UINT64_C(1) << 17u)
+#define VG_ACTION_MOVE_RIGHT (UINT64_C(1) << 18u)
+
+/* Stable physical codes use USB HID keyboard usages. Pointer buttons occupy
+ * the private 0x0001xxxx range so persisted bindings are host independent. */
+typedef uint32_t VgInputCode;
+#define VG_INPUT_KEY_A UINT32_C(0x04)
+#define VG_INPUT_KEY_D UINT32_C(0x07)
+#define VG_INPUT_KEY_E UINT32_C(0x08)
+#define VG_INPUT_KEY_S UINT32_C(0x16)
+#define VG_INPUT_KEY_W UINT32_C(0x1A)
+#define VG_INPUT_KEY_ENTER UINT32_C(0x28)
+#define VG_INPUT_KEY_ESCAPE UINT32_C(0x29)
+#define VG_INPUT_KEY_SPACE UINT32_C(0x2C)
+#define VG_INPUT_KEY_F1 UINT32_C(0x3A)
+#define VG_INPUT_KEY_F2 UINT32_C(0x3B)
+#define VG_INPUT_KEY_F3 UINT32_C(0x3C)
+#define VG_INPUT_KEY_F4 UINT32_C(0x3D)
+#define VG_INPUT_KEY_F5 UINT32_C(0x3E)
+#define VG_INPUT_KEY_F9 UINT32_C(0x42)
+#define VG_INPUT_KEY_RIGHT UINT32_C(0x4F)
+#define VG_INPUT_KEY_LEFT UINT32_C(0x50)
+#define VG_INPUT_KEY_DOWN UINT32_C(0x51)
+#define VG_INPUT_KEY_UP UINT32_C(0x52)
+#define VG_INPUT_MOUSE_PRIMARY UINT32_C(0x00010001)
+
+typedef struct VgInputSample {
+    uint32_t struct_size;
+    uint32_t api_version;
+    VgActionSet pressed;
+    VgActionSet held;
+    VgActionSet released;
+    float look_delta_x;
+    float look_delta_y;
+    uint32_t focused;
+    uint32_t reserved;
+} VgInputSample;
+
+typedef struct VgInputState {
+    uint32_t struct_size;
+    uint32_t api_version;
+    VgActionSet pressed;
+    VgActionSet held;
+    VgActionSet released;
+    float look_delta_x;
+    float look_delta_y;
+    uint32_t focused;
+    uint32_t reserved;
+    uint64_t tick_index;
+} VgInputState;
+
+#define VG_SETTINGS_MAX_BINDINGS 32u
+
+typedef uint32_t VgSettingMask;
+enum {
+    VG_SETTING_INTERNAL_RESOLUTION = 1u << 0u,
+    VG_SETTING_FULLSCREEN = 1u << 1u,
+    VG_SETTING_VSYNC = 1u << 2u,
+    VG_SETTING_FRAME_CAP = 1u << 3u,
+    VG_SETTING_LOOK_SENSITIVITY = 1u << 4u,
+    VG_SETTING_BINDINGS = 1u << 5u,
+    VG_SETTINGS_ALL = (1u << 6u) - 1u,
+    VG_SETTINGS_APPLY_IMMEDIATE =
+        VG_SETTING_FRAME_CAP | VG_SETTING_LOOK_SENSITIVITY | VG_SETTING_BINDINGS,
+    VG_SETTINGS_RECREATE_TARGETS = VG_SETTING_INTERNAL_RESOLUTION,
+    VG_SETTINGS_RECREATE_SURFACE = VG_SETTING_FULLSCREEN | VG_SETTING_VSYNC
+};
+
+typedef struct VgInputBinding {
+    VgActionSet action;
+    VgInputCode code;
+    uint32_t reserved;
+} VgInputBinding;
+
+typedef struct VgSettingsLayer {
+    uint32_t struct_size;
+    uint32_t api_version;
+    VgSettingMask present;
+    uint32_t internal_width;
+    uint32_t internal_height;
+    uint32_t fullscreen;
+    uint32_t vsync;
+    uint32_t frame_cap;
+    float look_sensitivity;
+    uint32_t binding_count;
+    uint32_t reserved;
+    VgInputBinding bindings[VG_SETTINGS_MAX_BINDINGS];
+} VgSettingsLayer;
+
+typedef struct VgSettingsChanges {
+    uint32_t struct_size;
+    uint32_t api_version;
+    VgSettingMask immediate;
+    VgSettingMask recreate_targets;
+    VgSettingMask recreate_surface;
+} VgSettingsChanges;
+
+typedef struct VgSettingsDiagnostic {
+    uint32_t struct_size;
+    uint32_t api_version;
+    VgResult result;
+    uint32_t line;
+    char message[160];
+} VgSettingsDiagnostic;
+
 typedef uint32_t VgCameraProjection;
 enum { VG_CAMERA_PERSPECTIVE = 1u, VG_CAMERA_ORTHOGRAPHIC = 2u };
 
@@ -339,9 +462,28 @@ VG_API VgResult vg_game_create(VgContext *context, const VgGameDesc *description
 VG_API VgResult vg_game_set_world(VgGame *game, VgWorld world);
 VG_API VgResult vg_game_clear_world(VgGame *game);
 VG_API VgResult vg_game_emit_event(VgGame *game, const VgEvent *event);
+VG_API VgResult vg_game_submit_input(VgGame *game, const VgInputSample *sample);
+VG_API VgResult vg_game_get_input(VgGame *game, VgInputState *out_state);
 VG_API VgResult vg_game_step(VgGame *game, double elapsed_seconds, VgStepInfo *out_info);
 VG_API VgResult vg_game_draw_ui(VgGame *game, VgUiFrame *frame);
 VG_API VgResult vg_game_destroy(VgGame *game);
+
+/* Settings layers resolve in project -> user -> session order without mutating
+ * any layer. VSync and frame cap affect presentation pacing only; fixed_delta
+ * remains owned by VgGameDesc. Save publishes by durable temporary file plus
+ * atomic replacement, so a failed write preserves the prior file. */
+VG_API VgResult vg_settings_defaults(VgSettingsLayer *out_settings);
+VG_API VgResult vg_settings_validate(const VgSettingsLayer *settings,
+                                     VgSettingsDiagnostic *out_diagnostic);
+VG_API VgResult vg_settings_resolve(const VgSettingsLayer *project, const VgSettingsLayer *user,
+                                    const VgSettingsLayer *session, VgSettingsLayer *out_resolved,
+                                    VgSettingsDiagnostic *out_diagnostic);
+VG_API VgResult vg_settings_diff(const VgSettingsLayer *before, const VgSettingsLayer *after,
+                                 VgSettingsChanges *out_changes);
+VG_API VgResult vg_settings_load_file(const char *utf8_path, VgSettingsLayer *out_settings,
+                                      VgSettingsDiagnostic *out_diagnostic);
+VG_API VgResult vg_settings_save_file(const char *utf8_path, const VgSettingsLayer *settings,
+                                      VgSettingsDiagnostic *out_diagnostic);
 
 /* Asset acquisition resolves a catalog entry already registered by the
  * project/content layer. Zero required_residency means CPU. GPU residency is

@@ -8,17 +8,27 @@
 #include "retro/input.h"
 #include "retro/project.h"
 #include "retro/render.h"
+#include "vestigio/vestigio.h"
 typedef struct ReGameSession ReGameSession;
+int re_session_resolve_settings(const ReProject *project, const VgSettingsLayer *session_overrides,
+                                VgSettingsLayer *out, ReError *error);
 int re_session_create(const ReProject *project, int preview, int menu, ReGameSession **out,
                       ReError *error);
+int re_session_create_configured(const ReProject *project, int preview, int menu,
+                                 const VgSettingsLayer *session_overrides, ReGameSession **out,
+                                 ReError *error);
 void re_session_destroy(ReGameSession *session);
 /* elapsed en segundos; movimiento normalizado; look en píxeles relativos.
  * single_step avanza exactamente un tick, aunque focused sea cero. */
 void re_session_frame(ReGameSession *session, double elapsed, float move_x, float move_y,
-                      float look_x, float look_y, uint32_t pressed, uint32_t held, int focused,
-                      int single_step);
+                      float look_x, float look_y, uint32_t pressed, uint32_t held,
+                      uint32_t released, int focused, int single_step);
 const ReRenderer *re_session_renderer(const ReGameSession *session);
 int re_session_copy_pixels(const ReGameSession *session, void *destination, uint32_t bytes);
+int re_session_dimensions(const ReGameSession *session, uint32_t *width, uint32_t *height);
+uint32_t re_session_binding_count(const ReGameSession *session);
+int re_session_binding(const ReGameSession *session, uint32_t index, uint64_t *action,
+                       uint32_t *code);
 /* Bits: 1 = salir; 2 = la partida acepta mirada/movimiento. */
 int re_session_flags(const ReGameSession *session);
 size_t re_session_memory(const ReGameSession *session);

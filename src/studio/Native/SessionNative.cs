@@ -13,9 +13,17 @@ internal static class SessionNative
     internal static extern void re_session_destroy(nint session);
     [DllImport("retro_session", CallingConvention = CallingConvention.Cdecl)]
     internal static extern void re_session_frame(nint session, double elapsed, float moveX,
-        float moveY, float lookX, float lookY, uint pressed, uint held, int focused, int singleStep);
+        float moveY, float lookX, float lookY, uint pressed, uint held, uint released,
+        int focused, int singleStep);
     [DllImport("retro_session", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int re_session_copy_pixels(nint session, [Out] byte[] pixels, uint bytes);
+    [DllImport("retro_session", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int re_session_dimensions(nint session, out uint width, out uint height);
+    [DllImport("retro_session", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern uint re_session_binding_count(nint session);
+    [DllImport("retro_session", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int re_session_binding(nint session, uint index, out ulong action,
+        out uint code);
     [DllImport("retro_session", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int re_session_flags(nint session);
 }

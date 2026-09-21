@@ -53,6 +53,54 @@ Los callbacks son síncronos. No se permite reentrar step, draw, cambio de mundo
 destrucción de juego o destrucción de contexto desde ellos. Sí se permite emitir
 otro evento. La implementación inicial no carga Game DLLs ni hace hot reload.
 
+## Entrada por acciones
+
+El host traduce teclado, ratón o mando a `VgActionSet` y entrega muestras con
+`vg_game_submit_input`. `held` representa el nivel actual; el runtime deriva
+transiciones y además acepta `pressed`/`released` explícitos. Si llegan varias
+muestras antes del siguiente tick, conserva todas las transiciones, acumula el
+movimiento relativo y usa el último `held`. Cada tick consume las transiciones y
+el delta una vez, mientras que `held` continúa activo.
+
+Una muestra con `focused = 0` vacía acciones, movimiento relativo y el
+acumulador de tiempo. Mientras siga suspendido, `vg_game_step` no recupera ticks
+atrasados. La primera muestra enfocada reanuda desde un acumulador vacío. Player
+y Studio publican el mismo mapa de acciones y los mismos estados
+pressed/held/released.
+
+## Settings
+
+`VgSettingsLayer` contiene video, bindings y sensibilidad. La resolución es
+pura y determinista: defaults, proyecto, usuario y finalmente sesión. Los
+overrides de sesión o CLI no modifican las capas persistidas ni los defaults.
+Cada binding asigna un código físico estable a un único bit de acción; códigos
+duplicados se rechazan como conflicto.
+
+`vg_settings_diff` separa la aplicación operativa:
+
+- frame cap, sensibilidad y bindings se aplican de inmediato;
+- la resolución interna recrea los render targets;
+- fullscreen y VSync recrean la superficie de presentación.
+
+VSync y el límite de presentación no cambian `fixed_delta` ni la secuencia de
+ticks. El archivo `VESTIGIO_SETTINGS 1` es versionado y se carga de forma
+transaccional: formatos futuros, líneas corruptas o valores inválidos dejan el
+output intacto y devuelven diagnóstico. El guardado sincroniza un temporal y lo
+publica mediante reemplazo atómico; un fallo conserva el archivo anterior.
+Antes de reemplazar un archivo existente, el runtime lo carga y valida; si está
+corrupto o pertenece a una versión futura, rechaza el guardado y conserva sus
+bytes. La versión 1 es deliberadamente estricta: rechaza claves desconocidas en
+lugar de descartarlas. Audio, perfiles u otras extensiones se incorporarán con
+una nueva versión de archivo y nuevos campos de struct, de modo que un runtime
+antiguo nunca reescriba datos que no comprende.
+
+Player busca `settings.vgs` junto al manifiesto y después en el directorio de
+usuario del proyecto. Los flags de sesión (`--resolution`, fullscreen, VSync,
+frame cap y sensibilidad) tienen mayor precedencia y no se guardan. La ventana
+GPU aplica resolución, VSync, fullscreen, cap y bindings antes de abrirse. La
+sesión aplica la misma resolución y sensibilidad. Studio obtiene dimensiones y
+bindings de esa sesión, por lo que no mantiene un mapa de acciones paralelo.
+
 ## Cámara mínima
 
 `VgCameraDesc` es un componente POD sobre una entidad. Su pose procede del
