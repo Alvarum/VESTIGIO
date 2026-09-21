@@ -18,7 +18,7 @@ Mundo diestro Z-up, metros, radianes, segundos; quaternion `[x,y,z,w]`. F01 fija
 
 Un dueño de ventana/contexto y un hilo gráfico inicial. El contrato interno de superficie es distinto de captura CPU. Debe informar lifecycle, tamaño físico/DPI, resize/minimize/focus, presentación y quién destruye cada objeto. La API de juego no expone HWND; el adaptador de host nativo sí puede conocerlo sin contaminar SDK.
 
-G01 implementa GPU en ventana propia; G02 demuestra integración WPF. `GetWindowHandle` no basta para probar adopción de HWND. Edit/Play se organiza sin dos `InitWindow` simultáneos ni doble destrucción. Frames normales conservan color/depth/postprocess en GPU; readback se etiqueta sólo como captura/thumbnail. Sin GPU apta: error/capacidad declarada, no etiqueta GPU falsa.
+G01 implementa GPU en ventana propia. G02 fija Windows/WPF en un `HwndHost`: raylib crea una única ventana/contexto OpenGL en el hilo UI, el adaptador Win32 la convierte en hija con `SetParent` y mantiene tamaño físico, foco y destrucción. `GetWindowHandle` sólo identifica la ventana creada; no se adopta un HWND ajeno. La superficie vive mientras el `HwndHost` está conectado y `Dispose` cierra renderer/contexto antes de permitir otro host. Edit/Play comparte esa superficie inicial; no se permiten dos `InitWindow` simultáneos. Frames normales conservan color/depth/postprocess en GPU; readback se etiqueta sólo como captura/thumbnail. Sin GPU apta: error/capacidad declarada, no etiqueta GPU falsa.
 
 F01 fija `VgSurfaceInfo`, `VgDrawPacket`, `VgFrameStats` y `VgRenderContract` como contrato **interno** inicial en `src/render/render_contract.h`; no es API instalada. G01/G02 pueden proponer una revisión si su prueba demuestra límites. R03 no promete ABI de embedding definitiva antes de ese resultado.
 
@@ -57,7 +57,7 @@ Registro que debe completar F01:
 | Frontera | Decisión/archivo definitivo | Owner | Versión | Consumidores verificados |
 |---|---|---|---|---|
 | SDK/context/world | `include/vestigio/vestigio.h`, `Vestigio::Headers` | integrator/runtime | v0.1 | Tests C11/C++11; lifecycle pendiente R01/R03 |
-| Surface/backend/draw packets | `src/render/render_contract.h` privado | integrator/gpu | v0.1 interno | Test de layout; evidencia GPU pendiente G01/G02 |
+| Surface/backend/draw packets | `src/render/render_contract.h`, `src/platform/gpu_host.*` privados | integrator/gpu | v0.1 interno | G01/G02 verificados en OpenGL 3.3 y WPF/HwndHost; conexión a World pendiente G03 |
 | Asset/IR/retenciones | `VgAsset` público + C04 | runtime/content/gpu | v0.1 vocabulario | Implementación pendiente R02/M01/G03 |
 | Documento/schema/Tool API | C05; sin declaraciones públicas prematuras | integrator/content/editor | v0.1 semántico | Implementación pendiente D01/D02 |
 | Input/callbacks/eventos | C06; sin tabla incompleta en header | runtime | v0.1 semántico | Implementación pendiente R03/I01 |

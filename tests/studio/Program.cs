@@ -16,6 +16,81 @@ internal static class Program
         if (!condition) throw new InvalidOperationException(message);
     }
 
+    private static void VerifyGpuHostLifecycle()
+    {
+        using var parent = new HwndSource(new HwndSourceParameters("GPU host lifecycle")
+        {
+            Width = 640,
+            Height = 360,
+            WindowStyle = unchecked((int)0x80000000)
+        });
+        for (int cycle = 0; cycle < 50; cycle++)
+        {
+            byte[] error = new byte[512];
+            nint host = 0;
+            try
+            {
+                host = GpuHostNative.vg_gpu_host_create(parent.Handle, 320, 180,
+                    error, (nuint)error.Length);
+                Check(host != 0,
+                    $"No se pudo crear el host GPU en ciclo {cycle}: {GpuHostNative.Error(error)}");
+                Check(GpuHostNative.vg_gpu_host_window(host) != 0,
+                    $"El host GPU no expuso HWND en ciclo {cycle}.");
+                Check(GpuHostNative.vg_gpu_host_render(host) != 0,
+                    $"El host GPU no renderiz\u00f3 en ciclo {cycle}.");
+                Check(GpuHostNative.vg_gpu_host_resize(host, 640, 360) != 0,
+                    $"El host GPU no cambi\u00f3 de tama\u00f1o en ciclo {cycle}.");
+                Check(GpuHostNative.vg_gpu_host_render(host) != 0,
+                    $"El host GPU no renderiz\u00f3 tras resize en ciclo {cycle}.");
+            }
+            finally
+            {
+                if (host != 0)
+                    GpuHostNative.vg_gpu_host_destroy(host);
+            }
+        }
+        Console.WriteLine("PASS GPU native host create/render/resize/destroy x50");
+    }
+
+    private static void VerifyGpuHwndHost(string output)
+    {
+        using var source = new HwndSource(new HwndSourceParameters("GPU HwndHost integration")
+        {
+            Width = 640,
+            Height = 360,
+            WindowStyle = unchecked((int)0x80000000)
+        });
+        var viewport = new GpuViewportHost { Width = 640, Height = 360 };
+        source.RootVisual = viewport;
+        Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+        viewport.Measure(new Size(640, 360));
+        viewport.Arrange(new Rect(0, 0, 640, 360));
+        viewport.UpdateLayout();
+        Check(viewport.IsNativeReady, "HwndHost no cre\u00f3 la superficie GPU nativa.");
+        Check(viewport.RenderForTest(), "HwndHost no present\u00f3 un frame GPU.");
+        viewport.Width = 426;
+        viewport.Height = 240;
+        viewport.Measure(new Size(426, 240));
+        viewport.Arrange(new Rect(0, 0, 426, 240));
+        viewport.UpdateLayout();
+        Check(viewport.RenderForTest() && viewport.RenderCount >= 2,
+            "HwndHost no sobrevivi\u00f3 al resize y segundo frame.");
+        string capture = Path.Combine(output, "gpu-hwndhost.png");
+        Check(viewport.CaptureForTest(capture) && File.Exists(capture),
+            "HwndHost no produjo la captura GPU solicitada.");
+        using (var stream = File.OpenRead(capture))
+        {
+            var frame = BitmapFrame.Create(stream, BitmapCreateOptions.DelayCreation,
+                BitmapCacheOption.OnLoad);
+            Check(frame.PixelWidth == 320 && frame.PixelHeight == 180,
+                "La captura GPU embebida no conserva la resoluci\u00f3n interna 320x180.");
+        }
+        source.RootVisual = null;
+        viewport.Dispose();
+        Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+        Console.WriteLine("PASS WPF HwndHost GPU render and resize");
+    }
+
     [STAThread]
     private static int Main(string[] args)
     {
@@ -67,13 +142,18 @@ internal static class Program
             Check(thumbnails.Load(scratch, "../atlas.png", 4, 4, 0, out error) == null, "No se permiten recursos fuera del proyecto.");
             Console.WriteLine("PASS managed authoring, playtest isolation, sprite crops");
 
+            var app = new Application();
+            VerifyGpuHostLifecycle();
+            VerifyGpuHwndHost(output);
+
             // Componer XAML real permite descubrir errores de recursos y bindings.
             // No se muestra una ventana ni se carga/guarda el layout personal.
-            var app = new Application();
             app.Resources.MergedDictionaries.Add(new ResourceDictionary
                 { Source = new Uri("pack://application:,,,/retro_studio;component/Themes/Graphite.xaml") });
             using var showcase = new StudioViewModel(new EditorDocument(Path.GetFullPath(args[1])));
             var window = new MainWindow(showcase);
+            window.TestDocument.IsSelected = true;
+            window.TestDocument.IsActive = true;
             var content = (FrameworkElement)window.Content;
             window.Content = null;
             content.DataContext = showcase;
@@ -82,21 +162,28 @@ internal static class Program
             content.Resources.MergedDictionaries.Add(window.Resources);
             // AvalonDock compone sus paneles al conectarse a una fuente WPF.
             // Un HWND oculto ejecuta ese ciclo sin mostrar ventanas al usuario.
-            foreach (var size in new[] { new Size(1280, 800), new Size(1920, 1080) })
+            using (var source = new HwndSource(new HwndSourceParameters("Studio layout test")
+                { Width = 1920, Height = 1080, WindowStyle = unchecked((int)0x80000000) }))
             {
-                using var source = new HwndSource(new HwndSourceParameters("Studio layout test")
-                    { Width = (int)size.Width, Height = (int)size.Height, WindowStyle = unchecked((int)0x80000000) });
                 source.RootVisual = content;
-                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
-                content.Measure(size); content.Arrange(new Rect(size)); content.UpdateLayout();
-                window.MapView.FrameScene();
-                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
-                var render = new RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
-                render.Render(content);
-                var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(render));
-                using var file = File.Create(Path.Combine(output, $"studio-{size.Width:0}x{size.Height:0}.png"));
-                png.Save(file);
+                foreach (var size in new[] { new Size(1280, 800), new Size(1920, 1080) })
+                {
+                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    content.Measure(size); content.Arrange(new Rect(size)); content.UpdateLayout();
+                    Check(window.GpuViewport.IsNativeReady,
+                        $"El documento Probar no aloj\u00f3 GPU al componer {size.Width:0}x{size.Height:0}.");
+                    Check(window.GpuViewport.RenderForTest(),
+                        $"La superficie GPU acoplada no renderiz\u00f3 a {size.Width:0}x{size.Height:0}.");
+                    window.MapView.FrameScene();
+                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    var render = new RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
+                    render.Render(content);
+                    var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(render));
+                    using var file = File.Create(Path.Combine(output, $"studio-{size.Width:0}x{size.Height:0}.png"));
+                    png.Save(file);
+                }
                 source.RootVisual = null;
+                window.GpuViewport.Dispose();
             }
             Console.WriteLine("PASS WPF composition 1280x800, 1920x1080 (offscreen)");
             return 0;

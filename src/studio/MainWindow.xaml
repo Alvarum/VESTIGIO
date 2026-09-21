@@ -398,7 +398,7 @@
 
                 <layout:LayoutDocument x:Name="TestDocument" Title="Probar" ContentId="TestDocument" CanClose="False">
                   <Grid Background="{StaticResource WindowBrush}">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="180"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                     <WrapPanel Margin="12">
                       <Button Content="▶ Iniciar" Command="{Binding PlayCommand}" />
                       <Button Content="Pausar / continuar" Command="{Binding PauseSessionCommand}" Margin="6,0" />
@@ -406,7 +406,15 @@
                       <Button Content="■ Detener" Command="{Binding StopCommand}" Margin="6,0" />
                       <TextBlock Margin="12,8" Text="Clic: controlar · WASD · botón derecho: mirar · E: interactuar · Espacio: saltar" />
                     </WrapPanel>
-                    <local:GameViewport Grid.Row="1" />
+                    <Grid Grid.Row="1" Margin="12,0,12,8">
+                      <local:GpuViewportHost x:Name="GpuViewport" />
+                      <Border VerticalAlignment="Top" HorizontalAlignment="Left" Margin="8" Padding="7,3"
+                              Background="#CC101418" CornerRadius="4" IsHitTestVisible="False">
+                        <TextBlock Text="GPU · OpenGL 3.3 · diagnóstico G02" FontSize="11"
+                                   Foreground="{StaticResource AccentBrush}" />
+                      </Border>
+                    </Grid>
+                    <local:GameViewport Grid.Row="2" />
                   </Grid>
                 </layout:LayoutDocument>
               </layout:LayoutDocumentPane>

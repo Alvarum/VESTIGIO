@@ -66,7 +66,7 @@ Commit integrado: `2052e5b4d69f8ae169df073f3ed8a761b80c62dc`.
 
 ## G01 — Primer frame de geometría GPU en ventana propia
 
-Fase: **P1** · Rol: **gpu** · Estado: **VERIFIED**.
+Fase: **P1** · Rol: **gpu** · Estado: **INTEGRATED**.
 
 Dependencias integradas: F01.
 
@@ -92,9 +92,11 @@ Desbloquea: Backend real para modelos y prueba WPF.
 
 Evidencia: docs/implementation/evidence/G01.md.
 
+Commit integrado: `a13fb8beb89691d842709773abadb0b755d8f9a6`.
+
 ## R01 — Contexto, mundo, entidades y Transform con handles
 
-Fase: **P2** · Rol: **runtime** · Estado: **PLANNED**.
+Fase: **P2** · Rol: **runtime** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: F01.
 
@@ -120,7 +122,7 @@ Desbloquea: Recursos, game callbacks y documentos genéricos.
 
 ## G02 — Resolver superficie GPU de Studio mediante spike
 
-Fase: **P1** · Rol: **gpu** · Estado: **PLANNED**.
+Fase: **P1** · Rol: **gpu** · Estado: **VERIFIED**.
 
 Dependencias integradas: G01.
 
@@ -143,6 +145,8 @@ Puntos de entrada: `src/studio/Controls/GameViewport.cs`, `src/studio/Controls/`
 Verificación: V-APP, V-GPU, V-WPF.
 
 Desbloquea: Autoría 3D integrada; gate arquitectónico de WPF.
+
+Evidencia: docs/implementation/evidence/G02.md.
 
 ## R02 — Registro de assets y ownership CPU/GPU mínimo
 
