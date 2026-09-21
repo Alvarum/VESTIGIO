@@ -312,6 +312,47 @@ enum {
     VG_ASSET_INFO_HAS_USABLE_VERSION = 1u << 4u
 };
 
+#define VG_ASSET_FINGERPRINT_SIZE 32u
+#define VG_STATIC_MODEL_IMPORTER_VERSION 1u
+#define VG_RENDER_DEFAULT_INDEX UINT32_MAX
+
+typedef uint32_t VgAlphaMode;
+enum { VG_ALPHA_OPAQUE = 0u, VG_ALPHA_MASK = 1u, VG_ALPHA_BLEND = 2u };
+
+typedef uint32_t VgRenderFlags;
+enum {
+    VG_RENDER_NONE = 0u,
+    VG_RENDER_WIREFRAME = 1u << 0u,
+    VG_RENDER_DISABLE_CULLING = 1u << 1u,
+    VG_RENDER_FORCE_ERROR_MATERIAL = 1u << 2u
+};
+
+typedef struct VgMeshRendererDesc {
+    uint32_t struct_size;
+    uint32_t api_version;
+    VgAsset asset;
+    uint32_t node_index;
+    uint32_t mesh_index;
+    uint32_t material_override;
+    VgRenderFlags flags;
+    VgVec3 bounds_center;
+    VgVec3 bounds_extent;
+} VgMeshRendererDesc;
+
+typedef struct VgSpriteRendererDesc {
+    uint32_t struct_size;
+    uint32_t api_version;
+    VgAsset asset;
+    uint32_t texture_index;
+    VgAlphaMode alpha_mode;
+    VgRenderFlags flags;
+    uint32_t reserved;
+    float width_metres;
+    float height_metres;
+    float tint[4];
+    float alpha_cutoff;
+} VgSpriteRendererDesc;
+
 /* Runtime transforms use right-handed Z-up coordinates, metres and radians.
  * Rotations are normalized on write. Scale must be finite and strictly
  * positive. Hierarchy operations that would require shear are rejected. */
@@ -405,6 +446,24 @@ typedef struct VgAssetCounters {
     uint64_t purge_count;
 } VgAssetCounters;
 
+/* Catalog sources are copied by the context. A zero fingerprint asks the
+ * decoder to compute it; a non-zero fingerprint is verified before publish. */
+typedef struct VgAssetSourceDesc {
+    uint32_t struct_size;
+    uint32_t api_version;
+    VgAssetId id;
+    VgAssetType type;
+    uint32_t importer_version;
+    uint64_t version;
+    uint64_t variant;
+    uint8_t fingerprint[VG_ASSET_FINGERPRINT_SIZE];
+    const char *source_path;
+    const void *source_data;
+    uint64_t source_size;
+    const void *options_data;
+    uint32_t options_size;
+} VgAssetSourceDesc;
+
 /* Pure query with no runtime allocation. Implemented with the first runtime
  * library target; declared now so consumers can negotiate the contract. */
 VG_API VgResult vg_get_version(VgVersion *out_version);
@@ -450,6 +509,19 @@ VG_API VgResult vg_camera_set(VgContext *context, VgEntity entity, const VgCamer
 VG_API VgResult vg_camera_get(VgContext *context, VgEntity entity, VgCameraDesc *out_description);
 VG_API VgResult vg_camera_clear(VgContext *context, VgEntity entity);
 
+/* Render components retain their asset independently from the caller's lease.
+ * get returns a fresh lease in out_description->asset; release it normally. */
+VG_API VgResult vg_mesh_renderer_set(VgContext *context, VgEntity entity,
+                                     const VgMeshRendererDesc *description);
+VG_API VgResult vg_mesh_renderer_get(VgContext *context, VgEntity entity,
+                                     VgMeshRendererDesc *out_description);
+VG_API VgResult vg_mesh_renderer_clear(VgContext *context, VgEntity entity);
+VG_API VgResult vg_sprite_renderer_set(VgContext *context, VgEntity entity,
+                                       const VgSpriteRendererDesc *description);
+VG_API VgResult vg_sprite_renderer_get(VgContext *context, VgEntity entity,
+                                       VgSpriteRendererDesc *out_description);
+VG_API VgResult vg_sprite_renderer_clear(VgContext *context, VgEntity entity);
+
 /* A game instance copies its callback table and owns a bounded FIFO event
  * queue. init runs during create. world_ready runs only after a world resolves
  * successfully. Each fixed tick calls fixed_update and then drains its event
@@ -485,9 +557,12 @@ VG_API VgResult vg_settings_load_file(const char *utf8_path, VgSettingsLayer *ou
 VG_API VgResult vg_settings_save_file(const char *utf8_path, const VgSettingsLayer *settings,
                                       VgSettingsDiagnostic *out_diagnostic);
 
-/* Asset acquisition resolves a catalog entry already registered by the
- * project/content layer. Zero required_residency means CPU. GPU residency is
- * completed only when the owning backend flushes its private upload queue. */
+/* Source registration and decoder setup are transactional. The built-in static
+ * model decoder accepts glTF 2.0/GLB sources and uses the source's import limits.
+ * Zero required_residency means CPU. GPU residency is completed only when the
+ * owning backend flushes its private upload queue. */
+VG_API VgResult vg_assets_enable_static_model_importer(VgContext *context);
+VG_API VgResult vg_asset_catalog_upsert(VgContext *context, const VgAssetSourceDesc *source);
 VG_API VgResult vg_asset_acquire(VgContext *context, const VgAssetRequest *request,
                                  VgAsset *out_asset);
 VG_API VgResult vg_asset_clone(VgContext *context, VgAsset source, VgAsset *out_asset);

@@ -1,7 +1,11 @@
 #include "assets/import/gltf_import.h"
 
 #include "assets/import/sha256.h"
+/* The namespace macros must precede cgltf's declarations. */
+// clang-format off
+#include "cgltf_namespace.h"
 #include "cgltf.h"
+// clang-format on
 
 #include <float.h>
 #include <math.h>

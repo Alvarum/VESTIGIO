@@ -51,7 +51,9 @@ add_library(vestigio_runtime STATIC
     src/runtime/game.c
     src/config/settings.c
     src/assets/asset_registry.c
+    src/assets/static_model.c
     src/world/world.c
+    src/world/render_components.c
     src/world/transform.c)
 set_target_properties(vestigio_runtime PROPERTIES EXPORT_NAME Runtime)
 retro_target(vestigio_runtime)
@@ -83,9 +85,16 @@ target_include_directories(vestigio_gltf_import PRIVATE "${PROJECT_SOURCE_DIR}/s
 target_include_directories(vestigio_gltf_import SYSTEM PRIVATE
     "${PROJECT_SOURCE_DIR}/third_party/cgltf")
 target_link_libraries(vestigio_gltf_import PRIVATE vestigio_cgltf)
+set_property(TARGET vestigio_gltf_import PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+    "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 if(NOT WIN32)
     target_link_libraries(vestigio_gltf_import PRIVATE m)
 endif()
+target_link_libraries(vestigio_runtime PRIVATE vestigio_gltf_import)
+install(TARGETS vestigio_gltf_import vestigio_cgltf
+    EXPORT VestigioTargets
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT SDK)
 
 configure_package_config_file(
     "${PROJECT_SOURCE_DIR}/cmake/VestigioConfig.cmake.in"
@@ -200,7 +209,7 @@ if(RETRO_BUILD_APPS)
     retro_target(vestigio_gpu_raylib)
     target_include_directories(vestigio_gpu_raylib PUBLIC "${PROJECT_SOURCE_DIR}/src")
     target_include_directories(vestigio_gpu_raylib SYSTEM PRIVATE "${raylib_SOURCE_DIR}/src")
-    target_link_libraries(vestigio_gpu_raylib PUBLIC vestigio_sdk_headers PRIVATE raylib)
+    target_link_libraries(vestigio_gpu_raylib PUBLIC vestigio_sdk_headers PRIVATE raylib vestigio_runtime)
     if(WIN32)
         add_library(vestigio_gpu_host SHARED src/platform/gpu_host.c src/platform/win32_embed.c)
         retro_target(vestigio_gpu_host)
@@ -245,6 +254,15 @@ if(RETRO_BUILD_APPS)
         target_include_directories(vestigio_gpu_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
         add_test(NAME vestigio_gpu_render COMMAND vestigio_gpu_test)
         set_tests_properties(vestigio_gpu_render PROPERTIES LABELS "window;gpu")
+        add_executable(vestigio_gpu_scene_test tests/gpu/gpu_scene_test.c)
+        retro_target(vestigio_gpu_scene_test)
+        target_link_libraries(vestigio_gpu_scene_test PRIVATE
+            vestigio_gpu_raylib vestigio_runtime vestigio_gltf_import raylib)
+        target_include_directories(vestigio_gpu_scene_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
+        add_test(NAME vestigio_gpu_scene COMMAND vestigio_gpu_scene_test)
+        set_tests_properties(vestigio_gpu_scene PROPERTIES
+            LABELS "window;gpu;asset;sdk"
+            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
     endif()
     add_executable(retro_fps src/fps/main.c)
     retro_target(retro_fps)

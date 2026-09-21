@@ -40,6 +40,17 @@ typedef struct VgFrameStats {
     uint32_t uploads;
     uint32_t readbacks;
     uint64_t estimated_gpu_bytes;
+    uint32_t packets_submitted;
+    uint32_t packets_visible;
+    uint32_t packets_culled;
+    uint32_t error_material_draws;
+    uint32_t asset_uploads;
+    uint32_t asset_releases;
+    uint32_t resident_gpu_assets;
+    uint32_t wrong_thread_calls;
+    uint32_t transparent_packets;
+    uint32_t reversed_winding_draws;
+    uint64_t transparent_order_hash;
 } VgFrameStats;
 
 /* The platform owns the native window and graphics context. The renderer owns

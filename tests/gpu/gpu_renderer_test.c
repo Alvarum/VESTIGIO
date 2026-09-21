@@ -37,13 +37,13 @@ int main(int argc, char **argv) {
         goto cleanup_platform;
     }
     VgGpuInfo info = {0};
-    if (!vg_gpu_renderer_info(&info)) {
+    if (!vg_gpu_renderer_info(renderer, &info)) {
         (void)fprintf(stderr, "FAIL GPU info\n");
         goto cleanup_renderer;
     }
     const char *invalid_vertex = "#version 330\nthis is not a shader\n";
-    if (vg_gpu_renderer_validate_shader(invalid_vertex, "#version 330\nvoid main(){}\n", gpu_error,
-                                        sizeof(gpu_error))) {
+    if (vg_gpu_renderer_validate_shader(renderer, invalid_vertex, "#version 330\nvoid main(){}\n",
+                                        gpu_error, sizeof(gpu_error))) {
         (void)fprintf(stderr, "FAIL invalid shader accepted\n");
         goto cleanup_renderer;
     }

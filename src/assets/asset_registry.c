@@ -223,6 +223,8 @@ static VgResult vg_asset_queue_release(VgAssetRegistry *registry, VgAssetType ty
 
 static bool vg_asset_resident_requires_gpu(const VgAssetRegistry *registry,
                                            uint32_t resident_index) {
+    if (registry->residents[resident_index].component_refs != 0u)
+        return true;
     for (uint32_t index = 0u; index < registry->max_leases; ++index) {
         const VgAssetLeaseSlot *lease = &registry->leases[index];
         if (lease->active && lease->resident_index == resident_index &&
@@ -401,6 +403,8 @@ VgResult vg_asset_catalog_upsert(VgContext *context, const VgAssetSourceDesc *so
         vg_asset_release_catalog_entry(context, entry);
     entry->used = true;
     entry->source = *source;
+    entry->source.struct_size = sizeof(entry->source);
+    entry->source.api_version = VG_API_VERSION;
     entry->path = path;
     entry->source_data = source_data;
     entry->options_data = options_data;
@@ -421,6 +425,14 @@ VgResult vg_asset_set_decoder(VgContext *context, VgAssetType type, const VgAsse
     return VG_OK;
 }
 
+VgResult vg_asset_require_gpu_executor(VgContext *context, const void *user) {
+    if (!vg_runtime_context_valid(context) || user == NULL)
+        return VG_ERROR_INVALID_ARGUMENT;
+    if (context->assets == NULL || !context->assets->gpu_attached ||
+        context->assets->gpu.user != user)
+        return VG_ERROR_CONFLICT;
+    return VG_OK;
+}
 VgResult vg_asset_attach_gpu(VgContext *context, const VgAssetGpuExecutor *executor) {
     if (!vg_runtime_context_valid(context) || executor == NULL ||
         executor->is_owner_thread == NULL || executor->upload == NULL || executor->release == NULL)
@@ -434,6 +446,13 @@ VgResult vg_asset_attach_gpu(VgContext *context, const VgAssetGpuExecutor *execu
         return VG_ERROR_CONFLICT;
     context->assets->gpu = *executor;
     context->assets->gpu_attached = true;
+    for (uint32_t index = 0u; index < context->assets->max_assets; ++index) {
+        VgAssetResident *resident = &context->assets->residents[index];
+        if (resident->used && vg_asset_resident_requires_gpu(context->assets, index) &&
+            resident->active_cpu.data != NULL && resident->active_gpu.token == 0u &&
+            resident->upload_source == VG_ASSET_UPLOAD_NONE)
+            resident->upload_source = VG_ASSET_UPLOAD_ACTIVE;
+    }
     return VG_OK;
 }
 
@@ -638,6 +657,9 @@ VgResult vg_asset_component_retain(VgContext *context, VgAsset asset, VgAssetRef
     if (resident->component_refs == UINT32_MAX)
         return VG_ERROR_CAPACITY;
     ++resident->component_refs;
+    if (context->assets->gpu_attached && resident->active_gpu.token == 0u &&
+        resident->active_cpu.data != NULL && resident->upload_source == VG_ASSET_UPLOAD_NONE)
+        resident->upload_source = VG_ASSET_UPLOAD_ACTIVE;
     *out_reference = (VgAssetRef){lease->resident_index + 1u, resident->generation};
     return VG_OK;
 }
@@ -653,6 +675,62 @@ VgResult vg_asset_component_release(VgContext *context, VgAssetRef reference) {
         resident->component_refs == 0u)
         return VG_ERROR_INVALID_HANDLE;
     --resident->component_refs;
+    return VG_OK;
+}
+
+static VgResult vg_asset_resolve_component(VgContext *context, VgAssetRef reference,
+                                           uint32_t *out_index, VgAssetResident **out_resident) {
+    if (!vg_runtime_context_valid(context))
+        return VG_ERROR_INVALID_ARGUMENT;
+    if (context->assets == NULL || reference.index == 0u ||
+        reference.index > context->assets->max_assets)
+        return VG_ERROR_INVALID_HANDLE;
+    uint32_t index = reference.index - 1u;
+    VgAssetResident *resident = &context->assets->residents[index];
+    if (!resident->used || resident->generation != reference.generation ||
+        resident->component_refs == 0u)
+        return VG_ERROR_INVALID_HANDLE;
+    if (out_index != NULL)
+        *out_index = index;
+    if (out_resident != NULL)
+        *out_resident = resident;
+    return VG_OK;
+}
+
+VgResult vg_asset_component_acquire(VgContext *context, VgAssetRef reference,
+                                    VgAssetResidency residency, VgAsset *out_asset) {
+    if (out_asset == NULL)
+        return VG_ERROR_INVALID_ARGUMENT;
+    const uint32_t residency_mask = VG_ASSET_RESIDENCY_CPU | VG_ASSET_RESIDENCY_GPU;
+    if (residency == 0u)
+        residency = VG_ASSET_RESIDENCY_CPU;
+    if ((residency & ~residency_mask) != 0u)
+        return VG_ERROR_INVALID_ARGUMENT;
+    residency |= VG_ASSET_RESIDENCY_CPU;
+    uint32_t resident_index = 0u;
+    VgResult result = vg_asset_resolve_component(context, reference, &resident_index, NULL);
+    if (result != VG_OK)
+        return result;
+    VgAsset asset = {0};
+    result = vg_asset_allocate_lease(context, resident_index, residency, &asset);
+    if (result != VG_OK)
+        return result;
+    *out_asset = asset;
+    return VG_OK;
+}
+
+VgResult vg_asset_component_gpu_object(VgContext *context, VgAssetRef reference,
+                                       VgAssetGpuObject *out_object, uint64_t *out_version) {
+    if (out_object == NULL || out_version == NULL)
+        return VG_ERROR_INVALID_ARGUMENT;
+    VgAssetResident *resident = NULL;
+    VgResult result = vg_asset_resolve_component(context, reference, NULL, &resident);
+    if (result != VG_OK)
+        return result;
+    if (resident->active_gpu.token == 0u || resident->published_version == 0u)
+        return VG_ERROR_GPU;
+    *out_object = resident->active_gpu;
+    *out_version = resident->published_version;
     return VG_OK;
 }
 

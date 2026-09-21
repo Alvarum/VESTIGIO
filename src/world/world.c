@@ -108,13 +108,37 @@ static VgResult vg_entity_prepare_destroy(const VgWorldState *world, uint32_t en
     return VG_OK;
 }
 
-static VgResult vg_entity_finalize_destroy(VgWorldState *world, uint32_t entity_index) {
+static VgResult vg_entity_release_renderers(VgContext *context, VgEntitySlot *slot) {
+    if (slot->has_mesh_renderer) {
+        VgResult result = vg_asset_component_release(context, slot->mesh_asset);
+        if (result != VG_OK)
+            return result;
+    }
+    if (slot->has_sprite_renderer) {
+        VgResult result = vg_asset_component_release(context, slot->sprite_asset);
+        if (result != VG_OK)
+            return result;
+    }
+    memset(&slot->mesh_renderer, 0, sizeof(slot->mesh_renderer));
+    memset(&slot->sprite_renderer, 0, sizeof(slot->sprite_renderer));
+    slot->mesh_asset = (VgAssetRef){0};
+    slot->sprite_asset = (VgAssetRef){0};
+    slot->has_mesh_renderer = false;
+    slot->has_sprite_renderer = false;
+    return VG_OK;
+}
+
+static VgResult vg_entity_finalize_destroy(VgContext *context, VgWorldState *world,
+                                           uint32_t entity_index) {
     bool detach[VG_HANDLE_ENTITY_MAX] = {false};
     VgTransform detached_transforms[VG_HANDLE_ENTITY_MAX];
     VgResult result = vg_entity_prepare_destroy(world, entity_index, detach, detached_transforms);
     if (result != VG_OK)
         return result;
     VgEntitySlot *slot = &world->entities[entity_index];
+    result = vg_entity_release_renderers(context, slot);
+    if (result != VG_OK)
+        return result;
     for (uint32_t index = 0u; index < world->entity_capacity; ++index) {
         VgEntitySlot *child = &world->entities[index];
         if (detach[index]) {
@@ -142,6 +166,9 @@ static VgResult vg_entity_finalize_destroy(VgWorldState *world, uint32_t entity_
 void vg_world_release_state(VgContext *context, VgWorldState *world) {
     if (world == NULL)
         return;
+    for (uint32_t index = 0u; index < world->entity_capacity; ++index)
+        if (vg_entity_is_present(world->entities[index].state))
+            (void)vg_entity_release_renderers(context, &world->entities[index]);
     vg_runtime_deallocate(context, world->entities);
     vg_runtime_deallocate(context, world);
 }
@@ -285,7 +312,7 @@ VgResult vg_world_end_iteration(VgContext *context, VgWorld handle) {
     for (uint32_t index = 0u; index < world->entity_capacity; ++index) {
         if (world->entities[index].state == VG_ENTITY_PENDING_DESTROY ||
             world->entities[index].state == VG_ENTITY_PENDING_CANCEL) {
-            result = vg_entity_finalize_destroy(world, index);
+            result = vg_entity_finalize_destroy(context, world, index);
             if (result != VG_OK)
                 return result;
         }
@@ -334,7 +361,13 @@ VgResult vg_entity_create(VgContext *context, VgWorld handle, VgEntity *out_enti
     slot->parent_index = VG_NO_PARENT;
     slot->parent_generation = 0u;
     memset(&slot->camera, 0, sizeof(slot->camera));
+    memset(&slot->mesh_renderer, 0, sizeof(slot->mesh_renderer));
+    memset(&slot->sprite_renderer, 0, sizeof(slot->sprite_renderer));
+    slot->mesh_asset = (VgAssetRef){0};
+    slot->sprite_asset = (VgAssetRef){0};
     slot->has_camera = false;
+    slot->has_mesh_renderer = false;
+    slot->has_sprite_renderer = false;
     slot->state = world->iterating ? VG_ENTITY_PENDING_CREATE : VG_ENTITY_ACTIVE;
     if (!world->iterating)
         ++world->active_count;
@@ -362,7 +395,7 @@ VgResult vg_entity_destroy(VgContext *context, VgEntity entity) {
         slot->state = VG_ENTITY_PENDING_DESTROY;
         return VG_OK;
     }
-    return vg_entity_finalize_destroy(world, entity_index);
+    return vg_entity_finalize_destroy(context, world, entity_index);
 }
 
 VgResult vg_entity_get_local_transform(VgContext *context, VgEntity entity,

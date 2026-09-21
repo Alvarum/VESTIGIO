@@ -1,6 +1,7 @@
 #ifndef VESTIGIO_RUNTIME_INTERNAL_H
 #define VESTIGIO_RUNTIME_INTERNAL_H
 
+#include "assets/asset_registry.h"
 #include "vestigio/vestigio.h"
 
 #include <stdbool.h>
@@ -39,11 +40,17 @@ typedef enum VgEntityState {
 typedef struct VgEntitySlot {
     VgTransform local;
     VgCameraDesc camera;
+    VgMeshRendererDesc mesh_renderer;
+    VgSpriteRendererDesc sprite_renderer;
+    VgAssetRef mesh_asset;
+    VgAssetRef sprite_asset;
     uint16_t generation;
     uint16_t parent_index;
     uint16_t parent_generation;
     uint8_t state;
     bool has_camera;
+    bool has_mesh_renderer;
+    bool has_sprite_renderer;
 } VgEntitySlot;
 
 typedef struct VgWorldState {
