@@ -186,7 +186,7 @@ Commit integrado: `9ed4d5e`.
 
 ## R03 — Game callbacks y primer SDK instalable externo
 
-Fase: **P2** · Rol: **runtime** · Estado: **IN_PROGRESS**.
+Fase: **P2** · Rol: **runtime** · Estado: **INTEGRATED**.
 
 Dependencias integradas: R02.
 
@@ -210,9 +210,13 @@ Verificación: V-CORE, V-APP, V-SDK.
 
 Desbloquea: Juego code-first sobre el mismo runtime.
 
+Evidencia: docs/implementation/evidence/R03.md.
+
+Commit integrado: `df05608`.
+
 ## I01 — Acciones de input y settings comunes mínimos
 
-Fase: **P2** · Rol: **runtime** · Estado: **PLANNED**.
+Fase: **P2** · Rol: **runtime** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: R03.
 
@@ -268,7 +272,7 @@ Commit integrado: `1acbd03`.
 
 ## M01 — Importación GLB/glTF estática a representación propia
 
-Fase: **P3** · Rol: **content** · Estado: **IN_PROGRESS**.
+Fase: **P3** · Rol: **content** · Estado: **INTEGRATED**.
 
 Dependencias integradas: R02.
 
@@ -292,9 +296,13 @@ Verificación: V-CORE, V-ASSET.
 
 Desbloquea: Modelos 3D reales, sin parser glTF artesanal.
 
+Evidencia: docs/implementation/evidence/M01.md.
+
+Commit integrado: `656fda7`.
+
 ## G03 — Renderables y materiales GPU compartidos desde SDK
 
-Fase: **P3** · Rol: **gpu** · Estado: **PLANNED**.
+Fase: **P3** · Rol: **gpu** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: G01, R03, M01.
 

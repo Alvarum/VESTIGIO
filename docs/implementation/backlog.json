@@ -51,14 +51,14 @@
       "validation": ["V-CORE", "V-ASSET"], "unlocks": "Importer y residencia GPU compartida."
     },
     {
-      "id": "R03", "phase": "P2", "title": "Game callbacks y primer SDK instalable externo", "role": "runtime", "dependencies": ["R02"], "locks": ["runtime-core", "public-api", "session-bridge", "build"], "status": "IN_PROGRESS",
+      "id": "R03", "phase": "P2", "title": "Game callbacks y primer SDK instalable externo", "role": "runtime", "dependencies": ["R02"], "locks": ["runtime-core", "public-api", "session-bridge", "build"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/R03.md"], "integrated_commit": "df05608",
       "paths": ["include/vestigio/", "src/api/", "src/runtime/", "src/session/session.c", "src/player/main.c", "cmake/", "tests/sdk/"],
       "steps": ["Implementar init/world_ready/fixed_update/event/draw_ui/shutdown y stepping embebido; separar composición de juego de lifecycle en un cambio acotado.", "Instalar SDK estático con headers y paquete CMake; exports explícitos de tooling al tocar su frontera, conservando ABI necesaria para Studio actual.", "Crear consumidor C externo que cree mundo/cámara/entidades y lógica propia sin ReProject ni headers internos; backend GPU se conectará al integrar G03."],
       "acceptance": ["find_package y enlace desde fuera del repo funcionan sin Studio/.NET ni include de src; el ejemplo es un consumidor real, no target con acceso privilegiado al árbol.", "Orden/reentrancia de callbacks, init fallido, eventos limitados y shutdown parcial se prueban; no hay game DLL/hot reload implícitos.", "Juego legacy y pruebas de sesión siguen funcionando; diferencias de input se resuelven en I01, no con un segundo loop divergente."],
       "validation": ["V-CORE", "V-APP", "V-SDK"], "unlocks": "Juego code-first sobre el mismo runtime."
     },
     {
-      "id": "I01", "phase": "P2", "title": "Acciones de input y settings comunes mínimos", "role": "runtime", "dependencies": ["R03"], "locks": ["input-settings", "session-bridge", "public-api", "platform-window", "wpf-viewport"], "status": "PLANNED",
+      "id": "I01", "phase": "P2", "title": "Acciones de input y settings comunes mínimos", "role": "runtime", "dependencies": ["R03"], "locks": ["input-settings", "session-bridge", "public-api", "platform-window", "wpf-viewport"], "status": "IN_PROGRESS",
       "paths": ["src/input/", "src/config/", "src/engine/input.c", "src/platform/raylib_platform.c", "src/player/main.c", "src/studio/Controls/GameViewport.cs", "src/studio/Native/", "tests/input/"],
       "steps": ["Definir pressed/held/released por acción y adaptar Player/Studio al mismo acumulador de tick, con clear al perder foco.", "Implementar esquema/defaults proyecto/usuario/sesión y validación; campos mínimos de video, bindings y sensibilidad, preservando extensión para audio/perfiles.", "Guardar preferencias con versión y reemplazo seguro; declarar settings inmediatos o aplicables tras recreación de superficie."],
       "acceptance": ["Mantener tecla/ratón en Studio y Player genera acciones equivalentes a través de múltiples ticks; pausa/foco no deja acciones pegadas.", "Archivo corrupto/version futura/conflicto de binding tiene diagnóstico y no sobrescritura destructiva.", "Overrides de CLI/sesión no contaminan defaults persistidos; VSync/cap no alteran dt de simulación."],
@@ -72,14 +72,14 @@
       "validation": ["V-CORE", "V-DATA"], "unlocks": "Documento transaccional, migraciones y formatos de agentes."
     },
     {
-      "id": "M01", "phase": "P3", "title": "Importación GLB/glTF estática a representación propia", "role": "content", "dependencies": ["R02"], "locks": ["asset-import"], "status": "IN_PROGRESS",
+      "id": "M01", "phase": "P3", "title": "Importación GLB/glTF estática a representación propia", "role": "content", "dependencies": ["R02"], "locks": ["asset-import"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/M01.md"], "integrated_commit": "656fda7",
       "paths": ["src/assets/import/", "tests/assets/fixtures/", "THIRD_PARTY.md"],
       "steps": ["Integrar cgltf fijado con avisos correspondientes, sin exponer sus structs ni Model de raylib; parse, load buffers, validate y normalizar a IR propia.", "Soportar malla indexada/no indexada, nodos/submeshes, UV/normales/texturas y materiales retro definidos; aplicar cambio de base Y-up a Z-up sin recenter de pivots.", "Crear fixtures propias o con licencia registrada para GLB y glTF externo; declarar rechazo de skins/morphs/extensiones no soportadas en esta etapa."],
       "acceptance": ["Escala, ejes, jerarquía/pivot, winding, normales y alpha se validan con geometría de referencia numérica.", "Archivos truncados, índices/accesores fuera de rango y required extension no soportada devuelven error, sin crash ni lectura fuera de límite.", "Importar no necesita GPU; mismo source/opciones produce la misma IR y dependencias/fingerprint reproducibles."],
       "validation": ["V-CORE", "V-ASSET"], "unlocks": "Modelos 3D reales, sin parser glTF artesanal."
     },
     {
-      "id": "G03", "phase": "P3", "title": "Renderables y materiales GPU compartidos desde SDK", "role": "gpu", "dependencies": ["G01", "R03", "M01"], "locks": ["gpu-backend", "asset-gpu", "public-api"], "status": "PLANNED",
+      "id": "G03", "phase": "P3", "title": "Renderables y materiales GPU compartidos desde SDK", "role": "gpu", "dependencies": ["G01", "R03", "M01"], "locks": ["gpu-backend", "asset-gpu", "public-api"], "status": "IN_PROGRESS",
       "paths": ["src/render/", "src/assets/", "src/api/", "tests/gpu/", "tests/sdk/"],
       "steps": ["Conectar IR importada al registro de assets y backend; render packets mesh/material/transform/bounds, sprites y cámara desde World.", "Añadir materiales básicos opaque/mask/blend y error material, culling/frustum y contadores; uploads únicos para meshes/texturas compartidas.", "Extender consumidor C externo para cargar modelo y crear 100 instancias; destrucción y reload respetan versiones y contexto."],
       "acceptance": ["100 instancias comparten mesh/textura; contador prueba una carga/upload por recurso residente, no una por entidad.", "Modelo y sprite delante/detrás, alpha y wireframe se verifican visualmente; renderer CPU no genera el frame final.", "Fallo de upload y descargar una instancia conservan las demás; dispose/purge libera recursos propios."],

@@ -2,7 +2,7 @@
 
 Fecha de preparación del plan: 2026-09-20.
 
-- Estado global: **IMPLEMENTACIÓN_EN_CURSO — F00/F01/G01/G02/R01/R02/D01 INTEGRADOS / R03, M01 Y D02 EN CURSO**.
+- Estado global: **IMPLEMENTACIÓN_EN_CURSO — F00/F01/G01/G02/R01/R02/R03/D01/M01 INTEGRADOS / I01, G03 Y D02 EN CURSO**.
 - HEAD observado para redactar: `28dafa949ff68ed3dc52bf93d287863037bf8578`.
 - Checkout observado limpio antes de crear `docs/implementation/`.
 - Cambios de código desde `ae48d31` hasta esa base: ninguno; se incorporó la investigación.
@@ -15,7 +15,7 @@ Verificación del paquete: **PASS**, 31 tickets, 61 dependencias, 15 oleadas te�
 
 ## Registro del coordinador
 
-F00/F01/G01/G02/R01/R02/D01 integrados. R03 continúa runtime/SDK; M01 avanza en importación y D02 en documento/transacciones.
+F00/F01/G01/G02/R01/R02/R03/D01/M01 integrados. I01, G03 y D02 avanzan en paralelo con archivos y locks separados.
 
 | Ticket | Responsable / checkout | Base y resultado | Locks / archivos compartidos | Evidencia / siguiente paso |
 |---|---|---|---|---|
@@ -25,9 +25,11 @@ F00/F01/G01/G02/R01/R02/D01 integrados. R03 continúa runtime/SDK; M01 avanza en
 | G02 | integrador / checkout principal | `a13fb8b` / `9811b03` | liberado | [evidence/G02.md](evidence/G02.md); HwndHost GPU, 50 ciclos y revisión independiente PASS |
 | R01 | agente `r01_runtime` + `r02_design` + integrador | `9811b03` / `9ed4d5e` | liberado | [evidence/R01.md](evidence/R01.md); auditoría corregida y regresiones PASS |
 | R02 | agente `r02_design` + integrador | `9744dae` / `9ed4d5e` | liberado | [evidence/R02.md](evidence/R02.md); leases, candidatos CPU/GPU y ownership PASS |
-| R03 | agente `r02_design` / checkout compartido | `9ed4d5e` / en curso | runtime-core, public-api, build | callbacks y SDK instalable |
+| R03 | agente `r02_design` + integrador | `df05608` / 11 de 11 por perfil | liberado | lifecycle, cámara y SDK instalable |
+| I01 | agente `r02_design` / checkout compartido | `656fda7` / en curso | input-settings, public-api | acciones y settings comunes |
 | D01 | integrado | `1acbd03` | libre | formato/validadores y corpus CPU |
-| M01 | agente `r01_review` / checkout compartido | `9ed4d5e` / en curso | asset-import | importer glTF/GLB e IR propia |
+| M01 | agente `r01_review` + integrador | `656fda7` / 12 de 12 por perfil | liberado | importer glTF/GLB e IR propia |
+| G03 | agente `r01_review` / checkout compartido | `656fda7` / en curso | gpu-backend, asset-gpu | renderables/modelos GPU compartidos |
 | D02 | agente `r01_runtime` / checkout compartido | `1acbd03` / en curso | document-core, tool-api | documento/transacciones y Tool API |
 
 ## Bloqueos y decisiones pendientes
