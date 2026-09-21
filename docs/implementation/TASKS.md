@@ -216,7 +216,7 @@ Commit integrado: `df05608`.
 
 ## I01 — Acciones de input y settings comunes mínimos
 
-Fase: **P2** · Rol: **runtime** · Estado: **IN_PROGRESS**.
+Fase: **P2** · Rol: **runtime** · Estado: **INTEGRATED**.
 
 Dependencias integradas: R03.
 
@@ -239,6 +239,10 @@ Puntos de entrada: `src/input/`, `src/config/`, `src/engine/input.c`, `src/platf
 Verificación: V-CORE, V-APP, V-WPF.
 
 Desbloquea: Controlador, preferencias y paridad entre hosts.
+
+Evidencia: docs/implementation/evidence/I01.md.
+
+Commit integrado: `683ad2d`.
 
 ## D01 — Formato canónico y validadores de contenido
 

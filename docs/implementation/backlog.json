@@ -58,7 +58,7 @@
       "validation": ["V-CORE", "V-APP", "V-SDK"], "unlocks": "Juego code-first sobre el mismo runtime."
     },
     {
-      "id": "I01", "phase": "P2", "title": "Acciones de input y settings comunes mínimos", "role": "runtime", "dependencies": ["R03"], "locks": ["input-settings", "session-bridge", "public-api", "platform-window", "wpf-viewport"], "status": "IN_PROGRESS",
+      "id": "I01", "phase": "P2", "title": "Acciones de input y settings comunes mínimos", "role": "runtime", "dependencies": ["R03"], "locks": ["input-settings", "session-bridge", "public-api", "platform-window", "wpf-viewport"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/I01.md"], "integrated_commit": "683ad2d",
       "paths": ["src/input/", "src/config/", "src/engine/input.c", "src/platform/raylib_platform.c", "src/player/main.c", "src/studio/Controls/GameViewport.cs", "src/studio/Native/", "tests/input/"],
       "steps": ["Definir pressed/held/released por acción y adaptar Player/Studio al mismo acumulador de tick, con clear al perder foco.", "Implementar esquema/defaults proyecto/usuario/sesión y validación; campos mínimos de video, bindings y sensibilidad, preservando extensión para audio/perfiles.", "Guardar preferencias con versión y reemplazo seguro; declarar settings inmediatos o aplicables tras recreación de superficie."],
       "acceptance": ["Mantener tecla/ratón en Studio y Player genera acciones equivalentes a través de múltiples ticks; pausa/foco no deja acciones pegadas.", "Archivo corrupto/version futura/conflicto de binding tiene diagnóstico y no sobrescritura destructiva.", "Overrides de CLI/sesión no contaminan defaults persistidos; VSync/cap no alteran dt de simulación."],
