@@ -134,6 +134,8 @@ static VgResult vg_entity_finalize_destroy(VgWorldState *world, uint32_t entity_
     slot->parent_index = VG_NO_PARENT;
     slot->parent_generation = 0u;
     slot->local = vg_identity_transform;
+    memset(&slot->camera, 0, sizeof(slot->camera));
+    slot->has_camera = false;
     return VG_OK;
 }
 
@@ -191,6 +193,8 @@ VgResult vg_world_create(VgContext *context, const VgWorldDesc *description, VgW
 }
 
 VgResult vg_world_destroy(VgContext *context, VgWorld handle) {
+    if (vg_runtime_context_valid(context) && context->destroying)
+        return VG_ERROR_REENTRANT;
     uint32_t world_index = 0u;
     VgWorldState *world = NULL;
     VgResult result = vg_runtime_resolve_world(context, handle, &world_index, &world);
@@ -198,6 +202,8 @@ VgResult vg_world_destroy(VgContext *context, VgWorld handle) {
         return result;
     if (world->iterating)
         return VG_ERROR_REENTRANT;
+    if (vg_game_world_is_bound(context, handle))
+        return VG_ERROR_CONFLICT;
     vg_world_release_state(context, world);
     VgWorldSlot *slot = &context->worlds[world_index];
     slot->world = NULL;
@@ -327,6 +333,8 @@ VgResult vg_entity_create(VgContext *context, VgWorld handle, VgEntity *out_enti
     slot->local = vg_identity_transform;
     slot->parent_index = VG_NO_PARENT;
     slot->parent_generation = 0u;
+    memset(&slot->camera, 0, sizeof(slot->camera));
+    slot->has_camera = false;
     slot->state = world->iterating ? VG_ENTITY_PENDING_CREATE : VG_ENTITY_ACTIVE;
     if (!world->iterating)
         ++world->active_count;

@@ -2,6 +2,8 @@
 cmake_minimum_required(VERSION 3.28)
 project(RetroForge VERSION 0.1.0 LANGUAGES C CXX)
 include(CTest)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 option(RETRO_BUILD_APPS "Construir aplicaciones con ventana" ON)
 option(RETRO_ANALYZE "Ejecutar el analizador estático de GCC" OFF)
 option(RETRO_SANITIZE "ASan y UBSan donde el compilador los soporte" OFF)
@@ -9,6 +11,7 @@ option(RETRO_SANITIZE "ASan y UBSan donde el compilador los soporte" OFF)
 # Frontera pública inicial de VESTIGIO. Es deliberadamente header-only en F01:
 # R01/R03 incorporarán runtime y distribución sin arrastrar tipos RetroForge.
 add_library(vestigio_sdk_headers INTERFACE)
+set_target_properties(vestigio_sdk_headers PROPERTIES EXPORT_NAME Headers)
 target_include_directories(vestigio_sdk_headers INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
@@ -44,16 +47,48 @@ endfunction()
 # público permite que los consumidores de R01 enlacen el lifecycle ya real.
 add_library(vestigio_runtime STATIC
     src/runtime/context.c
+    src/runtime/camera.c
+    src/runtime/game.c
     src/assets/asset_registry.c
     src/world/world.c
     src/world/transform.c)
+set_target_properties(vestigio_runtime PROPERTIES EXPORT_NAME Runtime)
 retro_target(vestigio_runtime)
+set_property(TARGET vestigio_runtime PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+    "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_include_directories(vestigio_runtime PRIVATE "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(vestigio_runtime PUBLIC vestigio_sdk_headers)
 if(NOT WIN32)
     target_link_libraries(vestigio_runtime PRIVATE m)
 endif()
 add_library(Vestigio::Runtime ALIAS vestigio_runtime)
+
+configure_package_config_file(
+    "${PROJECT_SOURCE_DIR}/cmake/VestigioConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/VestigioConfig.cmake"
+    INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/Vestigio")
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/VestigioConfigVersion.cmake"
+    VERSION "${PROJECT_VERSION}"
+    COMPATIBILITY SameMajorVersion)
+install(TARGETS vestigio_runtime vestigio_sdk_headers
+    EXPORT VestigioTargets
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT SDK
+    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+install(DIRECTORY include/vestigio
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    COMPONENT SDK)
+install(EXPORT VestigioTargets
+    FILE VestigioTargets.cmake
+    NAMESPACE Vestigio::
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/Vestigio"
+    COMPONENT SDK)
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/VestigioConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/VestigioConfigVersion.cmake"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/Vestigio"
+    COMPONENT SDK)
 
 # Documentos de proyecto y nivel. Este target no depende del runtime ni de una
 # plataforma grafica, de modo que los validadores se pueden ejecutar en CI CPU.
@@ -242,6 +277,11 @@ if(BUILD_TESTING)
     target_include_directories(vestigio_asset_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
     add_test(NAME vestigio_assets COMMAND vestigio_asset_test)
 
+    add_executable(vestigio_game_test tests/sdk/game_test.c)
+    retro_target(vestigio_game_test)
+    target_link_libraries(vestigio_game_test PRIVATE vestigio_runtime)
+    add_test(NAME vestigio_game_lifecycle COMMAND vestigio_game_test)
+
     add_executable(vestigio_runtime_c_test tests/runtime/runtime_link_c_test.c)
     target_link_libraries(vestigio_runtime_c_test PRIVATE vestigio_runtime)
     set_target_properties(vestigio_runtime_c_test PROPERTIES
@@ -263,6 +303,17 @@ if(BUILD_TESTING)
     target_include_directories(vestigio_render_contract_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
     set_target_properties(vestigio_render_contract_test PROPERTIES C_STANDARD 23 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
     add_test(NAME vestigio_render_contract COMMAND vestigio_render_contract_test)
+
+    add_test(NAME vestigio_sdk_install
+        COMMAND "${CMAKE_COMMAND}"
+            "-DVG_BUILD_DIR=${CMAKE_BINARY_DIR}"
+            "-DVG_CONSUMER_SOURCE=${PROJECT_SOURCE_DIR}/tests/sdk/external-consumer"
+            "-DVG_GENERATOR=${CMAKE_GENERATOR}"
+            "-DVG_C_COMPILER=${CMAKE_C_COMPILER}"
+            "-DVG_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}"
+            "-DVG_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+            "-DVG_EXE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
+            -P "${PROJECT_SOURCE_DIR}/tests/sdk/verify_install.cmake")
 
     add_executable(retro_tests tests/test_main.c)
     retro_target(retro_tests)

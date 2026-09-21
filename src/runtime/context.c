@@ -234,6 +234,12 @@ VgResult vg_context_create(const VgContextDesc *description, VgContext **out_con
 void vg_context_destroy(VgContext *context) {
     if (!vg_runtime_context_valid(context))
         return;
+    if (context->destroying || context->game_callback_depth != 0u) {
+        if (context->log != NULL)
+            context->log(context->log_user, VG_LOG_ERROR,
+                         "vg_context_destroy cannot run from a game callback");
+        return;
+    }
     VgResult asset_result = vg_asset_registry_can_destroy(context);
     if (asset_result != VG_OK) {
         if (context->log != NULL)
@@ -241,6 +247,8 @@ void vg_context_destroy(VgContext *context) {
                          "vg_context_destroy must run on the attached GPU owner thread");
         return;
     }
+    context->destroying = true;
+    vg_game_destroy_all(context);
     for (uint32_t index = 0u; index < context->max_worlds; ++index) {
         if (context->worlds[index].state == VG_WORLD_ACTIVE)
             vg_world_release_state(context, context->worlds[index].world);

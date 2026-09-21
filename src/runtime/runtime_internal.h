@@ -38,10 +38,12 @@ typedef enum VgEntityState {
 
 typedef struct VgEntitySlot {
     VgTransform local;
+    VgCameraDesc camera;
     uint16_t generation;
     uint16_t parent_index;
     uint16_t parent_generation;
     uint8_t state;
+    bool has_camera;
 } VgEntitySlot;
 
 typedef struct VgWorldState {
@@ -76,6 +78,9 @@ struct VgContext {
     uint32_t max_asset_leases;
     VgWorldSlot *worlds;
     VgAssetRegistry *assets;
+    VgGame *games;
+    uint32_t game_callback_depth;
+    bool destroying;
     void *allocator_user;
     VgAllocateFn allocate;
     VgDeallocateFn deallocate;
@@ -97,5 +102,7 @@ VgResult vg_runtime_resolve_world(VgContext *context, VgWorld handle, uint32_t *
 VgResult vg_runtime_resolve_entity(VgContext *context, VgEntity handle, uint32_t *out_world_index,
                                    VgWorldState **out_world, uint32_t *out_entity_index);
 void vg_world_release_state(VgContext *context, VgWorldState *world);
+bool vg_game_world_is_bound(const VgContext *context, VgWorld world);
+void vg_game_destroy_all(VgContext *context);
 
 #endif

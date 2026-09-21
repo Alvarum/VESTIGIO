@@ -59,6 +59,7 @@ typedef uint32_t VgLogSeverity;
 enum { VG_LOG_DEBUG = 0u, VG_LOG_INFO = 1u, VG_LOG_WARNING = 2u, VG_LOG_ERROR = 3u };
 
 typedef struct VgContext VgContext;
+typedef struct VgGame VgGame;
 typedef struct VgWorld {
     uint64_t value;
 } VgWorld;
@@ -88,6 +89,80 @@ typedef struct VgTransform {
     VgQuat rotation;
     VgVec3 scale;
 } VgTransform;
+
+typedef uint32_t VgCameraProjection;
+enum { VG_CAMERA_PERSPECTIVE = 1u, VG_CAMERA_ORTHOGRAPHIC = 2u };
+
+typedef struct VgCameraDesc {
+    uint32_t struct_size;
+    uint32_t api_version;
+    VgCameraProjection projection;
+    uint32_t flags;
+    float vertical_fov_radians;
+    float orthographic_height;
+    float near_clip_metres;
+    float far_clip_metres;
+} VgCameraDesc;
+
+#define VG_EVENT_PAYLOAD_CAPACITY 64u
+
+typedef struct VgEvent {
+    uint32_t struct_size;
+    uint32_t api_version;
+    uint32_t type;
+    uint32_t flags;
+    VgEntity source;
+    VgEntity target;
+    uint32_t payload_size;
+    uint32_t reserved;
+    uint8_t payload[VG_EVENT_PAYLOAD_CAPACITY];
+} VgEvent;
+
+typedef struct VgUiFrame {
+    uint32_t struct_size;
+    uint32_t api_version;
+    uint64_t frame_index;
+    uint32_t viewport_width_pixels;
+    uint32_t viewport_height_pixels;
+    float interpolation_alpha;
+    uint32_t reserved;
+} VgUiFrame;
+
+typedef struct VgGameCallbacks {
+    uint32_t struct_size;
+    uint32_t api_version;
+    void *user;
+    VgResult (*init)(VgContext *context, void *user);
+    VgResult (*world_ready)(VgContext *context, VgWorld world, void *user);
+    void (*fixed_update)(VgContext *context, VgWorld world, float dt_seconds, void *user);
+    void (*event)(VgContext *context, const VgEvent *event, void *user);
+    void (*draw_ui)(VgContext *context, VgUiFrame *frame, void *user);
+    void (*shutdown)(VgContext *context, void *user);
+} VgGameCallbacks;
+
+typedef struct VgGameDesc {
+    uint32_t struct_size;
+    uint32_t api_version;
+    double fixed_delta_seconds;
+    double max_frame_delta_seconds;
+    uint32_t max_fixed_steps_per_frame;
+    uint32_t event_capacity;
+    uint32_t max_events_per_tick;
+    uint32_t reserved;
+} VgGameDesc;
+
+typedef struct VgStepInfo {
+    uint32_t struct_size;
+    uint32_t api_version;
+    uint32_t fixed_steps;
+    uint32_t events_dispatched;
+    uint32_t dropped_fixed_steps;
+    uint32_t pending_events;
+    double simulated_seconds;
+    double dropped_seconds;
+    float interpolation_alpha;
+    uint32_t reserved;
+} VgStepInfo;
 
 /* AssetId is persistent project identity (UUID bytes in canonical network
  * order). VgAsset is a context-local, generational lease and must never be
@@ -245,6 +320,28 @@ VG_API VgResult vg_entity_set_world_transform(VgContext *context, VgEntity entit
 VG_API VgResult vg_entity_get_parent(VgContext *context, VgEntity entity, VgEntity *out_parent);
 VG_API VgResult vg_entity_set_parent(VgContext *context, VgEntity entity, VgEntity parent,
                                      VgReparentMode mode);
+
+/* Camera is a small runtime component. It describes a view without exposing a
+ * renderer or GPU surface. The entity transform supplies its pose. */
+VG_API VgResult vg_camera_set(VgContext *context, VgEntity entity, const VgCameraDesc *description);
+VG_API VgResult vg_camera_get(VgContext *context, VgEntity entity, VgCameraDesc *out_description);
+VG_API VgResult vg_camera_clear(VgContext *context, VgEntity entity);
+
+/* A game instance copies its callback table and owns a bounded FIFO event
+ * queue. init runs during create. world_ready runs only after a world resolves
+ * successfully. Each fixed tick calls fixed_update and then drains its event
+ * budget in FIFO order. draw_ui is explicitly requested by the host, and
+ * shutdown runs exactly once after init was entered, including init failure.
+ * Callbacks are synchronous. Lifecycle/step/draw re-entry is rejected; event
+ * emission from a callback is allowed and remains bounded by the queue. */
+VG_API VgResult vg_game_create(VgContext *context, const VgGameDesc *description,
+                               const VgGameCallbacks *callbacks, VgGame **out_game);
+VG_API VgResult vg_game_set_world(VgGame *game, VgWorld world);
+VG_API VgResult vg_game_clear_world(VgGame *game);
+VG_API VgResult vg_game_emit_event(VgGame *game, const VgEvent *event);
+VG_API VgResult vg_game_step(VgGame *game, double elapsed_seconds, VgStepInfo *out_info);
+VG_API VgResult vg_game_draw_ui(VgGame *game, VgUiFrame *frame);
+VG_API VgResult vg_game_destroy(VgGame *game);
 
 /* Asset acquisition resolves a catalog entry already registered by the
  * project/content layer. Zero required_residency means CPU. GPU residency is
