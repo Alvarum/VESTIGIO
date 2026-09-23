@@ -334,31 +334,31 @@ Evidencia: docs/implementation/evidence/G03.md.
 
 Commit integrado: `50ece2a`.
 
-## G04 — Adaptador GPU de sectores y sprites legacy
+## J01 — Primera escena 3D nueva y recorrible en GPU
 
-Fase: **P3** · Rol: **gpu** · Estado: **IN_PROGRESS**.
+Fase: **P3** · Rol: **runtime** · Estado: **PLANNED**.
 
-Dependencias integradas: G03.
+Dependencias integradas: G03, I01, D02.
 
-Locks: `gpu-backend`, `legacy-adapter`, `session-bridge`.
+Locks: `platform-window`, `session-bridge`, `public-api`.
 
-Puntos de entrada: `src/render/`, `src/content/legacy/`, `src/session/session.c`, `src/engine/map.c`, `tests/gpu/`.
+Puntos de entrada: `src/player/`, `src/api/`, `examples/`, `tests/sdk/`, `tests/gpu/`.
 
 **Trabajo:**
 
-1. Convertir sectores/portales/aberturas a mallas derivadas al cargar o editar, con invalidación por revisión; materiales de imagen y sprites actuales alimentan recursos nuevos.
-2. Mantener reglas/colisión legacy en su contrato existente y geometría dinámica de barreras actualizada sin retessellar todo cada frame.
-3. Comparar corpus Haunted/portales parciales en ambos backends por invariantes geométricas/visuales, no por igualdad pixel-perfect de shading.
+1. Crear un proyecto de ejemplo nuevo con suelo visual, algunos objetos y un modelo glTF/GLB importado; no convertir ni migrar Haunted.
+2. Conectar el consumidor de SDK al host Player y a sus acciones de input para recorrer la escena con cámara en GPU; si falta una pieza pública, añadir sólo la conexión imprescindible.
+3. Documentar comando de arranque y controles; comprobar apertura, recorrido, resize y cierre con una prueba dirigida y una captura en GPU real.
 
 **Aceptación:**
 
-- Pisos, techos, portales parciales y huecos no quedan cerrados por mallas nuevas; sprites/atlas y materiales se conservan.
-- Geometría estática no se sube por frame; editar una región invalida sólo datos necesarios según política documentada.
-- Player usa el nuevo camino GPU con gameplay legacy preservado y opción de laboratorio CPU acotada.
+- Un usuario arranca una escena nueva desde un comando reproducible, ve el modelo importado y puede desplazar la cámara; el frame final se dibuja en GPU.
+- El ejemplo usa el SDK público sin incluir internals; Player libera ventana y recursos al cerrar, con errores legibles si falta el asset.
+- Este hito es recorrido libre sin colisiones ni editor; no se anuncia como juego completo.
 
-Verificación: V-CORE, V-APP, V-GPU.
+Verificación: V-APP, V-SDK, V-GPU.
 
-Desbloquea: Transición incremental sin perder niveles existentes.
+Desbloquea: Demo mínima visible antes de financiar física o autoría.
 
 ## D02 — Documento nativo, transacciones y Tool API
 
@@ -389,32 +389,6 @@ Desbloquea: Editor y automatización sobre una autoridad documental.
 Evidencia: docs/implementation/evidence/D02.md.
 
 Commit integrado: `2e15e5e`.
-
-## D03 — Migración legacy y round-trip de proyecto completo
-
-Fase: **P4** · Rol: **content** · Estado: **PLANNED**.
-
-Dependencias integradas: D02, G04.
-
-Locks: `document-core`, `legacy-adapter`.
-
-Puntos de entrada: `src/content/legacy/`, `src/gameplay/project.c`, `tests/content/`, `assets/studio/`.
-
-**Trabajo:**
-
-1. Implementar migración sobre copia de mapas/proyecto/actores/reglas/diálogos; generar UUID determinístico y preservar portales/etiquetas/referencias.
-2. Resolver catálogo y subrecursos importados sin depender de cwd; contenido legado se representa como adaptador, no reinterpretación destructiva.
-3. Probar proyecto migrado mediante instanciador y GPU; no sobrescribir assets de ejemplo originales durante pruebas.
-
-**Aceptación:**
-
-- Haunted y fixtures de portales/reglas migran, se guardan, reabren y juegan sin pérdida semántica declarada.
-- Mover proyecto a ruta con espacios/Unicode conserva resolución de recursos; referencia perdida informa ID/ruta.
-- Migración repetida es estable y conserva originales; versión nueva no se escribe como si fuera formato legacy.
-
-Verificación: V-CORE, V-APP, V-DATA, V-GPU.
-
-Desbloquea: Base de contenido migrable y utilizable.
 
 ## E01 — Viewport editorial GPU conectado al documento
 
@@ -498,15 +472,15 @@ Desbloquea: Flujo editorial de contenido completo.
 
 Fase: **P5** · Rol: **editor** · Estado: **PLANNED**.
 
-Dependencias integradas: E03, D03, S01.
+Dependencias integradas: E03, S01.
 
-Locks: `wpf-viewport`, `document-commands`, `legacy-adapter`.
+Locks: `wpf-viewport`, `document-commands`.
 
 Puntos de entrada: `src/editor/`, `src/content/`, `src/studio/Controls/`, `tests/content/`, `tests/studio/`.
 
 **Trabajo:**
 
-1. Añadir recetas acotadas de habitación/pared y abertura con preview; conservar herramientas sectoriales existentes y adaptar geometría derivada.
+1. Añadir recetas nuevas y acotadas de habitación/pared y abertura con preview y geometría derivada.
 2. Implementar grid/cotas/capas/plantas como organización de autoría y ghosting opcional; no ocultar plantas automáticamente en runtime.
 3. Conectar operaciones al mismo historial/validadores y recalcular bounds/malla/collider invalidado; evitar construir un modelador 3D general.
 
@@ -533,7 +507,7 @@ Puntos de entrada: `src/physics/`, `src/world/`, `src/api/`, `tests/spatial/`.
 **Trabajo:**
 
 1. Implementar raycast/sweep/overlap con máscaras, ignored entity y resultados entidad/normal/distancia/fracción; static mesh con aceleración acotada y colliders dinámicos simples.
-2. Mantener fuente de geometría/collider/transform común con runtime; adaptar consultas legacy sin exigir BSP/navmesh nuevos a todos los niveles.
+2. Mantener fuente de geometría/collider/transform común con runtime y la escena nueva; no exigir BSP/navmesh a los niveles nuevos.
 3. Definir escala/colliders admitidos, límites numéricos y actualización tras transform/edición; no simular rigid bodies generales.
 
 **Aceptación:**
@@ -559,14 +533,14 @@ Puntos de entrada: `src/gamekit/`, `src/physics/`, `src/session/session.c`, `tes
 **Trabajo:**
 
 1. Construir controlador cinemático de cápsula/volumen admitido con suelo, pendiente, escalón, techo y dt fijo; configuración expuesta al SDK.
-2. Integrar cámara/jugador opt-in sin asumir armas; preservar navegación BFS legacy y añadir waypoints/consultas mínimos para actores fuera de sectores.
+2. Integrar cámara/jugador opt-in sin asumir armas; añadir waypoints/consultas mínimos para actores de escenas nuevas.
 3. Crear recorrido de prueba con props, escalera y pasillo estrecho; registrar límites admitidos y comportamiento ante penetración inicial.
 
 **Aceptación:**
 
 - Movimiento estable con render a distintas frecuencias; no atraviesa suelo/techo/esquinas bajo velocidad máxima admitida.
 - Jugador cabe/no cabe conforme a volumen, pendiente/escalón válidos y plataformas definidas; FPS no es dependencia del core.
-- Actor legacy conserva recorrido; navegación 3D no afirma cobertura navmesh que no existe.
+- Navegación 3D verificable para el recorrido nuevo, sin afirmar cobertura navmesh que no existe.
 
 Verificación: V-CORE, V-APP, V-SPATIAL.
 
@@ -690,7 +664,7 @@ Puntos de entrada: `src/assets/import/`, `src/world/`, `src/render/`, `src/conte
 
 1. Extender importer/IR con clips de nodos y después skins/joints/inverse bind matrices; definir interpolaciones soportadas y rechazar el resto explícitamente.
 2. Separar asset de animación/mesh compartido de tiempo/pose por instancia; skinning GPU dentro de capacidades/budgets definidos.
-3. Mantener billboards/atlas legacy y serializar parámetros de instancia; coordinar layout de atributos/uniforms con responsable GPU antes de modificar backend.
+3. Serializar parámetros de instancia; coordinar layout de atributos/uniforms con responsable GPU antes de modificar backend.
 
 **Aceptación:**
 
@@ -706,7 +680,7 @@ Desbloquea: Personajes/modelos animados reales.
 
 Fase: **P5-P7** · Rol: **editor** · Estado: **PLANNED**.
 
-Dependencias integradas: E04, S03, V02, A01, A02, D03.
+Dependencias integradas: E04, S03, V02, A01, A02.
 
 Locks: `wpf-inspector`, `wpf-viewport`, `tool-api`.
 
@@ -784,7 +758,7 @@ Desbloquea: Persistencia de partida y entrega independiente.
 
 Fase: **P8** · Rol: **integrator** · Estado: **PLANNED**.
 
-Dependencias integradas: E05, P01, Q01.
+Dependencias integradas: E05, P01, Q01, J01.
 
 Locks: `integration`, `build`, `public-api`, `packaging`.
 

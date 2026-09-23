@@ -1,6 +1,6 @@
 # Prompts para entregar el plan
 
-Copiar uno de los prompts siguientes al agente que tenga acceso al repositorio. Por defecto el encargo es ARRANQUE. Para ejecutar el plan entero, cambiar esa línea por `ALCANCE: COMPLETO`. No lanzar todos los prompts de worker a la vez: el coordinador asigna tickets elegibles.
+Copiar un prompt sólo cuando el usuario encargue un entregable de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). ARRANQUE ya está integrado. La instrucción anterior `ALCANCE: COMPLETO` no autoriza continuar automáticamente. El motor es nuevo y no requiere compatibilidad ni migraciones de proyectos previos.
 
 ## Un solo agente
 
@@ -8,16 +8,16 @@ Copiar uno de los prompts siguientes al agente que tenga acceso al repositorio. 
 Implementa VESTIGIO siguiendo el paquete docs/implementation/README.md del repositorio:
 C:\Users\alvar\Documents\dev\doom like\1
 
-ALCANCE: ARRANQUE — F00, F01, G01, G02, R01, R02, R03, I01.
+ALCANCE: J01 — primera escena 3D nueva y recorrible en GPU.
+LÍMITE: una ventana de hasta 90 minutos; detenerse y reportar al alcanzarlo.
 
 Esto es una solicitud de implementación, no de volver a planificar. Lee PLAN.md,
 CONTRACTS.md, VALIDATION.md, STATE.md y los tickets de backlog.json/TASKS.md.
 La investigación de docs/research explica las decisiones; no repitas toda su auditoría.
 
-Empieza por F00 y F01. Comprueba HEAD y trabajo concurrente. Después implementa
-los tickets del alcance en orden de dependencias. GPU real es requisito: geometría,
-materiales y efectos no pueden seguir calculándose sólo en CPU. SDK C y Studio deben
-usar el mismo runtime. Preserva herramientas/niveles legacy y el renderer CPU de laboratorio.
+Comprueba HEAD y trabajo concurrente. Las dependencias de J01 ya están integradas.
+Implementa únicamente J01 usando SDK C y GPU real, con un proyecto de ejemplo nuevo.
+No migres Haunted ni agregues adaptadores o compatibilidad con prototipos anteriores.
 
 No hagas refactors globales, cambios de licencia, un ECS universal ni MCP/game DLL.
 Resuelve decisiones locales sin preguntarme por cada paso. Si una frontera falla,
@@ -27,9 +27,9 @@ Por ticket: implementar, probar casos de aceptación, revisar diff, integrar y r
 resultados en evidence/<ID>.md y STATE/backlog. No marques PASS lo que no ejecutaste.
 No alteres trabajo ajeno ni compartas salidas de build con otro escritor.
 
-Detente al cerrar ARRANQUE o ante un bloqueo real sin trabajo independiente dentro
-del alcance. Entrega commits/archivos, pruebas y límites, estado GPU/WPF/SDK y próximo
-ticket elegible. No publiques ni despliegues remotamente.
+Detente al cerrar J01, alcanzar el límite, o ante un bloqueo real sin trabajo
+independiente dentro del alcance. Entrega commits/archivos, pruebas y límites,
+estado GPU/SDK y siguiente paso posible. No publiques ni despliegues remotamente.
 ```
 
 ## Coordinador de varios agentes
@@ -38,29 +38,28 @@ ticket elegible. No publiques ni despliegues remotamente.
 Coordina e implementa VESTIGIO con agentes siguiendo docs/implementation/README.md
 en C:\Users\alvar\Documents\dev\doom like\1.
 
-ALCANCE: ARRANQUE — F00, F01, G01, G02, R01, R02, R03, I01.
-Puedes delegar subtareas independientes a agentes dentro de la concurrencia disponible.
-Mantén un integrador y asigna roles GPU/runtime/content/editor según tickets elegibles;
-no es necesario que todos esos roles estén activos simultáneamente.
+ALCANCE: [entregable elegido por el usuario y tickets concretos].
+LÍMITE: [tiempo/presupuesto indicado por el usuario; máximo una ventana de 90 minutos].
+Usa un agente por defecto; delega en paralelo sólo si el usuario lo encargó para
+este entregable y el presupuesto cubre esa concurrencia.
 
-Ejecuta F00/F01 primero. Tú eres el único escritor de STATE.md/backlog.json y de la
+F00/F01 ya están integrados. Tú eres el único escritor de STATE.md/backlog.json y de la
 rama integrada. Publica contratos y base commit antes de delegar. Usa checkouts aislados
 con herramientas verificadas y build/obj/bin propios. Si no puedes aislar, serializa
 escritura en vez de mandar varios agentes al mismo archivo.
 
 Lee PLAN.md y valida DAG/locks. Asigna al worker ID, base, contrato, escritura exacta,
-casos de aceptación y formato de handoff. En ARRANQUE los carriles son G01→G02 y
-R01→R02→R03→I01; G01 y R01 parten de F01 integrado. Serializa los cambios de CMake,
+casos de aceptación y formato de handoff. Serializa los cambios de CMake,
 API pública, plataforma y viewport que se solapen. No delegues sólo 'hacer render'
 o 'hacer el editor': delega tickets concretos.
 
-GPU real, mismo runtime para C y Studio, ownership y round-trip son obligatorios.
+GPU real, mismo runtime para C y Studio y ownership son obligatorios según el ticket.
 No aceptes wrappers del framebuffer CPU como renderer GPU ni ventana externa como
 editor embebido completado. No repitas investigación ni amplíes a MCP/Vulkan/ECS universal.
 
 Integra de uno en uno, ejecuta pruebas afectadas sobre el candidato y actualiza estados.
-Una tarea bloqueada no detiene las independientes. Al completar el alcance ejecuta su
-gate integrado y entrega resultados reales, artefactos, límites y siguiente encargo.
+Una tarea bloqueada no detiene las independientes dentro del mismo encargo. Al completar
+el entregable o llegar al límite, entrega resultados reales, artefactos y pendientes.
 No envíes mensajes externos ni publiques/despliegues por el solo hecho de terminar.
 ```
 
@@ -80,7 +79,8 @@ Implementa el comportamiento y pruebas necesarias, sin completar otros tickets n
 refactorizar fuera de alcance. Puedes leer dependencias, pero no cambiar sus contratos
 sin avisar al coordinador. No edites STATE/backlog ni integres ramas de otros workers.
 
-La GPU es backend principal; conserva ownership/errores y compatibilidad delimitada.
+La GPU es backend principal; conserva ownership y manejo de errores. No agregues
+compatibilidad con formatos o proyectos anteriores sin un encargo nuevo.
 Registra evidencia del ticket en docs/implementation/evidence/[ID].md. Si una condición
 no puede ejecutarse, márcala NOT_RUN/BLOCKED_ENV, nunca PASS supuesto.
 
@@ -114,4 +114,4 @@ Riesgos, límites, NOT_RUN y bloqueos:
 Pasos concretos de integración y comprobaciones del integrador:
 ```
 
-INTEGRATED lo registra el coordinador tras incorporar y verificar el candidato. Los prompts individuales no autorizan rebasar el alcance encargado; para continuar a todo el roadmap hay que encargar COMPLETO o los tickets siguientes.
+INTEGRATED lo registra el coordinador tras incorporar y verificar el candidato. Los prompts individuales no autorizan rebasar el entregable encargado; cada entregable siguiente requiere una decisión nueva del usuario.

@@ -1,5 +1,7 @@
 # Plan ejecutable de VESTIGIO
 
+> **Ejecución pausada por control de gasto (2026-09-22).** Los hitos financiables y sus puntos de parada están en [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). La autorización anterior de alcance completo se sustituyó por entregables individuales; no continuar tickets por esta tabla sin un nuevo encargo.
+
 Fecha: 2026-09-20. Base observada: `28dafa949ff68ed3dc52bf93d287863037bf8578`, checkout limpio al comenzar esta planificación. El diff de código entre `ae48d31` y esta base es vacío; el nuevo commit incorpora la investigación. F00 debe comprobar el HEAD real cuando otro agente empiece, porque esta observación no congela el repositorio.
 
 ## Resultado que se implementará
@@ -13,11 +15,12 @@ Se implementa por verticales: primero GPU/superficie y contratos mínimos; despu
 | Encargo | Tickets / cierre | Resultado y límite |
 |---|---|---|
 | ARRANQUE, recomendado inicialmente | F00, F01, G01, G02, R01, R02, R03, I01 | GPU real y superficie de Studio probada, runtime/ownership/SDK/input mínimo. Modelos importados y autoría completa siguen pendientes |
-| BASE_3D | Anteriores + D01, M01, G03, G04, D02, D03 | Modelo GLB compartido GPU, legacy renderizado, nivel canónico y SDK externo con escena real |
-| CREATOR | Anteriores + E01–E05, S01–S03, V01–V02, A01–A02 | Crear/importar/editar/guardar/reabrir/jugar con puertas, colisión, luces, fog, audio y animación |
-| COMPLETO | Todos, incluyendo Q01, P01, P02, T01, Z01 | Dos juegos, SDK/exportación independiente, partidas y CLI con revisión; aceptación integrada |
+| BASE TÉCNICA (integrada) | ARRANQUE + D01, M01, G03, D02 | Modelo GLB compartido GPU, documento y SDK externo; aún sin escena recorrible |
+| PRIMERA ESCENA (siguiente) | J01 | Proyecto nuevo visible y recorrible libremente en Player con GPU real |
+| AMPLIACIONES (opcionales) | E01–E05, S01–S03, V01–V02, A01–A02 | Autoría, colisión, interacción y medios sólo por encargo individual |
+| DISTRIBUCIÓN (opcional) | Q01, P01, P02, T01, Z01 y dependencias | Dos juegos exportables, partidas, CLI y aceptación integrada sólo si se decide llegar ahí |
 
-Los nombres de tramos son selecciones de tickets, no nuevos estados ni saltos de dependencias. Un encargo menor no autoriza ejecutar tickets fuera de él; un encargo COMPLETO sí permite continuar autónomamente por las dependencias integradas. Si se entrega únicamente un ticket, el agente no implementa sus predecesores por su cuenta: verifica que ya estén integrados.
+La ejecución actual se rige por los entregables individuales de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). El motor es nuevo: compatibilidad con niveles/proyectos anteriores y migración no forman parte del alcance. Si se entrega únicamente un ticket, el agente verifica que sus predecesores ya estén integrados.
 
 ## Primer recorrido de implementación
 
@@ -28,7 +31,7 @@ Los nombres de tramos son selecciones de tickets, no nuevos estados ni saltos de
 5. **I01:** paridad de input y settings entre hosts. Puede esperar a G02 si ambos necesitan los mismos archivos de viewport/plataforma.
 6. Integrar ambos carriles, ejecutar aceptación de ARRANQUE y entregar estado. No afirmar que esa vertical ya permite crear un juego completo.
 
-Para BASE_3D, D01 y M01 son independientes una vez cumplidas sus dependencias; G03 une GPU/importación/SDK, G04 conserva niveles anteriores y D03 prueba la migración real. En CREATOR, editor, física y presentación tienen trabajo independiente, pero E05 exige que todo se encuentre en el mismo candidato.
+La base técnica ya está integrada. J01 cierra la primera escena nueva visible en Player. Editor, física y presentación son ampliaciones optativas; E05 exige que las funciones encargadas se prueben en un mismo candidato cuando se llegue a ese hito.
 
 La [lista de oleadas](WAVES.md) calcula el mínimo teórico por dependencias. **Dos tickets de una misma oleada sólo pueden ejecutarse simultáneamente si no comparten locks ni archivos reales.** No iniciar toda una oleada a ciegas.
 
@@ -47,7 +50,7 @@ Responsabilidades lógicas, no obligación de mantener cinco agentes activos:
 | integrator | F00/F01/P02/Z01, contratos, build, secuencia y aceptación | Único escritor de estado global/backlog y rama integrada |
 | gpu | Backend, superficie, upload/materiales/shaders/perfiles y profiling | Contexto/gráficos privados; API pública no expone raylib |
 | runtime | Handles/world, assets base, callbacks/input, física/gamekit/audio | No edita documentos desde el tick ni serializa memoria arbitraria |
-| content | Importación, formato, migración, animación, savegame y CLI | IR/IDs compartidos; no introduce otro serializer ni carga GPU desde parser |
+| content | Importación, formato, animación, savegame y CLI | IR/IDs compartidos; no introduce otro serializer ni carga GPU desde parser |
 | editor | Viewport, herramientas, inspector y recorrido integrado | Usa documento nativo y esquemas; no posee una segunda verdad del nivel |
 
 Con dos agentes: integrador/runtime + GPU primero; luego redistribuir contenido/editor. Con tres: integrador, GPU/editor y runtime/contenido. Con cuatro: integrador más tres workers; reasignar rol cuando un ticket termine. No crear agentes ociosos ni superar la concurrencia realmente disponible.
@@ -75,7 +78,7 @@ Entrega mínima del worker: ID, base/result commit, archivos, cambio/razón, com
 
 ## Decisiones y bloqueos
 
-Una decisión local dentro del contrato corresponde al agente; no necesita pedir permiso por cada función o test. Cambios de frontera se resuelven con nota breve: problema reproducido, dos alternativas relevantes, coste, elección, tickets afectados y migración. Actualizar contrato y DAG antes de continuar dependencias.
+Una decisión local dentro del contrato corresponde al agente; no necesita pedir permiso por cada función o test. Cambios de frontera se resuelven con nota breve: problema reproducido, dos alternativas relevantes, coste, elección, tickets afectados y transición técnica si hace falta. Actualizar contrato y DAG antes de continuar dependencias.
 
 G02 es el principal riesgo inicial: ventana externa demuestra GPU, pero no el editor embebido. Si falla, conservar experimento/evidencia, bloquear E01 y continuar lo independiente autorizado. La solución no puede ser readback continuo escondido ni reescribir todo Studio sin evaluar coste.
 
@@ -83,4 +86,4 @@ No implementar por anticipación networking, ECS universal, editor de shaders po
 
 ## Fin del encargo
 
-Al concluir el alcance asignado, entregar resultados reales y el siguiente ticket elegible. No avanzar a un tramo adicional por suposición. Si el usuario autorizó COMPLETO, sólo cerrar tras Z01 o explicar bloqueos verificables con trabajo independiente agotado. Este plan por sí solo no autoriza despliegues, envíos a terceros o publicación remota.
+Al concluir el entregable asignado o llegar a su tope, entregar resultados reales, pendientes y opciones de continuación. No avanzar a otro entregable por suposición. Este plan por sí solo no autoriza despliegues, envíos a terceros o publicación remota.

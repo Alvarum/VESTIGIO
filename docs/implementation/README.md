@@ -1,16 +1,16 @@
 # VESTIGIO — paquete de implementación para agentes
 
-**Listo para entregar a uno o varios agentes.** Este paquete convierte el [roadmap de investigación](../research/12-roadmap.md) en tickets con dependencias, alcance, responsabilidades, pruebas y criterios de cierre. Todavía no se ha implementado ninguno de estos tickets.
+**Paquete de implementación para agentes.** Este paquete convierte el [roadmap de investigación](../research/12-roadmap.md) en tickets con dependencias, alcance, responsabilidades, pruebas y criterios de cierre.
 
-La prioridad confirmada es **render de geometría, materiales y efectos en GPU**. SDK C y Studio usan el mismo runtime. Mantener el renderer CPU como laboratorio no permite posponer GPU hasta el final.
+**Actualización 2026-09-22:** hay 12 de 30 tickets integrados. La ejecución se pausó para controlar gasto; consultar [entregables para hobby](ENTREGABLES-HOBBY.md) antes de encargar más código. Se retiraron los tickets de compatibilidad y migración de proyectos anteriores. El siguiente entregable recomendado es una escena 3D nueva recorrible en GPU.
+
+La prioridad confirmada es **render de geometría, materiales y efectos en GPU**. SDK C y Studio deben usar el mismo runtime. El renderer CPU previo no es requisito de compatibilidad para los entregables nuevos.
 
 ## Cómo empezar
 
-1. Entregar al agente el prompt de [AGENT-PROMPTS.md](AGENT-PROMPTS.md), opción individual o coordinador.
-2. El agente lee [PLAN.md](PLAN.md), [CONTRACTS.md](CONTRACTS.md) y [VALIDATION.md](VALIDATION.md).
-3. Ejecuta **F00 → F01** antes de repartir código. Después GPU y runtime pueden avanzar en paralelo según dependencias y locks.
-4. Primer encargo recomendado: **tramo ARRANQUE**, los ocho tickets F00/F01/G01/G02/R01/R02/R03/I01. Entrega superficie GPU viable y SDK mínimo; todavía no promete modelos importados ni editor 3D completo.
-5. Al terminar ese tramo, se entrega evidencia y estado. El siguiente encargo puede autorizar `COMPLETO` o los tickets concretos siguientes. Si desde el principio se pide `COMPLETO`, continuar hasta Z01 sin pedir autorización repetida para cada ticket ordinario.
+1. Elegir un entregable de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). La base 0 ya está entregada; el siguiente recomendado es la demo jugable GPU.
+2. El agente lee [PLAN.md](PLAN.md), [CONTRACTS.md](CONTRACTS.md) y [VALIDATION.md](VALIDATION.md), y verifica el estado real del repositorio.
+3. Ejecuta una ventana acotada, entrega evidencia y estado al cierre. El siguiente trabajo requiere una nueva elección del usuario.
 
 No es necesario copiar toda la investigación en un prompt. Entregar acceso al repositorio y este archivo con el prompt elegido basta; cada ticket indica sus lecturas y verificaciones a través del plan.
 

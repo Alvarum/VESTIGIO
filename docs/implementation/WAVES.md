@@ -12,8 +12,8 @@ El coordinador puede usar menos workers que tickets. Además de locks se revisa 
 | W03 | G02, R02, D01 | Ninguno declarado; verificar archivos |
 | W04 | R03, M01, D02 | Ninguno declarado; verificar archivos |
 | W05 | I01, G03 | I01/G03: public-api |
-| W06 | G04, E01, S01, V01, A01, A02 | G04/V01: gpu-backend; G04/A02: gpu-backend; S01/A01: public-api; V01/A02: gpu-backend |
-| W07 | D03, E02, S02, V02 | Ninguno declarado; verificar archivos |
+| W06 | J01, E01, S01, V01, A01, A02 | J01/S01: public-api; J01/A01: public-api; S01/A01: public-api; V01/A02: gpu-backend |
+| W07 | E02, S02, V02 | Ninguno declarado; verificar archivos |
 | W08 | E03, S03 | Ninguno declarado; verificar archivos |
 | W09 | E04, P01 | Ninguno declarado; verificar archivos |
 | W10 | E05 | Ninguno declarado; verificar archivos |
@@ -37,9 +37,8 @@ flowchart TD
   D01[D01]
   M01[M01]
   G03[G03]
-  G04[G04]
+  J01[J01]
   D02[D02]
-  D03[D03]
   E01[E01]
   E02[E02]
   E03[E03]
@@ -69,11 +68,11 @@ flowchart TD
   G01 --> G03
   R03 --> G03
   M01 --> G03
-  G03 --> G04
+  G03 --> J01
+  I01 --> J01
+  D02 --> J01
   D01 --> D02
   R02 --> D02
-  D02 --> D03
-  G04 --> D03
   G02 --> E01
   G03 --> E01
   D02 --> E01
@@ -82,7 +81,6 @@ flowchart TD
   E02 --> E03
   M01 --> E03
   E03 --> E04
-  D03 --> E04
   S01 --> E04
   G03 --> S01
   D02 --> S01
@@ -105,7 +103,6 @@ flowchart TD
   V02 --> E05
   A01 --> E05
   A02 --> E05
-  D03 --> E05
   E05 --> Q01
   S03 --> P01
   A01 --> P01
@@ -115,6 +112,7 @@ flowchart TD
   E05 --> P02
   P01 --> P02
   Q01 --> P02
+  J01 --> P02
   P02 --> T01
   P02 --> Z01
   T01 --> Z01
@@ -122,6 +120,6 @@ flowchart TD
 
 ## Elegibilidad actual
 
-Por estado de dependencias: V01, A01, A02.
+Por estado de dependencias: J01, V01, A01, A02.
 
 Filtrar después por alcance encargado y locks. BLOCKED requiere resolver su motivo y actualizar estado; no se relanza automáticamente.

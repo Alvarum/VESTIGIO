@@ -2,22 +2,22 @@
 
 Fecha de preparación del plan: 2026-09-20.
 
-- Estado global: **IMPLEMENTACIÓN_EN_CURSO — F00/F01/G01/G02/G03/R01/R02/R03/I01/D01/M01/D02 INTEGRADOS / G04/E01/S01 EN CURSO**.
+- Estado global: **PAUSADO POR CONTROL DE GASTO — 12/30 INTEGRADOS; E01/S01 INTERRUMPIDOS**. Reanudar sólo el entregable que el usuario encargue según [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). G04 y D03 se retiraron por requerir compatibilidad/migración que este motor nuevo no necesita.
 - HEAD observado para redactar: `28dafa949ff68ed3dc52bf93d287863037bf8578`.
 - Checkout observado limpio antes de crear `docs/implementation/`.
 - Cambios de código desde `ae48d31` hasta esa base: ninguno; se incorporó la investigación.
 - F00 está INTEGRATED en `fe43b83`; F01 en `2052e5b`; G01 en `a13fb8b`; G02 en `9811b03`. R01 fue auditado, corregido y revalidado junto con R02 en `9ed4d5e`.
-- Encargo de inicio recomendado: **ARRANQUE**. Los prompts permiten seleccionar COMPLETO de forma explícita.
+- Encargo siguiente recomendado: **J01, primera escena 3D nueva**, dentro de una sola ventana de trabajo acotada. ARRANQUE ya está integrado; no hay autorización vigente para COMPLETO.
 - GPU objetivo: backend principal confirmado por el usuario; G01 y G02 ya ejecutan OpenGL 3.3 real en una NVIDIA GeForce RTX 5060 Ti.
 - Matriz aislada R01/R02: analyze 8/8, UBSan 8/8, debug 8/8 y release 8/8 con apps desactivadas. La evidencia GPU integrada anterior permanece en G01/G02; los cambios R01/R02 no modifican ese backend.
 - Matriz I01 aislada: UBSan 14/14; Analyze build y casos 1–13 PASS, con `retro_contracts` PASS tras limpiar un artefacto de ejecución concurrente; Debug/Release nativos 17/17; builds WPF Debug/Release sin warnings ni errores; `retro_studio_authoring` exacto PASS en 466,63 s (CTest dirigido 466,74 s). El timeout inicial de 180 s era insuficiente para recrear 50 contextos; la evidencia oficial es la corrida posterior sin trazas.
 - Candidato G03 aislado desde el índice: build Debug 119/119 y CTest dirigido 7/7 PASS; GPU real en NVIDIA GeForce RTX 5060 Ti/OpenGL 3.3, escena World→assets→GPU, aislamiento renderer/context, detach/reattach con un solo reupload y consumidor C11 instalado desde prefijo temporal.
 
-Verificación del paquete: **PASS**, 31 tickets, 61 dependencias, 15 oleadas teóricas, sin ciclos; todos los tickets alimentan el gate final Z01. Los ocho tickets de ARRANQUE incluyen sus dependencias. TASKS/WAVES coinciden con el JSON. Se comprobaron 20 enlaces locales y seis casos negativos del validador (ciclo, dependencia desconocida, ID duplicado, inicio prematuro, alcance incompleto y gate final incompleto), todos rechazados correctamente. Esto no es una ejecución de los tickets ni de pruebas del motor.
+Verificación del paquete actualizado: **PASS**, 30 tickets, 60 dependencias y 15 oleadas teóricas; sin ciclos y todos los tickets alcanzan el gate Z01. Los ocho tickets de ARRANQUE incluyen sus dependencias. TASKS/WAVES coinciden con el JSON. Esto valida el plan, **no** ejecuta tickets ni pruebas del motor.
 
 ## Registro del coordinador
 
-F00/F01/G01/G02/G03/R01/R02/R03/I01/D01/M01/D02 integrados. G04/E01/S01 continúan en curso; A01 conserva un núcleo de audio validado como checkpoint parcial.
+F00/F01/G01/G02/G03/R01/R02/R03/I01/D01/M01/D02 integrados. E01/S01 tienen estado técnico IN_PROGRESS en el backlog, pero sus agentes están interrumpidos y no hay ejecución autorizada ahora. J01 es el siguiente ticket nuevo propuesto, aún PLANNED. A01 conserva un núcleo de audio validado como checkpoint parcial (`8dfce4a`); no equivale al ticket completo. Archivos parciales de S01 permanecen sin seguimiento en `src/physics/` y `src/world/spatial_world.*` para una futura revisión; no borrarlos por rutina.
 
 | Ticket | Responsable / checkout | Base y resultado | Locks / archivos compartidos | Evidencia / siguiente paso |
 |---|---|---|---|---|
@@ -36,7 +36,7 @@ F00/F01/G01/G02/G03/R01/R02/R03/I01/D01/M01/D02 integrados. G04/E01/S01 continú
 
 ## Bloqueos y decisiones pendientes
 
-No hay un bloqueo que impida comenzar F00. Hay riesgos que deben comprobarse durante implementación:
+No hay un bloqueo técnico confirmado para planificar J01; su integración real en Player aún debe comprobarse. Hay riesgos que deben comprobarse durante implementación:
 
 - G02: docking flotante, Tab/Escape y DPI físico 150/200 % conservan aceptación humana pendiente; el embedding base está integrado.
 - Toolchain/cachés en checkouts de agentes: los directorios ignorados no se copian al crear worktree.

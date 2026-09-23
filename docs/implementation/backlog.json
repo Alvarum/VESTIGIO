@@ -3,7 +3,7 @@
   "project": "VESTIGIO",
   "created": "2026-09-20",
   "planning_head": "28dafa949ff68ed3dc52bf93d287863037bf8578",
-  "status": "IMPLEMENTING_COMPLETE_SCOPE",
+  "status": "PAUSED_DELIVERABLES",
   "default_scope": ["F00", "F01", "G01", "G02", "R01", "R02", "R03", "I01"],
   "roles": ["integrator", "gpu", "runtime", "content", "editor"],
   "validation_profiles": ["V-CORE", "V-APP", "V-SDK", "V-GPU", "V-WPF", "V-ASSET", "V-DATA", "V-SPATIAL", "V-AUDIO", "V-PERF", "V-DELIVERY"],
@@ -86,11 +86,11 @@
       "validation": ["V-APP", "V-SDK", "V-ASSET", "V-GPU"], "unlocks": "Primer juego C con modelos GPU; asset browser y mundo mixto."
     },
     {
-      "id": "G04", "phase": "P3", "title": "Adaptador GPU de sectores y sprites legacy", "role": "gpu", "dependencies": ["G03"], "locks": ["gpu-backend", "legacy-adapter", "session-bridge"], "status": "IN_PROGRESS",
-      "paths": ["src/render/", "src/content/legacy/", "src/session/session.c", "src/engine/map.c", "tests/gpu/"],
-      "steps": ["Convertir sectores/portales/aberturas a mallas derivadas al cargar o editar, con invalidación por revisión; materiales de imagen y sprites actuales alimentan recursos nuevos.", "Mantener reglas/colisión legacy en su contrato existente y geometría dinámica de barreras actualizada sin retessellar todo cada frame.", "Comparar corpus Haunted/portales parciales en ambos backends por invariantes geométricas/visuales, no por igualdad pixel-perfect de shading."],
-      "acceptance": ["Pisos, techos, portales parciales y huecos no quedan cerrados por mallas nuevas; sprites/atlas y materiales se conservan.", "Geometría estática no se sube por frame; editar una región invalida sólo datos necesarios según política documentada.", "Player usa el nuevo camino GPU con gameplay legacy preservado y opción de laboratorio CPU acotada."],
-      "validation": ["V-CORE", "V-APP", "V-GPU"], "unlocks": "Transición incremental sin perder niveles existentes."
+      "id": "J01", "phase": "P3", "title": "Primera escena 3D nueva y recorrible en GPU", "role": "runtime", "dependencies": ["G03", "I01", "D02"], "locks": ["platform-window", "session-bridge", "public-api"], "status": "PLANNED",
+      "paths": ["src/player/", "src/api/", "examples/", "tests/sdk/", "tests/gpu/"],
+      "steps": ["Crear un proyecto de ejemplo nuevo con suelo visual, algunos objetos y un modelo glTF/GLB importado; no convertir ni migrar Haunted.", "Conectar el consumidor de SDK al host Player y a sus acciones de input para recorrer la escena con cámara en GPU; si falta una pieza pública, añadir sólo la conexión imprescindible.", "Documentar comando de arranque y controles; comprobar apertura, recorrido, resize y cierre con una prueba dirigida y una captura en GPU real."],
+      "acceptance": ["Un usuario arranca una escena nueva desde un comando reproducible, ve el modelo importado y puede desplazar la cámara; el frame final se dibuja en GPU.", "El ejemplo usa el SDK público sin incluir internals; Player libera ventana y recursos al cerrar, con errores legibles si falta el asset.", "Este hito es recorrido libre sin colisiones ni editor; no se anuncia como juego completo."],
+      "validation": ["V-APP", "V-SDK", "V-GPU"], "unlocks": "Demo mínima visible antes de financiar física o autoría."
     },
     {
       "id": "D02", "phase": "P4", "title": "Documento nativo, transacciones y Tool API", "role": "content", "dependencies": ["D01", "R02"], "locks": ["document-core", "tool-api"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/D02.md"], "integrated_commit": "2e15e5e",
@@ -98,13 +98,6 @@
       "steps": ["Implementar documento/instanciador con mismos constructores/validadores de componentes del runtime y assets por ID; mantener blobs y GPU fuera del historial.", "Implementar begin(expected revision), comandos tipados, validate/commit/cancel, mapping de IDs y save transaccional recuperable.", "Conservar semántica undo/redo actual, duplicación con remap y unknown fields; autosave separado del guardado manual."],
       "acceptance": ["Lote inválido no cambia documento ni destruye redo; conflicto de revisión no pisa edición concurrente.", "Crear/duplicar/reparentar/guardar/reabrir conserva campos y refs; asset pesado no se copia por cada undo.", "Fallo entre archivos de commit tiene recuperación reproducible y no sobrescribe una versión futura."],
       "validation": ["V-CORE", "V-DATA"], "unlocks": "Editor y automatización sobre una autoridad documental."
-    },
-    {
-      "id": "D03", "phase": "P4", "title": "Migración legacy y round-trip de proyecto completo", "role": "content", "dependencies": ["D02", "G04"], "locks": ["document-core", "legacy-adapter"], "status": "PLANNED",
-      "paths": ["src/content/legacy/", "src/gameplay/project.c", "tests/content/", "assets/studio/"],
-      "steps": ["Implementar migración sobre copia de mapas/proyecto/actores/reglas/diálogos; generar UUID determinístico y preservar portales/etiquetas/referencias.", "Resolver catálogo y subrecursos importados sin depender de cwd; contenido legado se representa como adaptador, no reinterpretación destructiva.", "Probar proyecto migrado mediante instanciador y GPU; no sobrescribir assets de ejemplo originales durante pruebas."],
-      "acceptance": ["Haunted y fixtures de portales/reglas migran, se guardan, reabren y juegan sin pérdida semántica declarada.", "Mover proyecto a ruta con espacios/Unicode conserva resolución de recursos; referencia perdida informa ID/ruta.", "Migración repetida es estable y conserva originales; versión nueva no se escribe como si fuera formato legacy."],
-      "validation": ["V-CORE", "V-APP", "V-DATA", "V-GPU"], "unlocks": "Base de contenido migrable y utilizable."
     },
     {
       "id": "E01", "phase": "P5", "title": "Viewport editorial GPU conectado al documento", "role": "editor", "dependencies": ["G02", "G03", "D02", "I01"], "locks": ["wpf-viewport", "tool-api"], "status": "IN_PROGRESS",
@@ -128,24 +121,24 @@
       "validation": ["V-APP", "V-ASSET", "V-DATA", "V-WPF"], "unlocks": "Flujo editorial de contenido completo."
     },
     {
-      "id": "E04", "phase": "P5", "title": "Herramientas de habitaciones, aberturas y organización", "role": "editor", "dependencies": ["E03", "D03", "S01"], "locks": ["wpf-viewport", "document-commands", "legacy-adapter"], "status": "PLANNED",
+      "id": "E04", "phase": "P5", "title": "Herramientas de habitaciones, aberturas y organización", "role": "editor", "dependencies": ["E03", "S01"], "locks": ["wpf-viewport", "document-commands"], "status": "PLANNED",
       "paths": ["src/editor/", "src/content/", "src/studio/Controls/", "tests/content/", "tests/studio/"],
-      "steps": ["Añadir recetas acotadas de habitación/pared y abertura con preview; conservar herramientas sectoriales existentes y adaptar geometría derivada.", "Implementar grid/cotas/capas/plantas como organización de autoría y ghosting opcional; no ocultar plantas automáticamente en runtime.", "Conectar operaciones al mismo historial/validadores y recalcular bounds/malla/collider invalidado; evitar construir un modelador 3D general."],
+      "steps": ["Añadir recetas nuevas y acotadas de habitación/pared y abertura con preview y geometría derivada.", "Implementar grid/cotas/capas/plantas como organización de autoría y ghosting opcional; no ocultar plantas automáticamente en runtime.", "Conectar operaciones al mismo historial/validadores y recalcular bounds/malla/collider invalidado; evitar construir un modelador 3D general."],
       "acceptance": ["Crear habitación y abertura, deshacer/rehacer, guardar/reabrir mantiene geometría y portales.", "Receta es autoridad y mesh derivada se regenera sin duplicación divergente; no hay hueco visual con collider viejo al integrarse con S01.", "Preview/cancel no deja objetos huérfanos; edificio con atrio no pierde pisos visibles por regla editorial."],
       "validation": ["V-CORE", "V-DATA", "V-WPF", "V-GPU"], "unlocks": "World building recuperado de js-game sin portar sus errores."
     },
     {
       "id": "S01", "phase": "P6", "title": "Consultas espaciales 3D y colliders compartidos", "role": "runtime", "dependencies": ["G03", "D02"], "locks": ["spatial-core", "public-api"], "status": "IN_PROGRESS",
       "paths": ["src/physics/", "src/world/", "src/api/", "tests/spatial/"],
-      "steps": ["Implementar raycast/sweep/overlap con máscaras, ignored entity y resultados entidad/normal/distancia/fracción; static mesh con aceleración acotada y colliders dinámicos simples.", "Mantener fuente de geometría/collider/transform común con runtime; adaptar consultas legacy sin exigir BSP/navmesh nuevos a todos los niveles.", "Definir escala/colliders admitidos, límites numéricos y actualización tras transform/edición; no simular rigid bodies generales."],
+      "steps": ["Implementar raycast/sweep/overlap con máscaras, ignored entity y resultados entidad/normal/distancia/fracción; static mesh con aceleración acotada y colliders dinámicos simples.", "Mantener fuente de geometría/collider/transform común con runtime y la escena nueva; no exigir BSP/navmesh a los niveles nuevos.", "Definir escala/colliders admitidos, límites numéricos y actualización tras transform/edición; no simular rigid bodies generales."],
       "acceptance": ["Ray/movimiento/visión/proyectil usan máscaras coherentes y no atraviesan props sólidos por falta silenciosa de collider.", "Pruebas reproducen contacto tangencial, esquina, malla fina, rotación/padre y escala admitida con tolerancias documentadas.", "Editar/reimportar collider invalida estructura espacial; overlays muestran geometría de colisión real."],
       "validation": ["V-CORE", "V-SPATIAL"], "unlocks": "Espacio 3D jugable y picking preciso opcional."
     },
     {
       "id": "S02", "phase": "P6", "title": "Controlador 3D y navegación mínima", "role": "runtime", "dependencies": ["S01", "I01"], "locks": ["spatial-core", "gamekit", "session-bridge"], "status": "PLANNED",
       "paths": ["src/gamekit/", "src/physics/", "src/session/session.c", "tests/spatial/", "tests/gamekit/"],
-      "steps": ["Construir controlador cinemático de cápsula/volumen admitido con suelo, pendiente, escalón, techo y dt fijo; configuración expuesta al SDK.", "Integrar cámara/jugador opt-in sin asumir armas; preservar navegación BFS legacy y añadir waypoints/consultas mínimos para actores fuera de sectores.", "Crear recorrido de prueba con props, escalera y pasillo estrecho; registrar límites admitidos y comportamiento ante penetración inicial."],
-      "acceptance": ["Movimiento estable con render a distintas frecuencias; no atraviesa suelo/techo/esquinas bajo velocidad máxima admitida.", "Jugador cabe/no cabe conforme a volumen, pendiente/escalón válidos y plataformas definidas; FPS no es dependencia del core.", "Actor legacy conserva recorrido; navegación 3D no afirma cobertura navmesh que no existe."],
+      "steps": ["Construir controlador cinemático de cápsula/volumen admitido con suelo, pendiente, escalón, techo y dt fijo; configuración expuesta al SDK.", "Integrar cámara/jugador opt-in sin asumir armas; añadir waypoints/consultas mínimos para actores de escenas nuevas.", "Crear recorrido de prueba con props, escalera y pasillo estrecho; registrar límites admitidos y comportamiento ante penetración inicial."],
+      "acceptance": ["Movimiento estable con render a distintas frecuencias; no atraviesa suelo/techo/esquinas bajo velocidad máxima admitida.", "Jugador cabe/no cabe conforme a volumen, pendiente/escalón válidos y plataformas definidas; FPS no es dependencia del core.", "Navegación 3D verificable para el recorrido nuevo, sin afirmar cobertura navmesh que no existe."],
       "validation": ["V-CORE", "V-APP", "V-SPATIAL"], "unlocks": "Exploración 3D y colisión de puertas."
     },
     {
@@ -179,12 +172,12 @@
     {
       "id": "A02", "phase": "P7", "title": "Animación rígida y skeletal con pose por instancia", "role": "content", "dependencies": ["G03", "D02"], "locks": ["asset-import", "gpu-skinning", "gpu-backend", "document-schema"], "status": "PLANNED",
       "paths": ["src/assets/import/", "src/world/", "src/render/", "src/content/", "tests/assets/", "tests/gpu/"],
-      "steps": ["Extender importer/IR con clips de nodos y después skins/joints/inverse bind matrices; definir interpolaciones soportadas y rechazar el resto explícitamente.", "Separar asset de animación/mesh compartido de tiempo/pose por instancia; skinning GPU dentro de capacidades/budgets definidos.", "Mantener billboards/atlas legacy y serializar parámetros de instancia; coordinar layout de atributos/uniforms con responsable GPU antes de modificar backend."],
+      "steps": ["Extender importer/IR con clips de nodos y después skins/joints/inverse bind matrices; definir interpolaciones soportadas y rechazar el resto explícitamente.", "Separar asset de animación/mesh compartido de tiempo/pose por instancia; skinning GPU dentro de capacidades/budgets definidos.", "Serializar parámetros de instancia; coordinar layout de atributos/uniforms con responsable GPU antes de modificar backend."],
       "acceptance": ["Dos instancias del mismo asset animan con tiempos diferentes sin duplicar mesh ni pose compartida accidental.", "Pose de reposo/ejes/normales y jerarquía coinciden con fixtures numéricas/visuales; error de skin inválido no publica recurso parcial.", "GPU ejecuta skinning en perfil soportado, recursos se liberan y clip/velocidad/default persisten; morph targets no se anuncian si no se implementan."],
       "validation": ["V-CORE", "V-ASSET", "V-GPU", "V-DATA"], "unlocks": "Personajes/modelos animados reales."
     },
     {
-      "id": "E05", "phase": "P5-P7", "title": "Cerrar el recorrido editorial completo", "role": "editor", "dependencies": ["E04", "S03", "V02", "A01", "A02", "D03"], "locks": ["wpf-inspector", "wpf-viewport", "tool-api"], "status": "PLANNED",
+      "id": "E05", "phase": "P5-P7", "title": "Cerrar el recorrido editorial completo", "role": "editor", "dependencies": ["E04", "S03", "V02", "A01", "A02"], "locks": ["wpf-inspector", "wpf-viewport", "tool-api"], "status": "PLANNED",
       "paths": ["src/studio/", "src/editor/", "tests/studio/", "tests/journeys/"],
       "steps": ["Integrar campos/gizmos de luz/fog/material/shader/audio/trigger/interactable/puerta/spawn/actor/cámara/animación sobre esquemas reales; bridge para tipos de juego registrados.", "Cerrar crear habitación→importar modelo→poner puerta/luces/audio/trigger→guardar→cerrar→reabrir→jugar→detener; incluir undo y recuperación.", "Sincronizar colliders de edición, mensajes de validación, logs y debug overlays; verificar accesibilidad de teclado, DPI/docking y separación de Play."],
       "acceptance": ["Todos los datos editables del recorrido sobreviven round-trip y producen comportamiento en Player, incluida puerta con audio y bloqueo físico.", "Cambios de juego durante preview no alteran documento/partida; selección y foco vuelven correctamente al detener.", "Evidencia visual y ejecución integrada verifican UI/runtime/archivo; un widget o screenshot aislado no cierra el ticket."],
@@ -205,7 +198,7 @@
       "validation": ["V-CORE", "V-APP", "V-DATA", "V-SPATIAL", "V-AUDIO"], "unlocks": "Persistencia de partida y entrega independiente."
     },
     {
-      "id": "P02", "phase": "P8", "title": "Dos juegos y exportación independiente del repositorio", "role": "integrator", "dependencies": ["E05", "P01", "Q01"], "locks": ["integration", "build", "public-api", "packaging"], "status": "PLANNED",
+      "id": "P02", "phase": "P8", "title": "Dos juegos y exportación independiente del repositorio", "role": "integrator", "dependencies": ["E05", "P01", "Q01", "J01"], "locks": ["integration", "build", "public-api", "packaging"], "status": "PLANNED",
       "paths": ["examples/", "cmake/", "tools/export-project.ps1", "CMakeLists.txt", "THIRD_PARTY.md", "tests/sdk/", "tests/export/"],
       "steps": ["Crear FPS/editor y exploración C sin armas con mismo runtime; registrar tipos/acciones propios visibles en Studio y generar habitación/entidades/luces por Tool API.", "Completar SDK instalable y build/export por cierre transitivo de dependencias, avisos, host y game module compilado; excluir caché/src/autosaves salvo inclusión explícita.", "Probar paquetes fuera del repo con cwd arbitrario/rutas Unicode; preservar mejoras previas del exportador y evitar borrados fuera de destino verificado."],
       "acceptance": ["Ambos juegos se construyen/juegan sin tocar internals y Player exportado no requiere Studio/.NET ni carpetas del desarrollador.", "Dependencia ausente impide export con diagnóstico; ningún asset queda omitido por depender sólo de strings no declarados.", "Inventario/licencias de código y fixtures permite distribuir lo seleccionado; licencia del código propio no se inventa: la decisión del titular se registra antes de publicación pública."],

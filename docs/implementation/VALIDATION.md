@@ -52,7 +52,7 @@ Los códigos del backlog remiten a esta tabla. Ejecutar los casos nuevos relevan
 
 | Perfil | Evidencia requerida |
 |---|---|
-| V-CORE | Casos de contrato afectados, formato, analyze y UBSan; errores/capacidad/lifecycle cuando se tocan. Preservar geometría, portales, reglas y undo legacy |
+| V-CORE | Casos de contrato afectados, formato, analyze y UBSan; errores/capacidad/lifecycle cuando se tocan. No se exige compatibilidad con prototipos anteriores |
 | V-APP | Debug build + pruebas de sesión/host afectadas y ejecución real; release al cerrar tramo. No sumar results de distintos commits |
 | V-SDK | Instalar SDK en prefijo aislado; configurar/compilar/ejecutar consumidor fuera del repo, header C11 y C++, ningún include interno/.NET. API/stale handles/versiones según ticket |
 | V-GPU | Geometría/shader en GPU real; captura de comandos o inspección equivalente del backend/programa/buffers. Depth/alpha/clipping, aspecto, resize, cleanup, contadores uploads/readbacks. Normal frame sin readback; screenshots puntuales etiquetados |
@@ -71,9 +71,10 @@ No todos los tickets implementan todo un perfil: sus criterios de aceptación fi
 | Tramo | Recorrido que debe comprobarse en candidato integrado |
 |---|---|
 | ARRANQUE | Crear/limpiar contexto y entidades desde C externo; draw de geometría GPU sintética; superficie Studio viable, input entre hosts y settings mínimos. No afirmar importación GLB todavía |
-| BASE_3D | Consumidor C carga GLB, crea instancias compartidas y renderer GPU muestra nivel legacy; generar/migrar/guardar/reabrir documento con refs y recursos intactos |
-| CREATOR | Crear habitación/modelo/puerta/trigger/luz/fog/audio/animación; undo, guardar, cerrar, reabrir, jugar e interactuar; Stop conserva documento. Ejecución completa en Studio y Player |
-| COMPLETO | Dos juegos con mismo SDK/runtime, uno principalmente C; export fuera del repo, save/restore, CLI con conflicto de revisión, matriz de regresión y medidas GPU reales |
+| BASE TÉCNICA | Consumidor C carga GLB, crea instancias compartidas y renderer GPU dibuja la escena de prueba; documento nuevo valida referencias y round-trip de componentes soportados |
+| PRIMERA ESCENA (J01) | Proyecto nuevo arranca en Player; cámara se mueve sobre geometría visual con modelo importado, GPU real, resize y cierre limpio; no se exige colisión |
+| AMPLIACIONES EDITORIALES | Para las funciones encargadas: crear/editar, undo, guardar, cerrar, reabrir y jugar; Stop conserva documento. Evidencia en Studio y Player cuando corresponda |
+| DISTRIBUCIÓN (si se encarga) | Dos juegos con mismo SDK/runtime, uno principalmente C; export fuera del repo, save/restore, CLI con conflicto de revisión, matriz de regresión y medidas GPU reales |
 
 ## Registro de evidencia
 
