@@ -2,7 +2,7 @@
 
 Fecha de preparación del plan: 2026-09-20.
 
-- Estado global: **IMPLEMENTACIÓN_EN_CURSO — F00/F01/G01/G02/R01/R02/R03/I01/D01/M01/D02 INTEGRADOS / G03 EN CURSO**.
+- Estado global: **IMPLEMENTACIÓN_EN_CURSO — F00/F01/G01/G02/G03/R01/R02/R03/I01/D01/M01/D02 INTEGRADOS / G04/E01/S01 EN CURSO**.
 - HEAD observado para redactar: `28dafa949ff68ed3dc52bf93d287863037bf8578`.
 - Checkout observado limpio antes de crear `docs/implementation/`.
 - Cambios de código desde `ae48d31` hasta esa base: ninguno; se incorporó la investigación.
@@ -11,12 +11,13 @@ Fecha de preparación del plan: 2026-09-20.
 - GPU objetivo: backend principal confirmado por el usuario; G01 y G02 ya ejecutan OpenGL 3.3 real en una NVIDIA GeForce RTX 5060 Ti.
 - Matriz aislada R01/R02: analyze 8/8, UBSan 8/8, debug 8/8 y release 8/8 con apps desactivadas. La evidencia GPU integrada anterior permanece en G01/G02; los cambios R01/R02 no modifican ese backend.
 - Matriz I01 aislada: UBSan 14/14; Analyze build y casos 1–13 PASS, con `retro_contracts` PASS tras limpiar un artefacto de ejecución concurrente; Debug/Release nativos 17/17; builds WPF Debug/Release sin warnings ni errores; `retro_studio_authoring` exacto PASS en 466,63 s (CTest dirigido 466,74 s). El timeout inicial de 180 s era insuficiente para recrear 50 contextos; la evidencia oficial es la corrida posterior sin trazas.
+- Candidato G03 aislado desde el índice: build Debug 119/119 y CTest dirigido 7/7 PASS; GPU real en NVIDIA GeForce RTX 5060 Ti/OpenGL 3.3, escena World→assets→GPU, aislamiento renderer/context, detach/reattach con un solo reupload y consumidor C11 instalado desde prefijo temporal.
 
 Verificación del paquete: **PASS**, 31 tickets, 61 dependencias, 15 oleadas teóricas, sin ciclos; todos los tickets alimentan el gate final Z01. Los ocho tickets de ARRANQUE incluyen sus dependencias. TASKS/WAVES coinciden con el JSON. Se comprobaron 20 enlaces locales y seis casos negativos del validador (ciclo, dependencia desconocida, ID duplicado, inicio prematuro, alcance incompleto y gate final incompleto), todos rechazados correctamente. Esto no es una ejecución de los tickets ni de pruebas del motor.
 
 ## Registro del coordinador
 
-F00/F01/G01/G02/R01/R02/R03/I01/D01/M01/D02 integrados. G03 continúa en curso. I01 completó su matriz nativa y V-WPF exacta.
+F00/F01/G01/G02/G03/R01/R02/R03/I01/D01/M01/D02 integrados. G04/E01/S01 continúan en curso; A01 conserva un núcleo de audio validado como checkpoint parcial.
 
 | Ticket | Responsable / checkout | Base y resultado | Locks / archivos compartidos | Evidencia / siguiente paso |
 |---|---|---|---|---|
@@ -30,7 +31,7 @@ F00/F01/G01/G02/R01/R02/R03/I01/D01/M01/D02 integrados. G03 continúa en curso. 
 | I01 | agente `r02_design` + integrador | `656fda7` / `683ad2d` | liberado | [evidence/I01.md](evidence/I01.md); matriz nativa y V-WPF PASS |
 | D01 | integrado | `1acbd03` | libre | formato/validadores y corpus CPU |
 | M01 | agente `r01_review` + integrador | `656fda7` / 12 de 12 por perfil | liberado | importer glTF/GLB e IR propia |
-| G03 | agente `r01_review` / checkout compartido | `656fda7` / en curso | gpu-backend, asset-gpu | renderables/modelos GPU compartidos |
+| G03 | agente `r01_review` + revisión `r02_design` + integrador | `656fda7` / `50ece2a` | liberado | [evidence/G03.md](evidence/G03.md); World→GPU, SDK externo y GPU real PASS |
 | D02 | agente `r01_runtime` + integrador | `2e15e5e` / 14 de 14 por perfil | liberado | [evidence/D02.md](evidence/D02.md); documento, Tool API e instanciador transaccional |
 
 ## Bloqueos y decisiones pendientes

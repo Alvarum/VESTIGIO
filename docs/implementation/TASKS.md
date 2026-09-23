@@ -306,7 +306,7 @@ Commit integrado: `656fda7`.
 
 ## G03 — Renderables y materiales GPU compartidos desde SDK
 
-Fase: **P3** · Rol: **gpu** · Estado: **IN_PROGRESS**.
+Fase: **P3** · Rol: **gpu** · Estado: **INTEGRATED**.
 
 Dependencias integradas: G01, R03, M01.
 
@@ -330,9 +330,13 @@ Verificación: V-APP, V-SDK, V-ASSET, V-GPU.
 
 Desbloquea: Primer juego C con modelos GPU; asset browser y mundo mixto.
 
+Evidencia: docs/implementation/evidence/G03.md.
+
+Commit integrado: `50ece2a`.
+
 ## G04 — Adaptador GPU de sectores y sprites legacy
 
-Fase: **P3** · Rol: **gpu** · Estado: **PLANNED**.
+Fase: **P3** · Rol: **gpu** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: G03.
 
@@ -414,7 +418,7 @@ Desbloquea: Base de contenido migrable y utilizable.
 
 ## E01 — Viewport editorial GPU conectado al documento
 
-Fase: **P5** · Rol: **editor** · Estado: **PLANNED**.
+Fase: **P5** · Rol: **editor** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: G02, G03, D02, I01.
 
@@ -518,7 +522,7 @@ Desbloquea: World building recuperado de js-game sin portar sus errores.
 
 ## S01 — Consultas espaciales 3D y colliders compartidos
 
-Fase: **P6** · Rol: **runtime** · Estado: **PLANNED**.
+Fase: **P6** · Rol: **runtime** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: G03, D02.
 

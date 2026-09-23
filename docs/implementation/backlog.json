@@ -79,14 +79,14 @@
       "validation": ["V-CORE", "V-ASSET"], "unlocks": "Modelos 3D reales, sin parser glTF artesanal."
     },
     {
-      "id": "G03", "phase": "P3", "title": "Renderables y materiales GPU compartidos desde SDK", "role": "gpu", "dependencies": ["G01", "R03", "M01"], "locks": ["gpu-backend", "asset-gpu", "public-api"], "status": "IN_PROGRESS",
+      "id": "G03", "phase": "P3", "title": "Renderables y materiales GPU compartidos desde SDK", "role": "gpu", "dependencies": ["G01", "R03", "M01"], "locks": ["gpu-backend", "asset-gpu", "public-api"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/G03.md"], "integrated_commit": "50ece2a",
       "paths": ["src/render/", "src/assets/", "src/api/", "tests/gpu/", "tests/sdk/"],
       "steps": ["Conectar IR importada al registro de assets y backend; render packets mesh/material/transform/bounds, sprites y cámara desde World.", "Añadir materiales básicos opaque/mask/blend y error material, culling/frustum y contadores; uploads únicos para meshes/texturas compartidas.", "Extender consumidor C externo para cargar modelo y crear 100 instancias; destrucción y reload respetan versiones y contexto."],
       "acceptance": ["100 instancias comparten mesh/textura; contador prueba una carga/upload por recurso residente, no una por entidad.", "Modelo y sprite delante/detrás, alpha y wireframe se verifican visualmente; renderer CPU no genera el frame final.", "Fallo de upload y descargar una instancia conservan las demás; dispose/purge libera recursos propios."],
       "validation": ["V-APP", "V-SDK", "V-ASSET", "V-GPU"], "unlocks": "Primer juego C con modelos GPU; asset browser y mundo mixto."
     },
     {
-      "id": "G04", "phase": "P3", "title": "Adaptador GPU de sectores y sprites legacy", "role": "gpu", "dependencies": ["G03"], "locks": ["gpu-backend", "legacy-adapter", "session-bridge"], "status": "PLANNED",
+      "id": "G04", "phase": "P3", "title": "Adaptador GPU de sectores y sprites legacy", "role": "gpu", "dependencies": ["G03"], "locks": ["gpu-backend", "legacy-adapter", "session-bridge"], "status": "IN_PROGRESS",
       "paths": ["src/render/", "src/content/legacy/", "src/session/session.c", "src/engine/map.c", "tests/gpu/"],
       "steps": ["Convertir sectores/portales/aberturas a mallas derivadas al cargar o editar, con invalidación por revisión; materiales de imagen y sprites actuales alimentan recursos nuevos.", "Mantener reglas/colisión legacy en su contrato existente y geometría dinámica de barreras actualizada sin retessellar todo cada frame.", "Comparar corpus Haunted/portales parciales en ambos backends por invariantes geométricas/visuales, no por igualdad pixel-perfect de shading."],
       "acceptance": ["Pisos, techos, portales parciales y huecos no quedan cerrados por mallas nuevas; sprites/atlas y materiales se conservan.", "Geometría estática no se sube por frame; editar una región invalida sólo datos necesarios según política documentada.", "Player usa el nuevo camino GPU con gameplay legacy preservado y opción de laboratorio CPU acotada."],
@@ -107,7 +107,7 @@
       "validation": ["V-CORE", "V-APP", "V-DATA", "V-GPU"], "unlocks": "Base de contenido migrable y utilizable."
     },
     {
-      "id": "E01", "phase": "P5", "title": "Viewport editorial GPU conectado al documento", "role": "editor", "dependencies": ["G02", "G03", "D02", "I01"], "locks": ["wpf-viewport", "tool-api"], "status": "PLANNED",
+      "id": "E01", "phase": "P5", "title": "Viewport editorial GPU conectado al documento", "role": "editor", "dependencies": ["G02", "G03", "D02", "I01"], "locks": ["wpf-viewport", "tool-api"], "status": "IN_PROGRESS",
       "paths": ["src/studio/Controls/", "src/studio/Native/", "src/studio/Models/EditorDocument.cs", "src/editor/", "tests/studio/"],
       "steps": ["Integrar superficie aprobada en G02 con EditWorld, cámara libre/orbit/ortográfica, frame seleccionado y renderables de G03.", "Actualizar EditWorld desde revisiones/eventos del documento; Play crea copia aislada y Stop vuelve a edición sin guardar mutaciones de juego.", "Implementar selección por UUID y picking editorial por ray/bounds con máscara para luces/triggers/cámaras, independiente de colisión de gameplay."],
       "acceptance": ["Abrir documento/importar recurso y verlo en viewport comparte runtime/validadores con consumidor C.", "Editar cámara/selección no marca contenido dirty; Play/Stop no modifica documento ni partida del usuario.", "Foco, held input, resize y GPU sin readback normal siguen pasando al integrarse con Studio real."],
@@ -135,7 +135,7 @@
       "validation": ["V-CORE", "V-DATA", "V-WPF", "V-GPU"], "unlocks": "World building recuperado de js-game sin portar sus errores."
     },
     {
-      "id": "S01", "phase": "P6", "title": "Consultas espaciales 3D y colliders compartidos", "role": "runtime", "dependencies": ["G03", "D02"], "locks": ["spatial-core", "public-api"], "status": "PLANNED",
+      "id": "S01", "phase": "P6", "title": "Consultas espaciales 3D y colliders compartidos", "role": "runtime", "dependencies": ["G03", "D02"], "locks": ["spatial-core", "public-api"], "status": "IN_PROGRESS",
       "paths": ["src/physics/", "src/world/", "src/api/", "tests/spatial/"],
       "steps": ["Implementar raycast/sweep/overlap con máscaras, ignored entity y resultados entidad/normal/distancia/fracción; static mesh con aceleración acotada y colliders dinámicos simples.", "Mantener fuente de geometría/collider/transform común con runtime; adaptar consultas legacy sin exigir BSP/navmesh nuevos a todos los niveles.", "Definir escala/colliders admitidos, límites numéricos y actualización tras transform/edición; no simular rigid bodies generales."],
       "acceptance": ["Ray/movimiento/visión/proyectil usan máscaras coherentes y no atraviesan props sólidos por falta silenciosa de collider.", "Pruebas reproducen contacto tangencial, esquina, malla fina, rotación/padre y escala admitida con tolerancias documentadas.", "Editar/reimportar collider invalida estructura espacial; overlays muestran geometría de colisión real."],
