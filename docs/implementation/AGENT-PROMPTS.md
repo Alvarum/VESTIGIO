@@ -1,6 +1,6 @@
 # Prompts para entregar el plan
 
-Copiar un prompt sólo cuando el usuario encargue una oleada de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). ARRANQUE ya está integrado. La instrucción anterior `ALCANCE: COMPLETO` no autoriza continuar automáticamente. El motor es nuevo y no requiere compatibilidad ni migraciones de proyectos previos. Cada oleada cierra con commit, pruebas y push a `origin/main`; la siguiente espera revisión del usuario.
+Copiar un prompt sólo cuando el usuario encargue una oleada de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). ARRANQUE ya está integrado. La instrucción anterior `ALCANCE: COMPLETO` no autoriza continuar automáticamente. El usuario sí encargó expresamente ejecutar las oleadas 4–7 de forma consecutiva; tras la 7 se detiene. El motor es nuevo y no requiere compatibilidad ni migraciones de proyectos previos. Cada oleada cierra con commit, pruebas y push a `origin/main`.
 
 ## Un solo agente
 
@@ -16,7 +16,7 @@ CONTRACTS.md, VALIDATION.md, STATE.md y los tickets de backlog.json/TASKS.md.
 La investigación de docs/research explica las decisiones; no repitas toda su auditoría.
 
 Comprueba HEAD, trabajo concurrente y dependencias integradas de los tickets elegidos.
-J01, S01/S02 y E01 ya están integrados; no los repitas ni avances a E02/E03 sin un nuevo encargo.
+J01, S01/S02 y E01 ya están integrados; no los repitas. El encargo actual autoriza sólo las puertas funcionales 4–7 en orden; no equivale a cerrar todos los criterios amplios de sus tickets ni a iniciar animación/distribución.
 Implementa únicamente los tickets encargados usando el SDK C y GPU real cuando aplique.
 No migres Haunted ni agregues adaptadores o compatibilidad con prototipos anteriores.
 
@@ -117,4 +117,4 @@ Riesgos, límites, NOT_RUN y bloqueos:
 Pasos concretos de integración y comprobaciones del integrador:
 ```
 
-INTEGRATED lo registra el coordinador tras incorporar y verificar el candidato. Los prompts individuales no autorizan rebasar la oleada encargada; la siguiente requiere una decisión nueva del usuario.
+INTEGRATED lo registra el coordinador tras incorporar y verificar todos los criterios del ticket. Los prompts individuales no autorizan rebasar la oleada encargada; el usuario ya encargó las oleadas 4–7 en orden, y cualquier trabajo posterior requiere otra decisión.

@@ -2,7 +2,7 @@
 
 **Paquete de implementación para agentes.** Este paquete convierte el [roadmap de investigación](../research/12-roadmap.md) en tickets con dependencias, alcance, responsabilidades, pruebas y criterios de cierre.
 
-**Actualización 2026-09-27:** hay 16 de 30 tickets integrados. La entrega avanza por [oleadas funcionales revisables](ENTREGABLES-HOBBY.md), una a la vez. El usuario revisó J01 y S01/S02. La oleada 3 (E01) abre el Atrium en Studio con viewport GPU y Editar/Probar; queda pendiente la revisión interactiva del usuario. Véase la [evidencia E01](evidence/E01.md). La oleada 4 requiere un encargo posterior. Se retiraron los tickets de compatibilidad y migración de proyectos anteriores.
+**Actualización 2026-09-27:** hay 16 de 30 tickets integrados. La entrega avanza por [oleadas funcionales revisables](ENTREGABLES-HOBBY.md), una a la vez. El usuario revisó J01 y S01/S02. E01 abrió el Atrium en Studio; la oleada 4 añade [edición, guardado y reapertura de un pilar](evidence/W04.md), verificados como flujo hobby. E02/E03 no están formalmente completos. El usuario encargó cuatro oleadas consecutivas, 4–7: edición, interacción/puertas, efectos visuales y audio, con cierre y push separados. Se retiraron los tickets de compatibilidad y migración de proyectos anteriores.
 
 La prioridad confirmada es **render de geometría, materiales y efectos en GPU**. SDK C y Studio deben usar el mismo runtime. El renderer CPU previo no es requisito de compatibilidad para los entregables nuevos.
 
@@ -10,7 +10,7 @@ La prioridad confirmada es **render de geometría, materiales y efectos en GPU**
 
 1. Elegir una oleada de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). Sólo ejecutar la encargada; no confundirla con las filas técnicas de `WAVES.md`.
 2. El agente lee [PLAN.md](PLAN.md), [CONTRACTS.md](CONTRACTS.md) y [VALIDATION.md](VALIDATION.md), y verifica el estado real del repositorio.
-3. Completar su gate, hacer commit y push a `origin/main`, entregar SHA e instrucciones para probar. Esperar la revisión del usuario antes de la siguiente; no hay límite fijo de tiempo.
+3. Completar su gate, hacer commit y push a `origin/main`, entregar SHA e instrucciones para probar. Las oleadas 4–7 ya fueron encargadas de forma consecutiva; tras la 7 se espera un nuevo encargo. No hay límite fijo de tiempo.
 
 No es necesario copiar toda la investigación en un prompt. Entregar acceso al repositorio y este archivo con el prompt elegido basta; cada ticket indica sus lecturas y verificaciones a través del plan.
 

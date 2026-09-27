@@ -1,6 +1,6 @@
 # Plan ejecutable de VESTIGIO
 
-> **Ejecución por oleadas revisables (2026-09-27).** El alcance, orden y puertas de prueba están en [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). Las oleadas 0–3 están implementadas; el usuario revisó J01 y S01/S02. E01 espera su revisión interactiva; la oleada 4 requiere otro encargo explícito. `WAVES.md` muestra dependencias técnicas, no oleadas de producto.
+> **Ejecución por oleadas revisables (2026-09-27).** El alcance, orden y puertas de prueba están en [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). Las oleadas 0–4 tienen flujo funcional implementado; el usuario revisó J01 y S01/S02. El usuario encargó ejecutar consecutivamente las oleadas 4–7, con pruebas, commit, evidencia y push separados por cada una; luego se detiene. `WAVES.md` muestra dependencias técnicas, no oleadas de producto.
 
 Fecha: 2026-09-20. Base observada: `28dafa949ff68ed3dc52bf93d287863037bf8578`, checkout limpio al comenzar esta planificación. El diff de código entre `ae48d31` y esta base es vacío; el nuevo commit incorpora la investigación. F00 debe comprobar el HEAD real cuando otro agente empiece, porque esta observación no congela el repositorio.
 
@@ -19,6 +19,7 @@ Se implementa por verticales: primero GPU/superficie y contratos mínimos; despu
 | PRIMERA ESCENA (integrada y revisada) | J01 | Proyecto nuevo visible y recorrible libremente en Player con GPU real |
 | MOVIMIENTO CON COLISIÓN (integrada y revisada) | S01–S02 | Consultas espaciales, movimiento, salto y colliders visibles en Player |
 | STUDIO 3D (integrada; revisión humana pendiente) | E01 | Atrium GPU en Studio; cámara editorial y Editar/Probar aislados |
+| EDICIÓN HOBBY (flujo funcional; E02/E03 incompletos) | E02–E03 parcial | Añadir y transformar pilar, deshacer/rehacer, guardar/reabrir y probar |
 | AMPLIACIONES (opcionales) | E02–E05, S03, V01–V02, A01–A02 | Autoría, interacción y medios sólo por encargo individual |
 | DISTRIBUCIÓN (opcional) | Q01, P01, P02, T01, Z01 y dependencias | Dos juegos exportables, partidas, CLI y aceptación integrada sólo si se decide llegar ahí |
 
@@ -88,4 +89,4 @@ No implementar por anticipación networking, ECS universal, editor de shaders po
 
 ## Fin del encargo
 
-Al concluir la oleada asignada, ejecutar su gate dirigido, revisar el diff, integrar y hacer commit. Comprobar `origin/main` antes de hacer push directo sin forzar; si avanzó o diverge, inspeccionar y resolver sin sobrescribir trabajo ajeno. Entregar SHA publicado, evidencia, instrucciones para probar y límites; esperar la revisión del usuario antes de otra oleada. Un fallo que encuentre durante esa revisión pertenece a la misma oleada. El push del repositorio está autorizado; este plan no autoriza desplegar el producto ni enviar mensajes a terceros.
+Al concluir la oleada asignada, ejecutar su gate dirigido, revisar el diff, integrar y hacer commit. Comprobar `origin/main` antes de hacer push directo sin forzar; si avanzó o diverge, inspeccionar y resolver sin sobrescribir trabajo ajeno. Entregar SHA publicado, evidencia, instrucciones para probar y límites. Las oleadas 4–7 ya tienen autorización consecutiva; después de la 7 se espera revisión y nuevo encargo. Un fallo que el usuario encuentre durante la revisión pertenece a la misma oleada. El push del repositorio está autorizado; este plan no autoriza desplegar el producto ni enviar mensajes a terceros.

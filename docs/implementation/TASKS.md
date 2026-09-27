@@ -426,7 +426,7 @@ Commit integrado: `73fe637`.
 
 ## E02 — Gizmos, multiselección y comandos de transformación
 
-Fase: **P5** · Rol: **editor** · Estado: **PLANNED**.
+Fase: **P5** · Rol: **editor** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: E01.
 
@@ -449,6 +449,8 @@ Puntos de entrada: `src/studio/Controls/`, `src/editor/`, `src/render/overlays/`
 Verificación: V-CORE, V-DATA, V-WPF.
 
 Desbloquea: Autoría de objetos con edición fiable.
+
+Evidencia: docs/implementation/evidence/W04.md.
 
 ## E03 — Inspector, jerarquía y biblioteca de assets
 
