@@ -8,6 +8,11 @@ Motor retro en **C23**, renderer propio en CPU y plataforma **raylib 6.0**.
 Incluye gameplay dirigido por datos, el editor visual RetroForge Studio, un
 reproductor genérico, Foundry y el laboratorio independiente.
 
+La primera escena del motor VESTIGIO nuevo se ejecuta con
+`powershell -NoProfile -ExecutionPolicy Bypass -File tools/run-3d-demo.ps1`.
+Consulta [Atrium 3D](assets/demo/README.md) para
+controles y límites; es una demo GPU recorrible sin colisiones.
+
 ## Empezar en Windows
 
 Desde PowerShell, en esta carpeta:
