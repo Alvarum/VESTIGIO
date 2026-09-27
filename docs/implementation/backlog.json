@@ -114,7 +114,7 @@
       "validation": ["V-CORE", "V-DATA", "V-WPF"], "unlocks": "Autoría de objetos con edición fiable."
     },
     {
-      "id": "E03", "phase": "P5", "title": "Inspector, jerarquía y biblioteca de assets", "role": "editor", "dependencies": ["E02", "M01"], "locks": ["wpf-inspector", "document-commands"], "status": "PLANNED",
+      "id": "E03", "phase": "P5", "title": "Inspector, jerarquía y biblioteca de assets", "role": "editor", "dependencies": ["E02", "M01"], "locks": ["wpf-inspector", "document-commands"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/E03.md"], "integrated_commit": "69f9e81",
       "paths": ["src/studio/ViewModels/StudioViewModel.cs", "src/studio/Models/", "src/studio/MainWindow.xaml", "src/studio/Services/", "src/editor/", "tests/studio/"],
       "steps": ["Generar campos desde esquemas tipados con unidades/rangos/referencias y mensajes de error; multiedición conserva valores no modificados.", "Separar layers/grupos editoriales de parent runtime; browser importa, coloca y muestra estado/diagnóstico/fingerprint de recursos.", "Añadir flujo importación-modelo a documento con preview/thumbnail y placeholder, sin que vista sea propietaria de la textura compartida."],
       "acceptance": ["Importar→colocar→transformar→guardar→reabrir recupera modelo/material/IDs sin duplicar recursos.", "Renombrar/reimportar recursos mantiene identidad prevista; errores se muestran junto al campo y en Problems/log.", "Ocultar capa de editor no altera visibilidad de juego; propiedades soportadas tienen round-trip y una acción undo por lote."],

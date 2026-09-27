@@ -456,7 +456,7 @@ Commit integrado: `c3f475206f9c770f79b074037dc28690b05df387`.
 
 ## E03 — Inspector, jerarquía y biblioteca de assets
 
-Fase: **P5** · Rol: **editor** · Estado: **PLANNED**.
+Fase: **P5** · Rol: **editor** · Estado: **INTEGRATED**.
 
 Dependencias integradas: E02, M01.
 
@@ -479,6 +479,10 @@ Puntos de entrada: `src/studio/ViewModels/StudioViewModel.cs`, `src/studio/Model
 Verificación: V-APP, V-ASSET, V-DATA, V-WPF.
 
 Desbloquea: Flujo editorial de contenido completo.
+
+Evidencia: docs/implementation/evidence/E03.md.
+
+Commit integrado: `69f9e81`.
 
 ## E04 — Herramientas de habitaciones, aberturas y organización
 

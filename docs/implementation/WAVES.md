@@ -120,6 +120,6 @@ flowchart TD
 
 ## Elegibilidad actual
 
-Por estado de dependencias: E03.
+Por estado de dependencias: E04.
 
 Filtrar después por alcance encargado y locks. BLOCKED requiere resolver su motivo y actualizar estado; no se relanza automáticamente.
