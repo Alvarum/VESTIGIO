@@ -1156,10 +1156,147 @@ int32_t vg_gpu_host_add_mesh(VgGpuHost *host, char *uuid, size_t uuid_capacity, 
     return true;
 }
 
+/* The Atrium fixture has an existing walkable floor. The room uses that same
+ * floor and six unit-cube instances; the box collider is exactly each cube's
+ * authored transform. A fixed template keeps this hobby slice small while the
+ * broader room/portal tools in E04 remain separate work. */
+typedef struct VgHostRoomPiece {
+    const char *temporary;
+    const char *part;
+    const char *label;
+    double x, y, z;
+    double sx, sy, sz;
+} VgHostRoomPiece;
+
+static const VgHostRoomPiece host_room_pieces[] = {
+    {"$room-front-left", "front_left", "Sala: jamba izquierda", -1.355, -4.0, 1.4, 1.11, 0.18, 2.8},
+    {"$room-front-right", "front_right", "Sala: jamba derecha", 1.355, -4.0, 1.4, 1.11, 0.18, 2.8},
+    {"$room-lintel", "lintel", "Sala: dintel", 0.0, -4.0, 2.5, 1.6, 0.18, 0.6},
+    {"$room-left", "left", "Sala: muro izquierdo", -2.0, -6.0, 1.4, 0.18, 4.0, 2.8},
+    {"$room-right", "right", "Sala: muro derecho", 2.0, -6.0, 1.4, 0.18, 4.0, 2.8},
+    {"$room-back", "back", "Sala: muro posterior", 0.0, -8.0, 1.4, 3.82, 0.18, 2.8},
+};
+
+static const char *host_room_part(const VgJsonNode *entity) {
+    const VgJsonNode *components = vg_json_object_get(entity, "components");
+    const VgJsonNode *marker = vg_json_object_get(components, "vestigio.room_piece");
+    const VgJsonNode *preset = vg_json_object_get(marker, "preset");
+    const VgJsonNode *part = vg_json_object_get(marker, "part");
+    if (preset == NULL || preset->type != VG_JSON_STRING ||
+        strcmp(preset->as.string.data, "atrium-doorway-v1") != 0 || part == NULL ||
+        part->type != VG_JSON_STRING)
+        return NULL;
+    return part->as.string.data;
+}
+
+static bool host_selected_room_piece(const VgGpuHost *host) {
+    if (host == NULL || host->document == NULL || !host->has_selection)
+        return false;
+    const VgJsonNode *entities = vg_json_object_get(vg_document_root(host->document), "entities");
+    if (entities == NULL || entities->type != VG_JSON_ARRAY)
+        return false;
+    for (size_t i = 0u; i < entities->as.array.count; ++i) {
+        const VgJsonNode *entity = entities->as.array.items[i];
+        const VgJsonNode *id = vg_json_object_get(entity, "id");
+        if (id != NULL && id->type == VG_JSON_STRING &&
+            strcmp(id->as.string.data, host->selected_uuid) == 0)
+            return host_room_part(entity) != NULL;
+    }
+    return false;
+}
+
+int32_t vg_gpu_host_entity_label(const VgGpuHost *host, const char *uuid, char *label,
+                                 size_t label_capacity) {
+    if (!host_is_current(host) || host->document == NULL || uuid == NULL || label == NULL ||
+        label_capacity == 0u)
+        return false;
+    const VgJsonNode *entities = vg_json_object_get(vg_document_root(host->document), "entities");
+    if (entities == NULL || entities->type != VG_JSON_ARRAY)
+        return false;
+    for (size_t i = 0u; i < entities->as.array.count; ++i) {
+        const VgJsonNode *entity = entities->as.array.items[i];
+        const VgJsonNode *id = vg_json_object_get(entity, "id");
+        if (id == NULL || id->type != VG_JSON_STRING || strcmp(id->as.string.data, uuid) != 0)
+            continue;
+        const char *part = host_room_part(entity);
+        if (part == NULL)
+            return false;
+        for (size_t p = 0u; p < sizeof(host_room_pieces) / sizeof(host_room_pieces[0]); ++p) {
+            if (strcmp(part, host_room_pieces[p].part) == 0) {
+                (void)snprintf(label, label_capacity, "%s", host_room_pieces[p].label);
+                return strlen(host_room_pieces[p].label) < label_capacity;
+            }
+        }
+        return false;
+    }
+    return false;
+}
+
+int32_t vg_gpu_host_add_room(VgGpuHost *host, char *uuid, size_t uuid_capacity, char *error,
+                             size_t error_capacity) {
+    if (uuid == NULL || uuid_capacity < 37u) {
+        host_error(error, error_capacity, "Se requiere un UUID de salida");
+        return false;
+    }
+    VgToolBatch *batch = host_begin_edit(host, error, error_capacity);
+    if (batch == NULL)
+        return false;
+    const VgJsonNode *entities = vg_json_object_get(vg_document_root(host->document), "entities");
+    if (entities != NULL && entities->type == VG_JSON_ARRAY) {
+        for (size_t i = 0u; i < entities->as.array.count; ++i) {
+            if (host_room_part(entities->as.array.items[i]) != NULL) {
+                host_error(error, error_capacity, "La sala de ejemplo ya existe en el nivel");
+                vg_tool_cancel(batch);
+                return false;
+            }
+        }
+    }
+    VgDocumentDiagnostic diagnostic = {0};
+    for (size_t i = 0u; i < sizeof(host_room_pieces) / sizeof(host_room_pieces[0]); ++i) {
+        const VgHostRoomPiece *piece = &host_room_pieces[i];
+        VgDocumentTransform transform = {{piece->x, piece->y, piece->z},
+                                         {0.0, 0.0, 0.0, 1.0},
+                                         {piece->sx, piece->sy, piece->sz}};
+        char components[512];
+        int length = snprintf(
+            components, sizeof(components),
+            "{\"engine.mesh\":{\"version\":1,\"asset\":\"4a30312d-6174-7269-756d-2d6d6f64656c\","
+            "\"node_index\":2},\"engine.collider\":{\"version\":1,\"shape\":\"box\","
+            "\"motion\":\"static\",\"center\":[0,0,0],\"half_extents\":[0.5,0.5,0.5]},"
+            "\"vestigio.room_piece\":{\"version\":1,\"preset\":\"atrium-doorway-v1\",\"part\":\"%"
+            "s\"}}",
+            piece->part);
+        if (length < 0 || (size_t)length >= sizeof(components) ||
+            !vg_tool_create_entity(batch, piece->temporary, NULL, &transform, components,
+                                   &diagnostic)) {
+            host_error(error, error_capacity,
+                       length < 0 || (size_t)length >= sizeof(components)
+                           ? "No se pudo preparar la pieza de sala"
+                           : diagnostic.message);
+            vg_tool_cancel(batch);
+            return false;
+        }
+    }
+    VgToolResult result;
+    if (!host_apply_batch(host, batch, &result, error, error_capacity))
+        return false;
+    if (!host_result_id(&result, host_room_pieces[0].temporary, uuid, uuid_capacity)) {
+        host_error(error, error_capacity, "No se devolvio el UUID de la sala");
+        return false;
+    }
+    (void)vg_gpu_host_select(host, uuid);
+    return true;
+}
+
 int32_t vg_gpu_host_duplicate_selected(VgGpuHost *host, char *uuid, size_t uuid_capacity,
                                        char *error, size_t error_capacity) {
     if (uuid == NULL || uuid_capacity < 37u || !host_is_current(host) || !host->has_selection) {
         host_error(error, error_capacity, "Selecciona un objeto para duplicarlo");
+        return false;
+    }
+    if (host_selected_room_piece(host)) {
+        host_error(error, error_capacity,
+                   "No se puede duplicar una pieza de sala; la plantilla fija quedaria incompleta");
         return false;
     }
     for (size_t i = 0u; i < vg_document_instance_door_count(host->edit); ++i) {
@@ -1209,6 +1346,11 @@ int32_t vg_gpu_host_set_selected_transform(VgGpuHost *host, const float position
     if (!host_is_current(host) || !host->has_selection || position == NULL || rotation == NULL ||
         scale == NULL) {
         host_error(error, error_capacity, "Selecciona un objeto y transformacion valida");
+        return false;
+    }
+    if (host_selected_room_piece(host)) {
+        host_error(error, error_capacity,
+                   "No se puede transformar una pieza de sala; la abertura perderia coherencia");
         return false;
     }
     VgDocumentTransform transform = {0};

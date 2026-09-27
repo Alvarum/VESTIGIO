@@ -111,6 +111,10 @@ internal static class GpuHostNative
         nuint uuidCapacity, [Out] byte[] error, nuint errorCapacity);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_add_room(nint host, [Out] byte[] uuid,
+        nuint uuidCapacity, [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int vg_gpu_host_duplicate_selected(nint host, [Out] byte[] uuid,
         nuint uuidCapacity, [Out] byte[] error, nuint errorCapacity);
 
@@ -159,6 +163,11 @@ internal static class GpuHostNative
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int vg_gpu_host_entity_at(nint host, nuint index,
         [Out] byte[] uuid, nuint uuidCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_entity_label(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string uuid,
+        [Out] byte[] label, nuint labelCapacity);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern ulong vg_gpu_host_document_revision(nint host);

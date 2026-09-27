@@ -1,6 +1,6 @@
 # Prompts para entregar el plan
 
-Copiar un prompt sólo cuando el usuario encargue una oleada de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). ARRANQUE ya está integrado. La instrucción anterior `ALCANCE: COMPLETO` no autoriza continuar automáticamente. El usuario encargó expresamente las oleadas 4–7 consecutivas y, tras revisarlas, pidió corregir la visibilidad de luces/niebla y continuar con la oleada 8 de animación rígida. Tras la 8 se detiene. El motor es nuevo y no requiere compatibilidad ni migraciones de proyectos previos. Cada oleada cierra con commit, pruebas y push a `origin/main`.
+Copiar un prompt sólo cuando el usuario encargue una oleada de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). ARRANQUE ya está integrado. La instrucción anterior `ALCANCE: COMPLETO` no autoriza continuar automáticamente. El usuario encargó expresamente las oleadas 4–7 consecutivas y, tras revisarlas, pidió corregir la visibilidad de luces/niebla y continuar con la oleada 8 de animación rígida. El encargo más reciente autoriza sólo la oleada 9 de habitación con abertura. Tras la 9 se detiene. El motor es nuevo y no requiere compatibilidad ni migraciones de proyectos previos. Cada oleada cierra con commit, pruebas y push a `origin/main`.
 
 ## Un solo agente
 
@@ -16,7 +16,7 @@ CONTRACTS.md, VALIDATION.md, STATE.md y los tickets de backlog.json/TASKS.md.
 La investigación de docs/research explica las decisiones; no repitas toda su auditoría.
 
 Comprueba HEAD, trabajo concurrente y dependencias integradas de los tickets elegidos.
-J01, S01/S02 y E01 ya están integrados; no los repitas. El encargo actual autoriza corregir la visibilidad de W06 y entregar W08 (animación rígida de hobby); no equivale a cerrar A02 completo ni a iniciar herramientas avanzadas o distribución.
+J01, S01/S02 y E01 ya están integrados; no los repitas. El encargo actual autoriza sólo W09, una habitación modular con abertura transitable desde Studio. No equivale a cerrar E04 completo ni a iniciar el resto de herramientas avanzadas o distribución.
 Implementa únicamente los tickets encargados usando el SDK C y GPU real cuando aplique.
 No migres Haunted ni agregues adaptadores o compatibilidad con prototipos anteriores.
 

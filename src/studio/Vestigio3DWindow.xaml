@@ -37,6 +37,9 @@
               IsEnabled="False" Click="Stop_Click"/>
       <Border Width="1" Margin="12,3" Background="{StaticResource BorderBrush}"/>
       <Button x:Name="AddButton" Content="+ Añadir pilar" Click="Add_Click"/>
+      <Button x:Name="AddRoomButton" Content="+ Habitación con abertura"
+              Margin="6,0,0,0" Click="AddRoom_Click"
+              ToolTip="Crea una habitación junto al punto inicial con una abertura transitable. Una por nivel."/>
       <Button x:Name="DuplicateButton" Content="Duplicar" Margin="6,0,0,0"
               IsEnabled="False" Click="Duplicate_Click"/>
       <Button x:Name="UndoButton" Content="Deshacer" Margin="12,0,0,0" Click="Undo_Click"/>

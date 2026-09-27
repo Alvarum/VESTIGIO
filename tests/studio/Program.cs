@@ -576,6 +576,115 @@ internal static class Program
         Console.WriteLine("PASS E04 Studio add/transform/undo/redo/save/reopen/play GPU");
     }
 
+    private static void VerifyWave9Room(string output, string level)
+    {
+        Directory.CreateDirectory(output);
+        string sourceCopy = Path.Combine(output, "w09-source.level.json");
+        string saved = Path.Combine(output, "w09-room.level.json");
+        File.Copy(level, sourceCopy, true);
+        byte[] sourceHash = SHA256.HashData(File.ReadAllBytes(sourceCopy));
+        var app = new Application();
+        app.Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("pack://application:,,,/retro_studio;component/Themes/Graphite.xaml")
+        });
+        var window = App.CreateAtriumWindow(["--atrium", "--level", sourceCopy]);
+        var content = (FrameworkElement)window.Content;
+        window.Content = null;
+        using (var source = new HwndSource(new HwndSourceParameters("VESTIGIO W09 room")
+        {
+            Width = 1320, Height = 820, WindowStyle = unchecked((int)0x80000000)
+        }))
+        {
+            try
+            {
+                source.RootVisual = content;
+                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                content.Measure(new Size(1320, 820));
+                content.Arrange(new Rect(0, 0, 1320, 820));
+                content.UpdateLayout();
+                var viewport = window.GpuViewport;
+                window.RefreshForTest();
+                Check(viewport.IsNativeReady && viewport.RenderForTest(),
+                    $"W09 no abrió viewport GPU: {viewport.LastError}");
+                string beforeGpu = Path.Combine(output, "w09-before.png");
+                Check(viewport.CaptureForTest(beforeGpu), "No se capturó Atrium antes de añadir sala.");
+                int originalCount = viewport.EntityUuids().Count;
+                var addRoom = (Button)window.FindName("AddRoomButton")!;
+                addRoom.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+                string selected = viewport.SelectedUuid;
+                var hierarchy = (ListBox)window.FindName("EntityList")!;
+                var transform = (StackPanel)window.FindName("TransformPanel")!;
+                var duplicate = (Button)window.FindName("DuplicateButton")!;
+                Check(viewport.EntityUuids().Count == originalCount + 6 &&
+                      viewport.IsDocumentDirty && Guid.TryParse(selected, out _) &&
+                      ((TextBlock)window.FindName("DirtyMark")!).Visibility == Visibility.Visible &&
+                      hierarchy.Items.OfType<ListBoxItem>().Count(item =>
+                          item.Content?.ToString()?.Contains("Sala:") == true) == 6 &&
+                      hierarchy.SelectedItem is ListBoxItem { Tag: string id } && id == selected &&
+                      !transform.IsEnabled && !duplicate.IsEnabled &&
+                      ((TextBlock)window.FindName("SelectedLabel")!).Text.Contains("plantilla fija"),
+                    "Crear habitación no actualizó seis piezas, etiquetas, selección y dirty.");
+                string roomGpu = Path.Combine(output, "w09-room.png");
+                Check(viewport.RenderForTest() && viewport.CaptureForTest(roomGpu) &&
+                      !SHA256.HashData(File.ReadAllBytes(beforeGpu)).AsSpan().SequenceEqual(
+                          SHA256.HashData(File.ReadAllBytes(roomGpu))),
+                    "La sala añadida no produjo una captura GPU diferente.");
+                ulong roomRevision = GpuHostNative.vg_gpu_host_document_revision(
+                    viewport.NativeHandleForTest);
+                addRoom.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(viewport.EntityUuids().Count == originalCount + 6 &&
+                      GpuHostNative.vg_gpu_host_document_revision(
+                          viewport.NativeHandleForTest) == roomRevision &&
+                      !string.IsNullOrWhiteSpace(
+                          ((TextBlock)window.FindName("FieldError")!).Text),
+                    "Segunda habitación debe rechazarse sin mutar el documento y mostrar error.");
+                ((Button)window.FindName("UndoButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(viewport.EntityUuids().Count == originalCount && !viewport.IsDocumentDirty,
+                    "Deshacer habitación no restauró el documento original.");
+                ((Button)window.FindName("RedoButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(viewport.EntityUuids().Count == originalCount + 6 &&
+                      viewport.IsDocumentDirty,
+                    "Rehacer habitación no restauró las seis piezas.");
+                Check(window.TrySaveToPath(saved) && !viewport.IsDocumentDirty &&
+                      File.Exists(saved), $"Guardar habitación falló: {viewport.LastError}");
+                Check(window.TryReopen() && viewport.EntityUuids().Count == originalCount + 6 &&
+                      hierarchy.Items.OfType<ListBoxItem>().Count(item =>
+                          item.Content?.ToString()?.Contains("Sala:") == true) == 6,
+                    $"Reabrir perdió geometría o etiquetas de habitación: {viewport.LastError}");
+                byte[] savedHash = SHA256.HashData(File.ReadAllBytes(saved));
+                ((Button)window.FindName("PlayButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(viewport.IsPlaying && !addRoom.IsEnabled && !viewport.TryAddRoom() &&
+                      viewport.RenderForTest(),
+                    "Probar no bloqueó edición de habitación o dejó de renderizar.");
+                ((Button)window.FindName("StopButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(!viewport.IsPlaying && addRoom.IsEnabled && !viewport.IsDocumentDirty &&
+                      SHA256.HashData(File.ReadAllBytes(saved)).AsSpan().SequenceEqual(savedHash) &&
+                      SHA256.HashData(File.ReadAllBytes(sourceCopy)).AsSpan().SequenceEqual(sourceHash),
+                    "Probar/Detener modificó el archivo guardado o el Atrium fuente.");
+                var addPillar = (Button)window.FindName("AddButton")!;
+                addPillar.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(viewport.EntityUuids().Count == originalCount + 7 &&
+                      transform.IsEnabled && duplicate.IsEnabled &&
+                      !((TextBlock)window.FindName("SelectedLabel")!).Text.Contains("plantilla fija"),
+                    "El pilar normal debe conservar inspector y duplicación editables.");
+                Check(viewport.TrySelect(selected) && !transform.IsEnabled &&
+                      !duplicate.IsEnabled,
+                    "Volver a seleccionar la pieza de sala debe bloquear edición de plantilla.");
+            }
+            finally
+            {
+                source.RootVisual = null;
+                window.GpuViewport.Dispose();
+            }
+        }
+        Console.WriteLine("PASS W09 Studio room six pieces/labels/undo/redo/save/reopen/play GPU");
+    }
+
     private static void VerifyStudioDoor(string output, string level, string model)
     {
         Directory.CreateDirectory(output);
@@ -914,6 +1023,11 @@ internal static class Program
             if (args.Length == 3 && args[0] == "--e04")
             {
                 VerifyWave4Editing(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
+                return 0;
+            }
+            if (args.Length == 3 && args[0] == "--w09")
+            {
+                VerifyWave9Room(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
                 return 0;
             }
             if (args.Length == 4 && args[0] == "--e05")

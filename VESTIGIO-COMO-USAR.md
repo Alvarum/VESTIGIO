@@ -55,6 +55,8 @@ El script compila el host GPU y la aplicación WPF, luego inicia **VESTIGIO Stud
 
 En **Editar**, haz clic sobre un objeto o selecciónalo en **Jerarquía**. Con **Añadir pilar** o **Duplicar** creas otra instancia; cambia posición, rotación o escala en el inspector y pulsa **Aplicar transformación**. **Deshacer/Rehacer** revierten o repiten cambios. **Guardar como…** crea una copia de trabajo sin sobrescribir el Atrium original; después usa **Guardar** y **Reabrir** para comprobar el archivo. La vista de edición permite cámara libre con WASD, botón derecho para mirar y Espacio/Ctrl para subir/bajar; también ofrece órbita, ortográfica y **Encuadrar selección**.
 
+**+ Habitación con abertura** añade una sala fija alrededor del punto inicial, sobre el piso del Atrium, en un solo paso de Deshacer. El vano frontal se puede cruzar en Probar; la pared contigua bloquea. Puedes añadir **una por nivel**. Sus seis piezas protegidas no se duplican ni transforman individualmente; los pilares normales sí. Guarda una copia y ábrela en Player con `-Level "ruta/nivel.level.json"` para jugarla fuera de Studio.
+
 Pulsa **Probar** para jugar una instancia aislada del documento con colisiones, salto y puerta interactiva (**E**); **Detener** vuelve a Editar sin guardar los cambios ocurridos durante la prueba. El selector **Imagen** alterna Limpio/Retro. Los deslizantes de **Audio** ajustan volúmenes; el sonido se reproduce en Probar. Para usar otro archivo de preferencias, inicia Studio con `-Settings ruta.settings` (o el ejecutable directo con `--settings ruta.settings`).
 
 Las dos piezas animadas aparecen sólo en **Probar**; **Editar** muestra el documento guardado sin ellas. Detener destruye esas instancias de juego.

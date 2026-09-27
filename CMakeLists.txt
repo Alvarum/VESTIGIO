@@ -266,6 +266,17 @@ if(RETRO_BUILD_APPS)
         set_target_properties(retro_session_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
         add_test(NAME retro_shared_session COMMAND retro_session_test)
         if(WIN32)
+            add_executable(vestigio_gpu_host_room_test tests/platform/gpu_host_room_test.c)
+            retro_target(vestigio_gpu_host_room_test)
+            target_include_directories(vestigio_gpu_host_room_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
+            target_link_libraries(vestigio_gpu_host_room_test PRIVATE vestigio_gpu_host)
+            add_test(NAME vestigio_gpu_host_room COMMAND vestigio_gpu_host_room_test
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.gltf"
+                "${CMAKE_BINARY_DIR}/w09-room-copy.level.json")
+            set_tests_properties(vestigio_gpu_host_room PROPERTIES
+                ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin"
+                LABELS "window;gpu;studio;document;spatial;app")
             add_test(NAME retro_studio_authoring COMMAND dotnet
                 "${CMAKE_BINARY_DIR}/bin/RetroForge.Studio.Tests.dll"
                 "${CMAKE_BINARY_DIR}/studio-evidence"
@@ -303,6 +314,12 @@ if(RETRO_BUILD_APPS)
                 "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json")
             set_tests_properties(vestigio_studio_audio PROPERTIES
                 LABELS "window;gpu;studio;audio;settings;app")
+            add_test(NAME vestigio_studio_room COMMAND dotnet
+                "${CMAKE_BINARY_DIR}/bin/RetroForge.Studio.Tests.dll"
+                --w09 "${CMAKE_BINARY_DIR}/studio-room-evidence"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json")
+            set_tests_properties(vestigio_studio_room PROPERTIES
+                LABELS "window;gpu;studio;document;spatial;app")
         endif()
         add_executable(retro_platform_test tests/platform_test.c)
         retro_target(retro_platform_test)

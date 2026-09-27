@@ -72,6 +72,7 @@ public partial class Vestigio3DWindow : Window
 
     private void LoadEntityLabels(string levelPath)
     {
+        _entityLabels.Clear();
         try
         {
             using JsonDocument document = JsonDocument.Parse(File.ReadAllText(levelPath));
@@ -131,10 +132,11 @@ public partial class Vestigio3DWindow : Window
             for (int index = 0; index < ids.Count; ++index)
             {
                 string id = ids[index];
+                string label = Viewport.RoomPieceLabel(id) ??
+                    (_entityLabels.TryGetValue(id, out string? known) ? known : "Objeto");
                 var row = new ListBoxItem
                 {
-                    Content = $"{(_entityLabels.TryGetValue(id, out string? label) ?
-                        label : "Objeto")} · {id[^8..]}",
+                    Content = $"{label} · {id[^8..]}",
                     Tag = id,
                     ToolTip = id
                 };
@@ -203,13 +205,16 @@ public partial class Vestigio3DWindow : Window
     private void RefreshSelectionFields()
     {
         string selected = Viewport.SelectedUuid;
+        string? roomPiece = selected == "Ninguno" ? null : Viewport.RoomPieceLabel(selected);
         SelectedLabel.Text = selected == "Ninguno"
-            ? "Ningún objeto seleccionado" : $"UUID {selected}";
+            ? "Ningún objeto seleccionado" : roomPiece is null
+                ? $"UUID {selected}" : $"{roomPiece} · plantilla fija";
+        SelectedLabel.ToolTip = roomPiece is null ? null : selected;
         float[] position = [], rotation = [], scale = [];
         bool hasTransform = selected != "Ninguno" &&
             Viewport.TryGetSelectedTransform(out position, out rotation, out scale);
-        TransformPanel.IsEnabled = hasTransform && !Viewport.IsPlaying;
-        DuplicateButton.IsEnabled = hasTransform && !Viewport.IsPlaying;
+        TransformPanel.IsEnabled = hasTransform && roomPiece is null && !Viewport.IsPlaying;
+        DuplicateButton.IsEnabled = hasTransform && roomPiece is null && !Viewport.IsPlaying;
         if (!hasTransform)
         {
             PositionX.Text = PositionY.Text = PositionZ.Text = string.Empty;
@@ -249,18 +254,21 @@ public partial class Vestigio3DWindow : Window
 
     private void SetEditingEnabled(bool enabled)
     {
+        bool editableSelection = Viewport.SelectedUuid != "Ninguno" &&
+            Viewport.RoomPieceLabel(Viewport.SelectedUuid) is null;
         PlayButton.IsEnabled = enabled;
         StopButton.IsEnabled = !enabled;
         CameraMode.IsEnabled = enabled;
         FrameButton.IsEnabled = enabled;
         AddButton.IsEnabled = enabled;
-        DuplicateButton.IsEnabled = enabled && Viewport.SelectedUuid != "Ninguno";
+        AddRoomButton.IsEnabled = enabled;
+        DuplicateButton.IsEnabled = enabled && editableSelection;
         UndoButton.IsEnabled = enabled;
         RedoButton.IsEnabled = enabled;
         SaveButton.IsEnabled = enabled;
         ReopenButton.IsEnabled = enabled;
         EntityList.IsEnabled = enabled;
-        TransformPanel.IsEnabled = enabled && Viewport.SelectedUuid != "Ninguno";
+        TransformPanel.IsEnabled = enabled && editableSelection;
     }
 
     private void Play_Click(object sender, RoutedEventArgs e)
@@ -298,6 +306,18 @@ public partial class Vestigio3DWindow : Window
         _entityLabels[Viewport.SelectedUuid] = "Pilar nuevo";
         RefreshDocument();
         StatusText.Text = "Pilar añadido · guardar como para conservarlo";
+    }
+
+    private void AddRoom_Click(object sender, RoutedEventArgs e)
+    {
+        if (!Viewport.TryAddRoom())
+        {
+            ShowNativeError("No se pudo añadir la habitación");
+            return;
+        }
+        FieldError.Text = string.Empty;
+        RefreshDocument();
+        StatusText.Text = "Habitación junto al punto inicial añadida · una por nivel · guardar para conservarla";
     }
 
     private void Duplicate_Click(object sender, RoutedEventArgs e)

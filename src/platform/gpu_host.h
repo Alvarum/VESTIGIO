@@ -67,6 +67,13 @@ VG_GPU_HOST_API uint64_t vg_gpu_host_document_revision(const VgGpuHost *host);
  * Quaternions use XYZW and transforms are local to the entity parent. */
 VG_GPU_HOST_API int32_t vg_gpu_host_add_mesh(VgGpuHost *host, char *uuid, size_t uuid_capacity,
                                              char *error, size_t error_capacity);
+/* Adds the fixed six-piece Atrium room shell as one undoable document batch.
+ * The north opening is 1.6 m wide and 2.2 m high; output selects its left jamb. */
+VG_GPU_HOST_API int32_t vg_gpu_host_add_room(VgGpuHost *host, char *uuid, size_t uuid_capacity,
+                                             char *error, size_t error_capacity);
+/* Optional stable label for an authored room piece. Returns 0 for other entities. */
+VG_GPU_HOST_API int32_t vg_gpu_host_entity_label(const VgGpuHost *host, const char *uuid,
+                                                 char *label, size_t label_capacity);
 VG_GPU_HOST_API int32_t vg_gpu_host_duplicate_selected(VgGpuHost *host, char *uuid,
                                                        size_t uuid_capacity, char *error,
                                                        size_t error_capacity);

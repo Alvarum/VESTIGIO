@@ -291,6 +291,14 @@ public sealed class GpuViewportHost : HwndHost
         return ids;
     }
 
+    internal string? RoomPieceLabel(string uuid)
+    {
+        if (!_levelOpen || _nativeHost == 0) return null;
+        byte[] label = new byte[128];
+        return GpuHostNative.vg_gpu_host_entity_label(_nativeHost, uuid, label,
+            (nuint)label.Length) != 0 ? GpuHostNative.Error(label) : null;
+    }
+
     internal bool TrySelect(string uuid)
     {
         if (!_levelOpen || IsPlaying || _nativeHost == 0 ||
@@ -305,6 +313,20 @@ public sealed class GpuViewportHost : HwndHost
         byte[] uuid = new byte[80], error = new byte[512];
         if (!_levelOpen || IsPlaying || _nativeHost == 0 ||
             GpuHostNative.vg_gpu_host_add_mesh(_nativeHost, uuid, (nuint)uuid.Length,
+                error, (nuint)error.Length) == 0)
+        {
+            LastError = GpuHostNative.Error(error);
+            return false;
+        }
+        SetSelection(GpuHostNative.Error(uuid));
+        return true;
+    }
+
+    internal bool TryAddRoom()
+    {
+        byte[] uuid = new byte[80], error = new byte[512];
+        if (!_levelOpen || IsPlaying || _nativeHost == 0 ||
+            GpuHostNative.vg_gpu_host_add_room(_nativeHost, uuid, (nuint)uuid.Length,
                 error, (nuint)error.Length) == 0)
         {
             LastError = GpuHostNative.Error(error);
