@@ -73,6 +73,7 @@ No todos los tickets implementan todo un perfil: sus criterios de aceptación fi
 | ARRANQUE | Crear/limpiar contexto y entidades desde C externo; draw de geometría GPU sintética; superficie Studio viable, input entre hosts y settings mínimos. No afirmar importación GLB todavía |
 | BASE TÉCNICA | Consumidor C carga GLB, crea instancias compartidas y renderer GPU dibuja la escena de prueba; documento nuevo valida referencias y round-trip de componentes soportados |
 | PRIMERA ESCENA (J01) | Proyecto nuevo arranca en Player; cámara se mueve sobre geometría visual con modelo importado, GPU real, resize y cierre limpio; no se exige colisión |
+| MOVIMIENTO CON COLISIÓN (S01/S02) | Consultas espaciales y controlador dirigidos en Debug/Release/UBSan/Analyze, consumidor SDK externo, Player GPU real con barrera y overlay de colliders; revisión interactiva humana del recorrido por separado |
 | AMPLIACIONES EDITORIALES | Para las funciones encargadas: crear/editar, undo, guardar, cerrar, reabrir y jugar; Stop conserva documento. Evidencia en Studio y Player cuando corresponda |
 | DISTRIBUCIÓN (si se encarga) | Dos juegos con mismo SDK/runtime, uno principalmente C; export fuera del repo, save/restore, CLI con conflicto de revisión, matriz de regresión y medidas GPU reales |
 

@@ -1,6 +1,6 @@
 # Plan ejecutable de VESTIGIO
 
-> **Ejecución por oleadas revisables (2026-09-27).** El alcance, orden y puertas de prueba están en [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). Sólo la oleada 0 está encargada ahora; la siguiente espera revisión y encargo explícito. `WAVES.md` muestra dependencias técnicas, no oleadas de producto.
+> **Ejecución por oleadas revisables (2026-09-27).** El alcance, orden y puertas de prueba están en [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). Las oleadas 0 y 1 se publicaron; la oleada 2 (S01/S02) está implementada y espera revisión del usuario. La siguiente requiere encargo explícito. `WAVES.md` muestra dependencias técnicas, no oleadas de producto.
 
 Fecha: 2026-09-20. Base observada: `28dafa949ff68ed3dc52bf93d287863037bf8578`, checkout limpio al comenzar esta planificación. El diff de código entre `ae48d31` y esta base es vacío; el nuevo commit incorpora la investigación. F00 debe comprobar el HEAD real cuando otro agente empiece, porque esta observación no congela el repositorio.
 
@@ -16,8 +16,9 @@ Se implementa por verticales: primero GPU/superficie y contratos mínimos; despu
 |---|---|---|
 | ARRANQUE, recomendado inicialmente | F00, F01, G01, G02, R01, R02, R03, I01 | GPU real y superficie de Studio probada, runtime/ownership/SDK/input mínimo. Modelos importados y autoría completa siguen pendientes |
 | BASE TÉCNICA (integrada) | ARRANQUE + D01, M01, G03, D02 | Modelo GLB compartido GPU, documento y SDK externo; aún sin escena recorrible |
-| PRIMERA ESCENA (siguiente) | J01 | Proyecto nuevo visible y recorrible libremente en Player con GPU real |
-| AMPLIACIONES (opcionales) | E01–E05, S01–S03, V01–V02, A01–A02 | Autoría, colisión, interacción y medios sólo por encargo individual |
+| PRIMERA ESCENA (integrada y revisada) | J01 | Proyecto nuevo visible y recorrible libremente en Player con GPU real |
+| MOVIMIENTO CON COLISIÓN (integrada; revisión humana pendiente) | S01–S02 | Consultas espaciales, movimiento, salto y colliders visibles en Player |
+| AMPLIACIONES (opcionales) | E01–E05, S03, V01–V02, A01–A02 | Autoría, interacción y medios sólo por encargo individual |
 | DISTRIBUCIÓN (opcional) | Q01, P01, P02, T01, Z01 y dependencias | Dos juegos exportables, partidas, CLI y aceptación integrada sólo si se decide llegar ahí |
 
 La ejecución actual se rige por los entregables individuales de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). El motor es nuevo: compatibilidad con niveles/proyectos anteriores y migración no forman parte del alcance. Si se entrega únicamente un ticket, el agente verifica que sus predecesores ya estén integrados.
@@ -31,7 +32,7 @@ La ejecución actual se rige por los entregables individuales de [ENTREGABLES-HO
 5. **I01:** paridad de input y settings entre hosts. Puede esperar a G02 si ambos necesitan los mismos archivos de viewport/plataforma.
 6. Integrar ambos carriles, ejecutar aceptación de ARRANQUE y entregar estado. No afirmar que esa vertical ya permite crear un juego completo.
 
-La base técnica ya está integrada. J01 cierra la primera escena nueva visible en Player. Editor, física y presentación son ampliaciones optativas; E05 exige que las funciones encargadas se prueben en un mismo candidato cuando se llegue a ese hito.
+La base técnica, J01 y S01/S02 ya están integrados. El usuario revisa ahora el movimiento con colisión en Player. Editor y presentación son ampliaciones optativas; E05 exige que las funciones encargadas se prueben en un mismo candidato cuando se llegue a ese hito.
 
 La [lista de oleadas técnicas](WAVES.md) calcula el mínimo teórico por dependencias. **Dos tickets de una misma fila sólo pueden ejecutarse simultáneamente si no comparten locks ni archivos reales.** Esa fila nunca amplía la oleada de producto encargada.
 

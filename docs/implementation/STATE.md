@@ -2,12 +2,12 @@
 
 Fecha de preparación del plan: 2026-09-20.
 
-- Estado global: **13/30 INTEGRADOS; J01 IMPLEMENTADO, PENDIENTE DE REVISIÓN HUMANA; E01/S01 INTERRUMPIDOS**. La oleada 0 se publicó en `033f650`; J01 está integrado en `7efc54c`. G04 y D03 se retiraron por requerir compatibilidad/migración que este motor nuevo no necesita.
+- Estado global: **15/30 INTEGRADOS; oleada 2 (S01/S02) implementada y pendiente de revisión humana**. La oleada 0 se publicó en `033f650`; J01 está integrado en `7efc54c` y el usuario confirmó movimiento, mirada y cierre con Escape el 2026-09-27. S01/S02 se integraron en `22e937a`. G04 y D03 se retiraron por requerir compatibilidad/migración que este motor nuevo no necesita.
 - HEAD observado para redactar: `28dafa949ff68ed3dc52bf93d287863037bf8578`.
 - Checkout observado limpio antes de crear `docs/implementation/`.
 - Cambios de código desde `ae48d31` hasta esa base: ninguno; se incorporó la investigación.
 - F00 está INTEGRATED en `fe43b83`; F01 en `2052e5b`; G01 en `a13fb8b`; G02 en `9811b03`. R01 fue auditado, corregido y revalidado junto con R02 en `9ed4d5e`.
-- Oleada 1: **J01, primera escena 3D nueva**, implementada y verificada en GPU real. Esperar la prueba y revisión del usuario antes de iniciar la oleada 2 (S01 → S02). Sin límite fijo de tiempo ni autorización vigente para ejecutar el roadmap completo.
+- Oleada 2: **S01 → S02**, colisión espacial y movimiento cinemático en la escena Player, implementada y verificada en GPU real. Esperar la revisión del usuario antes de iniciar la oleada 3 (E01). Sin límite fijo de tiempo ni autorización vigente para ejecutar el roadmap completo.
 - GPU objetivo: backend principal confirmado por el usuario; G01 y G02 ya ejecutan OpenGL 3.3 real en una NVIDIA GeForce RTX 5060 Ti.
 - Matriz aislada R01/R02: analyze 8/8, UBSan 8/8, debug 8/8 y release 8/8 con apps desactivadas. La evidencia GPU integrada anterior permanece en G01/G02; los cambios R01/R02 no modifican ese backend.
 - Matriz I01 aislada: UBSan 14/14; Analyze build y casos 1–13 PASS, con `retro_contracts` PASS tras limpiar un artefacto de ejecución concurrente; Debug/Release nativos 17/17; builds WPF Debug/Release sin warnings ni errores; `retro_studio_authoring` exacto PASS en 466,63 s (CTest dirigido 466,74 s). El timeout inicial de 180 s era insuficiente para recrear 50 contextos; la evidencia oficial es la corrida posterior sin trazas.
@@ -17,7 +17,7 @@ Verificación del paquete actualizado: **PASS**, 30 tickets, 60 dependencias y 1
 
 ## Registro del coordinador
 
-F00/F01/G01/G02/G03/R01/R02/R03/I01/D01/M01/D02/J01 integrados. E01/S01 tienen estado técnico IN_PROGRESS en el backlog, pero sus agentes están interrumpidos y no hay ejecución autorizada ahora. A01 conserva un núcleo de audio validado como checkpoint parcial (`8dfce4a`); no equivale al ticket completo. Parte de S01 quedó en el commit concurrente `939dd9c`; revisar ese trabajo y el estado actual antes de continuar S01. J01 no incorpora física.
+F00/F01/G01/G02/G03/R01/R02/R03/I01/D01/M01/D02/J01/S01/S02 integrados. E01 conserva estado técnico IN_PROGRESS de un intento previo, pero está fuera de la oleada encargada y no tiene ejecución autorizada ahora. A01 conserva un núcleo de audio validado como checkpoint parcial (`8dfce4a`); no equivale al ticket completo. El trabajo parcial S01 de `939dd9c` fue revisado y completado en `22e937a`. J01 fue un hito sin física; S01/S02 añadieron la física acotada en una oleada posterior.
 
 | Ticket | Responsable / checkout | Base y resultado | Locks / archivos compartidos | Evidencia / siguiente paso |
 |---|---|---|---|---|
@@ -33,11 +33,13 @@ F00/F01/G01/G02/G03/R01/R02/R03/I01/D01/M01/D02/J01 integrados. E01/S01 tienen e
 | M01 | agente `r01_review` + integrador | `656fda7` / 12 de 12 por perfil | liberado | importer glTF/GLB e IR propia |
 | G03 | agente `r01_review` + revisión `r02_design` + integrador | `656fda7` / `50ece2a` | liberado | [evidence/G03.md](evidence/G03.md); World→GPU, SDK externo y GPU real PASS |
 | D02 | agente `r01_runtime` + integrador | `2e15e5e` / 14 de 14 por perfil | liberado | [evidence/D02.md](evidence/D02.md); documento, Tool API e instanciador transaccional |
-| J01 | integrador / checkout principal | `7efc54c` / pruebas dirigidas PASS | liberado | [evidence/J01.md](evidence/J01.md); GPU real y recorrido sintético PASS; revisión humana pendiente |
+| J01 | integrador / checkout principal | `7efc54c` / pruebas dirigidas PASS | liberado | [evidence/J01.md](evidence/J01.md); GPU real y controles confirmados por usuario |
+| S01 | agente `s01_spatial` + integrador | `939dd9c` / `22e937a` | liberado | [evidence/S01.md](evidence/S01.md); consultas espaciales y colliders verificados |
+| S02 | integrador / checkout principal | `e7e9742` / `22e937a` | liberado | [evidence/S02.md](evidence/S02.md); controlador, Player y GPU verificados; revisión humana pendiente |
 
 ## Bloqueos y decisiones pendientes
 
-J01 ya ejecuta en Player GPU; su revisión manual interactiva por el usuario sigue pendiente. Otros riesgos del plan:
+J01 fue revisado por el usuario: pudo moverse, mirar y cerrar con Escape; aceptó su presentación visual básica. La revisión manual interactiva de S01/S02 sigue pendiente. Otros riesgos del plan:
 
 - G02: docking flotante, Tab/Escape y DPI físico 150/200 % conservan aceptación humana pendiente; el embedding base está integrado.
 - Toolchain/cachés en checkouts de agentes: los directorios ignorados no se copian al crear worktree.

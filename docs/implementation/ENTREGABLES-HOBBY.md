@@ -1,6 +1,6 @@
 # VESTIGIO: entregables pequeños para un proyecto hobby
 
-Estado al 2026-09-27: **13 de 30 tickets integrados**. J01 ya ofrece una escena nueva en Player GPU, pendiente de revisión humana; [pruebas e instrucciones](evidence/J01.md). A01 tiene sólo un núcleo de audio parcial. E01 y S01 no están autorizados en esta oleada; parte de S01 quedó en el commit concurrente `939dd9c` y debe revisarse antes de continuarla.
+Estado al 2026-09-27: **15 de 30 tickets integrados**. El usuario revisó y aceptó el aspecto básico y los controles de J01. La oleada 2, S01/S02, añade colisiones, salto y overlay de colliders a Player; está implementada y [lista para probar](evidence/S02.md), con revisión humana pendiente. A01 tiene sólo un núcleo de audio parcial. E01 queda fuera del alcance actual y requiere un nuevo encargo.
 
 **El motor es nuevo.** No se exige compatibilidad con Haunted, sectores, formatos previos, juegos anteriores o renderer CPU. Los tickets G04 (adaptador GPU anterior) y D03 (migración) se retiraron. El código de prototipo ya integrado puede permanecer mientras no estorbe, pero no es criterio de aceptación para entregas nuevas ni justificación para financiar una migración.
 
@@ -16,4 +16,4 @@ Después de la oleada 4, ofrecer por separado y sólo si el usuario lo encarga: 
 
 **Contrato de cierre por oleada:** completar el alcance acordado y sus pruebas dirigidas; registrar resultados reales, limitaciones y pasos para probarlo; hacer commits de código/evidencia y push directo a `origin/main` tras comprobar que no se sobrescribe trabajo remoto. Entregar SHA publicado y esperar la revisión del usuario antes de comenzar otra oleada. Si el usuario detecta un fallo, corregirlo dentro de la misma oleada y publicar otro commit. No hay límite fijo de tiempo; informar avances y no ampliar el alcance por cuenta propia. Puede haber commits internos de checkpoint, pero un hito incompleto no se presenta como aceptado. Los archivos parciales de S01 no se incluyen en la oleada 0 o 1.
 
-Para J01 se ejecutan pruebas dirigidas del cambio y verificación GPU visual; una matriz completa de distribución queda para cuando exista candidato de esa entrega. `ALCANCE: COMPLETO` es visión de largo plazo, no autorización de trabajo continuo.
+Para J01 y S01/S02 se ejecutaron pruebas dirigidas y verificación GPU visual; una matriz completa de distribución queda para cuando exista candidato de esa entrega. `ALCANCE: COMPLETO` es visión de largo plazo, no autorización de trabajo continuo.

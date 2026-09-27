@@ -128,14 +128,14 @@
       "validation": ["V-CORE", "V-DATA", "V-WPF", "V-GPU"], "unlocks": "World building recuperado de js-game sin portar sus errores."
     },
     {
-      "id": "S01", "phase": "P6", "title": "Consultas espaciales 3D y colliders compartidos", "role": "runtime", "dependencies": ["G03", "D02"], "locks": ["spatial-core", "public-api"], "status": "IN_PROGRESS",
+      "id": "S01", "phase": "P6", "title": "Consultas espaciales 3D y colliders compartidos", "role": "runtime", "dependencies": ["G03", "D02"], "locks": ["spatial-core", "public-api"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/S01.md"], "integrated_commit": "22e937a2d589e256f38ff7268603c26723343cae",
       "paths": ["src/physics/", "src/world/", "src/api/", "tests/spatial/"],
       "steps": ["Implementar raycast/sweep/overlap con máscaras, ignored entity y resultados entidad/normal/distancia/fracción; static mesh con aceleración acotada y colliders dinámicos simples.", "Mantener fuente de geometría/collider/transform común con runtime y la escena nueva; no exigir BSP/navmesh a los niveles nuevos.", "Definir escala/colliders admitidos, límites numéricos y actualización tras transform/edición; no simular rigid bodies generales."],
       "acceptance": ["Ray/movimiento/visión/proyectil usan máscaras coherentes y no atraviesan props sólidos por falta silenciosa de collider.", "Pruebas reproducen contacto tangencial, esquina, malla fina, rotación/padre y escala admitida con tolerancias documentadas.", "Editar/reimportar collider invalida estructura espacial; overlays muestran geometría de colisión real."],
       "validation": ["V-CORE", "V-SPATIAL"], "unlocks": "Espacio 3D jugable y picking preciso opcional."
     },
     {
-      "id": "S02", "phase": "P6", "title": "Controlador 3D y navegación mínima", "role": "runtime", "dependencies": ["S01", "I01"], "locks": ["spatial-core", "gamekit", "session-bridge"], "status": "PLANNED",
+      "id": "S02", "phase": "P6", "title": "Controlador 3D y navegación mínima", "role": "runtime", "dependencies": ["S01", "I01"], "locks": ["spatial-core", "gamekit", "session-bridge"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/S02.md"], "integrated_commit": "22e937a2d589e256f38ff7268603c26723343cae",
       "paths": ["src/gamekit/", "src/physics/", "src/session/session.c", "tests/spatial/", "tests/gamekit/"],
       "steps": ["Construir controlador cinemático de cápsula/volumen admitido con suelo, pendiente, escalón, techo y dt fijo; configuración expuesta al SDK.", "Integrar cámara/jugador opt-in sin asumir armas; añadir waypoints/consultas mínimos para actores de escenas nuevas.", "Crear recorrido de prueba con props, escalera y pasillo estrecho; registrar límites admitidos y comportamiento ante penetración inicial."],
       "acceptance": ["Movimiento estable con render a distintas frecuencias; no atraviesa suelo/techo/esquinas bajo velocidad máxima admitida.", "Jugador cabe/no cabe conforme a volumen, pendiente/escalón válidos y plataformas definidas; FPS no es dependencia del core.", "Navegación 3D verificable para el recorrido nuevo, sin afirmar cobertura navmesh que no existe."],

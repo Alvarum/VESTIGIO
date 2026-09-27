@@ -500,7 +500,7 @@ Desbloquea: World building recuperado de js-game sin portar sus errores.
 
 ## S01 — Consultas espaciales 3D y colliders compartidos
 
-Fase: **P6** · Rol: **runtime** · Estado: **IN_PROGRESS**.
+Fase: **P6** · Rol: **runtime** · Estado: **INTEGRATED**.
 
 Dependencias integradas: G03, D02.
 
@@ -524,9 +524,13 @@ Verificación: V-CORE, V-SPATIAL.
 
 Desbloquea: Espacio 3D jugable y picking preciso opcional.
 
+Evidencia: docs/implementation/evidence/S01.md.
+
+Commit integrado: `22e937a2d589e256f38ff7268603c26723343cae`.
+
 ## S02 — Controlador 3D y navegación mínima
 
-Fase: **P6** · Rol: **runtime** · Estado: **PLANNED**.
+Fase: **P6** · Rol: **runtime** · Estado: **INTEGRATED**.
 
 Dependencias integradas: S01, I01.
 
@@ -549,6 +553,10 @@ Puntos de entrada: `src/gamekit/`, `src/physics/`, `src/session/session.c`, `tes
 Verificación: V-CORE, V-APP, V-SPATIAL.
 
 Desbloquea: Exploración 3D y colisión de puertas.
+
+Evidencia: docs/implementation/evidence/S02.md.
+
+Commit integrado: `22e937a2d589e256f38ff7268603c26723343cae`.
 
 ## S03 — Puertas con bisagra, triggers e interacción
 
