@@ -2,12 +2,12 @@
 
 Fecha de preparación del plan: 2026-09-20.
 
-- Estado global: **PAUSADO POR CONTROL DE GASTO — 12/30 INTEGRADOS; E01/S01 INTERRUMPIDOS**. Reanudar sólo el entregable que el usuario encargue según [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). G04 y D03 se retiraron por requerir compatibilidad/migración que este motor nuevo no necesita.
+- Estado global: **12/30 INTEGRADOS; J01 ESPERA REVISIÓN DE LA OLEADA 0; E01/S01 INTERRUMPIDOS**. El SHA y resultado del push de la oleada 0 se confirman en su handoff. G04 y D03 se retiraron por requerir compatibilidad/migración que este motor nuevo no necesita.
 - HEAD observado para redactar: `28dafa949ff68ed3dc52bf93d287863037bf8578`.
 - Checkout observado limpio antes de crear `docs/implementation/`.
 - Cambios de código desde `ae48d31` hasta esa base: ninguno; se incorporó la investigación.
 - F00 está INTEGRATED en `fe43b83`; F01 en `2052e5b`; G01 en `a13fb8b`; G02 en `9811b03`. R01 fue auditado, corregido y revalidado junto con R02 en `9ed4d5e`.
-- Encargo siguiente recomendado: **J01, primera escena 3D nueva**, dentro de una sola ventana de trabajo acotada. ARRANQUE ya está integrado; no hay autorización vigente para COMPLETO.
+- Siguiente oleada propuesta tras revisar la 0: **J01, primera escena 3D nueva**. Sin límite fijo de tiempo ni autorización vigente para ejecutar el roadmap completo.
 - GPU objetivo: backend principal confirmado por el usuario; G01 y G02 ya ejecutan OpenGL 3.3 real en una NVIDIA GeForce RTX 5060 Ti.
 - Matriz aislada R01/R02: analyze 8/8, UBSan 8/8, debug 8/8 y release 8/8 con apps desactivadas. La evidencia GPU integrada anterior permanece en G01/G02; los cambios R01/R02 no modifican ese backend.
 - Matriz I01 aislada: UBSan 14/14; Analyze build y casos 1–13 PASS, con `retro_contracts` PASS tras limpiar un artefacto de ejecución concurrente; Debug/Release nativos 17/17; builds WPF Debug/Release sin warnings ni errores; `retro_studio_authoring` exacto PASS en 466,63 s (CTest dirigido 466,74 s). El timeout inicial de 180 s era insuficiente para recrear 50 contextos; la evidencia oficial es la corrida posterior sin trazas.

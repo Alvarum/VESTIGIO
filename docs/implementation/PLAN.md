@@ -1,6 +1,6 @@
 # Plan ejecutable de VESTIGIO
 
-> **Ejecución pausada por control de gasto (2026-09-22).** Los hitos financiables y sus puntos de parada están en [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). La autorización anterior de alcance completo se sustituyó por entregables individuales; no continuar tickets por esta tabla sin un nuevo encargo.
+> **Ejecución por oleadas revisables (2026-09-27).** El alcance, orden y puertas de prueba están en [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). Sólo la oleada 0 está encargada ahora; la siguiente espera revisión y encargo explícito. `WAVES.md` muestra dependencias técnicas, no oleadas de producto.
 
 Fecha: 2026-09-20. Base observada: `28dafa949ff68ed3dc52bf93d287863037bf8578`, checkout limpio al comenzar esta planificación. El diff de código entre `ae48d31` y esta base es vacío; el nuevo commit incorpora la investigación. F00 debe comprobar el HEAD real cuando otro agente empiece, porque esta observación no congela el repositorio.
 
@@ -33,7 +33,7 @@ La ejecución actual se rige por los entregables individuales de [ENTREGABLES-HO
 
 La base técnica ya está integrada. J01 cierra la primera escena nueva visible en Player. Editor, física y presentación son ampliaciones optativas; E05 exige que las funciones encargadas se prueben en un mismo candidato cuando se llegue a ese hito.
 
-La [lista de oleadas](WAVES.md) calcula el mínimo teórico por dependencias. **Dos tickets de una misma oleada sólo pueden ejecutarse simultáneamente si no comparten locks ni archivos reales.** No iniciar toda una oleada a ciegas.
+La [lista de oleadas técnicas](WAVES.md) calcula el mínimo teórico por dependencias. **Dos tickets de una misma fila sólo pueden ejecutarse simultáneamente si no comparten locks ni archivos reales.** Esa fila nunca amplía la oleada de producto encargada.
 
 ## Un agente
 
@@ -86,4 +86,4 @@ No implementar por anticipación networking, ECS universal, editor de shaders po
 
 ## Fin del encargo
 
-Al concluir el entregable asignado o llegar a su tope, entregar resultados reales, pendientes y opciones de continuación. No avanzar a otro entregable por suposición. Este plan por sí solo no autoriza despliegues, envíos a terceros o publicación remota.
+Al concluir la oleada asignada, ejecutar su gate dirigido, revisar el diff, integrar y hacer commit. Comprobar `origin/main` antes de hacer push directo sin forzar; si avanzó o diverge, inspeccionar y resolver sin sobrescribir trabajo ajeno. Entregar SHA publicado, evidencia, instrucciones para probar y límites; esperar la revisión del usuario antes de otra oleada. Un fallo que encuentre durante esa revisión pertenece a la misma oleada. El push del repositorio está autorizado; este plan no autoriza desplegar el producto ni enviar mensajes a terceros.

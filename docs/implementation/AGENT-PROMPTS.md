@@ -1,6 +1,6 @@
 # Prompts para entregar el plan
 
-Copiar un prompt sólo cuando el usuario encargue un entregable de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). ARRANQUE ya está integrado. La instrucción anterior `ALCANCE: COMPLETO` no autoriza continuar automáticamente. El motor es nuevo y no requiere compatibilidad ni migraciones de proyectos previos.
+Copiar un prompt sólo cuando el usuario encargue una oleada de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). ARRANQUE ya está integrado. La instrucción anterior `ALCANCE: COMPLETO` no autoriza continuar automáticamente. El motor es nuevo y no requiere compatibilidad ni migraciones de proyectos previos. Cada oleada cierra con commit, pruebas y push a `origin/main`; la siguiente espera revisión del usuario.
 
 ## Un solo agente
 
@@ -9,7 +9,7 @@ Implementa VESTIGIO siguiendo el paquete docs/implementation/README.md del repos
 C:\Users\alvar\Documents\dev\doom like\1
 
 ALCANCE: J01 — primera escena 3D nueva y recorrible en GPU.
-LÍMITE: una ventana de hasta 90 minutos; detenerse y reportar al alcanzarlo.
+LÍMITE: sólo J01. Sin tiempo fijo; informar avances sin ampliar el alcance.
 
 Esto es una solicitud de implementación, no de volver a planificar. Lee PLAN.md,
 CONTRACTS.md, VALIDATION.md, STATE.md y los tickets de backlog.json/TASKS.md.
@@ -27,9 +27,10 @@ Por ticket: implementar, probar casos de aceptación, revisar diff, integrar y r
 resultados en evidence/<ID>.md y STATE/backlog. No marques PASS lo que no ejecutaste.
 No alteres trabajo ajeno ni compartas salidas de build con otro escritor.
 
-Detente al cerrar J01, alcanzar el límite, o ante un bloqueo real sin trabajo
-independiente dentro del alcance. Entrega commits/archivos, pruebas y límites,
-estado GPU/SDK y siguiente paso posible. No publiques ni despliegues remotamente.
+Detente al cerrar J01 o ante un bloqueo real sin trabajo independiente dentro
+del alcance. Tras las pruebas y el commit integrado, comprueba el remoto y haz
+push directo a origin/main sin forzar. Entrega SHA publicado, archivos, pruebas,
+límites, pasos para probar la escena y siguiente paso posible. No inicies S01.
 ```
 
 ## Coordinador de varios agentes
@@ -38,10 +39,10 @@ estado GPU/SDK y siguiente paso posible. No publiques ni despliegues remotamente
 Coordina e implementa VESTIGIO con agentes siguiendo docs/implementation/README.md
 en C:\Users\alvar\Documents\dev\doom like\1.
 
-ALCANCE: [entregable elegido por el usuario y tickets concretos].
-LÍMITE: [tiempo/presupuesto indicado por el usuario; máximo una ventana de 90 minutos].
-Usa un agente por defecto; delega en paralelo sólo si el usuario lo encargó para
-este entregable y el presupuesto cubre esa concurrencia.
+ALCANCE: [oleada elegida por el usuario y tickets concretos].
+LÍMITE: sólo [oleada elegida por el usuario y tickets concretos], sin tiempo fijo.
+Informa avances y no amplíes el alcance. Usa un agente por defecto; delega en
+paralelo sólo si el usuario lo encargó para esta oleada.
 
 F00/F01 ya están integrados. Tú eres el único escritor de STATE.md/backlog.json y de la
 rama integrada. Publica contratos y base commit antes de delegar. Usa checkouts aislados
@@ -59,8 +60,9 @@ editor embebido completado. No repitas investigación ni amplíes a MCP/Vulkan/E
 
 Integra de uno en uno, ejecuta pruebas afectadas sobre el candidato y actualiza estados.
 Una tarea bloqueada no detiene las independientes dentro del mismo encargo. Al completar
-el entregable o llegar al límite, entrega resultados reales, artefactos y pendientes.
-No envíes mensajes externos ni publiques/despliegues por el solo hecho de terminar.
+la oleada, comprueba el remoto y publica los commits integrados en origin/main
+sin forzar. Entrega SHA, pruebas, instrucciones de prueba y pendientes; espera
+la revisión del usuario antes de iniciar otra oleada. No despliegues el producto.
 ```
 
 ## Asignación a un worker
@@ -114,4 +116,4 @@ Riesgos, límites, NOT_RUN y bloqueos:
 Pasos concretos de integración y comprobaciones del integrador:
 ```
 
-INTEGRATED lo registra el coordinador tras incorporar y verificar el candidato. Los prompts individuales no autorizan rebasar el entregable encargado; cada entregable siguiente requiere una decisión nueva del usuario.
+INTEGRATED lo registra el coordinador tras incorporar y verificar el candidato. Los prompts individuales no autorizan rebasar la oleada encargada; la siguiente requiere una decisión nueva del usuario.
