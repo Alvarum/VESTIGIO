@@ -2,54 +2,171 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:RetroForge.Studio"
-        Title="VESTIGIO Studio — Atrium 3D" Width="1280" Height="800"
-        MinWidth="800" MinHeight="520" WindowStartupLocation="CenterScreen">
+        Title="VESTIGIO Studio — Atrium 3D" Width="1320" Height="820"
+        MinWidth="940" MinHeight="560" WindowStartupLocation="CenterScreen">
   <Grid Background="{StaticResource WindowBrush}">
     <Grid.RowDefinitions>
-      <RowDefinition Height="Auto" />
-      <RowDefinition Height="Auto" />
-      <RowDefinition Height="*" />
-      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
     <Grid Background="{StaticResource PanelBrush}" Margin="0,0,0,1">
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
       <StackPanel Margin="18,12" Orientation="Vertical">
         <TextBlock Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold"
-                   Text="VESTIGIO / ESCENA 3D" />
-        <TextBlock x:Name="LevelTitle" FontSize="18" FontWeight="SemiBold" Text="Atrium 3D" />
+                   Text="VESTIGIO / ESCENA 3D"/>
+        <StackPanel Orientation="Horizontal">
+          <TextBlock x:Name="LevelTitle" FontSize="18" FontWeight="SemiBold" Text="Atrium 3D"/>
+          <TextBlock x:Name="DirtyMark" Margin="9,0,0,0" FontSize="18"
+                     Foreground="{StaticResource AccentBrush}" Text="•" Visibility="Collapsed"/>
+        </StackPanel>
       </StackPanel>
-      <TextBlock Grid.Column="1" Margin="16" Foreground="{StaticResource MutedBrush}"
-                 Text="Viewport GPU · documento vestigio.level" />
+      <StackPanel Grid.Column="1" Margin="16" VerticalAlignment="Center">
+        <TextBlock x:Name="LevelPathText" Foreground="{StaticResource MutedBrush}"
+                   TextAlignment="Right" MaxWidth="430"/>
+        <TextBlock Foreground="{StaticResource FaintBrush}" TextAlignment="Right"
+                   Text="Viewport GPU · documento vestigio.level"/>
+      </StackPanel>
     </Grid>
 
     <WrapPanel Grid.Row="1" Margin="12,10,12,8">
-      <Button x:Name="PlayButton" Content="▶ Probar" Click="Play_Click" />
+      <Button x:Name="PlayButton" Content="▶ Probar" Click="Play_Click"/>
       <Button x:Name="StopButton" Content="■ Detener" Margin="6,0,0,0"
-              IsEnabled="False" Click="Stop_Click" />
-      <Border Width="1" Margin="12,3" Background="{StaticResource BorderBrush}" />
-      <ComboBox x:Name="CameraMode" Width="132" SelectedIndex="0"
-                SelectionChanged="CameraMode_SelectionChanged">
-        <ComboBoxItem Content="Cámara libre" />
-        <ComboBoxItem Content="Órbita" />
-        <ComboBoxItem Content="Ortográfica" />
-      </ComboBox>
-      <Button x:Name="FrameButton" Content="Encuadrar selección" Margin="6,0,0,0"
-              Click="FrameSelection_Click" />
-      <TextBlock Margin="16,0,0,0" Foreground="{StaticResource MutedBrush}"
-                 Text="Clic: seleccionar/enfocar · WASD: mover · derecho: mirar · Editar: Espacio/Ctrl izq altura · Probar: Espacio saltar" />
+              IsEnabled="False" Click="Stop_Click"/>
+      <Border Width="1" Margin="12,3" Background="{StaticResource BorderBrush}"/>
+      <Button x:Name="AddButton" Content="+ Añadir pilar" Click="Add_Click"/>
+      <Button x:Name="DuplicateButton" Content="Duplicar" Margin="6,0,0,0"
+              IsEnabled="False" Click="Duplicate_Click"/>
+      <Button x:Name="UndoButton" Content="Deshacer" Margin="12,0,0,0" Click="Undo_Click"/>
+      <Button x:Name="RedoButton" Content="Rehacer" Margin="6,0,0,0" Click="Redo_Click"/>
+      <Border Width="1" Margin="12,3" Background="{StaticResource BorderBrush}"/>
+      <Button x:Name="SaveButton" Content="Guardar como…" Click="Save_Click"/>
+      <Button x:Name="ReopenButton" Content="Reabrir" Margin="6,0,0,0" Click="Reopen_Click"/>
     </WrapPanel>
 
-    <Border Grid.Row="2" Margin="12,0,12,8" Background="#FF0A1118"
-            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
-      <local:GpuViewportHost x:Name="Viewport" OpenAtrium="True" />
-    </Border>
+    <Grid Grid.Row="2" Margin="12,0,12,8">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="314"/>
+      </Grid.ColumnDefinitions>
+      <Grid Grid.Column="0">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <WrapPanel Margin="0,0,0,8">
+          <ComboBox x:Name="CameraMode" Width="132" SelectedIndex="0"
+                    SelectionChanged="CameraMode_SelectionChanged">
+            <ComboBoxItem Content="Cámara libre"/>
+            <ComboBoxItem Content="Órbita"/>
+            <ComboBoxItem Content="Ortográfica"/>
+          </ComboBox>
+          <Button x:Name="FrameButton" Content="Encuadrar selección" Margin="6,0,0,0"
+                  Click="FrameSelection_Click"/>
+          <TextBlock Margin="14,0,0,0" Foreground="{StaticResource MutedBrush}"
+                     Text="Clic: seleccionar · WASD: mover · derecho: mirar"/>
+        </WrapPanel>
+        <Border Grid.Row="1" Background="#FF0A1118"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+          <local:GpuViewportHost x:Name="Viewport" OpenAtrium="True"/>
+        </Border>
+      </Grid>
+
+      <Border Grid.Column="1" Margin="10,0,0,0" Background="{StaticResource PanelBrush}"
+              BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="14">
+            <TextBlock Text="JERARQUÍA" Foreground="{StaticResource AccentBrush}"
+                       FontSize="11" FontWeight="SemiBold"/>
+            <TextBlock Text="Selecciona un objeto del documento."
+                       Foreground="{StaticResource MutedBrush}" Margin="0,5,0,8"/>
+            <ListBox x:Name="EntityList" Height="180"
+                     Background="{StaticResource SurfaceBrush}"
+                     Foreground="{StaticResource TextBrush}"
+                     BorderBrush="{StaticResource BorderBrush}"
+                     SelectionChanged="EntityList_SelectionChanged">
+              <ListBox.Resources>
+                <Style TargetType="ListBoxItem">
+                  <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                  <Setter Property="Padding" Value="7,5"/>
+                  <Setter Property="Template">
+                    <Setter.Value>
+                      <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Row" Background="Transparent" CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                          <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                          <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Row" Property="Background"
+                                    Value="{StaticResource SurfaceHoverBrush}"/>
+                          </Trigger>
+                          <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Row" Property="Background"
+                                    Value="{StaticResource AccentSoftBrush}"/>
+                          </Trigger>
+                        </ControlTemplate.Triggers>
+                      </ControlTemplate>
+                    </Setter.Value>
+                  </Setter>
+                </Style>
+              </ListBox.Resources>
+            </ListBox>
+            <TextBlock Text="TRANSFORMACIÓN" Foreground="{StaticResource AccentBrush}"
+                       FontSize="11" FontWeight="SemiBold" Margin="0,20,0,5"/>
+            <TextBlock x:Name="SelectedLabel" Text="Ningún objeto seleccionado"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,0,0,12"/>
+            <StackPanel x:Name="TransformPanel" IsEnabled="False">
+              <TextBlock Text="Posición · metros" Foreground="{StaticResource MutedBrush}"/>
+              <UniformGrid Columns="3" Margin="0,5,0,0">
+                <TextBlock Text="X" Foreground="{StaticResource FaintBrush}"/>
+                <TextBlock Text="Y" Foreground="{StaticResource FaintBrush}"/>
+                <TextBlock Text="Z" Foreground="{StaticResource FaintBrush}"/>
+              </UniformGrid>
+              <UniformGrid Columns="3" Margin="0,5,0,12">
+                <TextBox x:Name="PositionX" ToolTip="X" Margin="0,0,4,0"/>
+                <TextBox x:Name="PositionY" ToolTip="Y" Margin="2,0,2,0"/>
+                <TextBox x:Name="PositionZ" ToolTip="Z" Margin="4,0,0,0"/>
+              </UniformGrid>
+              <TextBlock Text="Rotación · grados XYZ" Foreground="{StaticResource MutedBrush}"/>
+              <UniformGrid Columns="3" Margin="0,5,0,0">
+                <TextBlock Text="X" Foreground="{StaticResource FaintBrush}"/>
+                <TextBlock Text="Y" Foreground="{StaticResource FaintBrush}"/>
+                <TextBlock Text="Z" Foreground="{StaticResource FaintBrush}"/>
+              </UniformGrid>
+              <UniformGrid Columns="3" Margin="0,5,0,12">
+                <TextBox x:Name="RotationX" ToolTip="X" Margin="0,0,4,0"/>
+                <TextBox x:Name="RotationY" ToolTip="Y" Margin="2,0,2,0"/>
+                <TextBox x:Name="RotationZ" ToolTip="Z" Margin="4,0,0,0"/>
+              </UniformGrid>
+              <TextBlock Text="Escala" Foreground="{StaticResource MutedBrush}"/>
+              <UniformGrid Columns="3" Margin="0,5,0,0">
+                <TextBlock Text="X" Foreground="{StaticResource FaintBrush}"/>
+                <TextBlock Text="Y" Foreground="{StaticResource FaintBrush}"/>
+                <TextBlock Text="Z" Foreground="{StaticResource FaintBrush}"/>
+              </UniformGrid>
+              <UniformGrid Columns="3" Margin="0,5,0,12">
+                <TextBox x:Name="ScaleX" ToolTip="X" Margin="0,0,4,0"/>
+                <TextBox x:Name="ScaleY" ToolTip="Y" Margin="2,0,2,0"/>
+                <TextBox x:Name="ScaleZ" ToolTip="Z" Margin="4,0,0,0"/>
+              </UniformGrid>
+              <Button x:Name="ApplyButton" Content="Aplicar transformación"
+                      Click="ApplyTransform_Click" Style="{StaticResource PrimaryButton}"/>
+            </StackPanel>
+            <TextBlock x:Name="FieldError" Foreground="{StaticResource DangerBrush}"
+                       TextWrapping="Wrap" Margin="0,9,0,0"/>
+            <TextBlock Text="Cada aplicación se puede deshacer. Los cambios de Probar no se guardan."
+                       Foreground="{StaticResource FaintBrush}" TextWrapping="Wrap"
+                       Margin="0,18,0,0"/>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
 
     <DockPanel Grid.Row="3" Background="{StaticResource PanelBrush}" LastChildFill="True">
       <TextBlock DockPanel.Dock="Right" Margin="12,6" Foreground="{StaticResource MutedBrush}"
-                 Text="{Binding SelectedUuid, ElementName=Viewport, StringFormat=Selección: {0}}" />
+                 Text="{Binding SelectedUuid, ElementName=Viewport, StringFormat=Selección: {0}}"/>
       <TextBlock x:Name="StatusText" Margin="14,6" Foreground="{StaticResource AccentBrush}"
-                 Text="Editar · cámara libre" />
+                 Text="Editar · cámara libre"/>
     </DockPanel>
   </Grid>
 </Window>

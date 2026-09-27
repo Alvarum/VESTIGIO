@@ -330,6 +330,7 @@ internal static class Program
             content.Measure(new Size(1280, 800));
             content.Arrange(new Rect(0, 0, 1280, 800));
             content.UpdateLayout();
+            window.RefreshForTest();
             Check(window.GpuViewport.IsNativeReady && window.GpuViewport.RenderForTest(),
                 $"La ventana 3D no compuso su viewport GPU: {window.GpuViewport.LastError}");
             var play = window.FindName("PlayButton") as Button;
@@ -342,6 +343,9 @@ internal static class Program
             stop!.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
             Check(window.GpuViewport.NativeModeForTest == 0 && play.IsEnabled && !stop.IsEnabled,
                 "El botón Detener no restauró Editar.");
+            Check(((ListBox)window.FindName("EntityList")!).Items.Count > 0,
+                "La jerarquía 3D quedó vacía tras Detener.");
+            content.UpdateLayout();
             var shell = new RenderTargetBitmap(1280, 800, 96, 96, PixelFormats.Pbgra32);
             shell.Render(content);
             var png = new PngBitmapEncoder();
@@ -357,6 +361,198 @@ internal static class Program
         Console.WriteLine("PASS E01 startup/UI VESTIGIO 3D sin EditorDocument .retro");
     }
 
+    private static void VerifyWave4Editing(string output, string level)
+    {
+        Directory.CreateDirectory(output);
+        string sourceCopy = Path.Combine(output, "e04-source.level.json");
+        string saved = Path.Combine(output, "e04-edited.level.json");
+        File.Copy(level, sourceCopy, true);
+        byte[] fixtureHash = SHA256.HashData(File.ReadAllBytes(level));
+        byte[] sourceHash = SHA256.HashData(File.ReadAllBytes(sourceCopy));
+        var app = new Application();
+        app.Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("pack://application:,,,/retro_studio;component/Themes/Graphite.xaml")
+        });
+        var window = App.CreateAtriumWindow(["--atrium", "--level", sourceCopy]);
+        var content = (FrameworkElement)window.Content;
+        window.Content = null;
+        using (var source = new HwndSource(new HwndSourceParameters("VESTIGIO E04 editor")
+        {
+            Width = 1320, Height = 820, WindowStyle = unchecked((int)0x80000000)
+        }))
+        {
+            try
+            {
+                source.RootVisual = content;
+                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                content.Measure(new Size(1320, 820));
+                content.Arrange(new Rect(0, 0, 1320, 820));
+                content.UpdateLayout();
+                var viewport = window.GpuViewport;
+                window.RefreshForTest();
+                Check(viewport.IsNativeReady && viewport.RenderForTest(),
+                    $"E04 no abrió viewport GPU: {viewport.LastError}");
+                string initialGpu = Path.Combine(output, "e04-before.png");
+                Check(viewport.CaptureForTest(initialGpu), "No se capturó Atrium antes de editar.");
+                int originalCount = viewport.EntityUuids().Count;
+                var add = (Button)window.FindName("AddButton")!;
+                add.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(viewport.EntityUuids().Count == originalCount + 1 &&
+                      viewport.IsDocumentDirty &&
+                      ((TextBlock)window.FindName("DirtyMark")!).Visibility == Visibility.Visible,
+                    "Añadir pilar no actualizó documento, jerarquía y dirty.");
+                string addedId = viewport.SelectedUuid;
+                Check(Guid.TryParse(addedId, out _), "Añadir no seleccionó UUID nuevo.");
+                var hierarchy = (ListBox)window.FindName("EntityList")!;
+                Check(hierarchy.Items.OfType<ListBoxItem>().Any(item =>
+                      Equals(item.Tag, addedId) &&
+                      item.Content?.ToString()?.Contains("Pilar nuevo") == true),
+                    "El pilar nuevo no se distingue en jerarquía.");
+                void Set(string name, string value) =>
+                    ((TextBox)window.FindName(name)!).Text = value;
+                Set("PositionX", "1.25"); Set("PositionY", "-3.25");
+                Set("PositionZ", "0.95");
+                Set("RotationX", "0"); Set("RotationY", "0"); Set("RotationZ", "45");
+                Set("ScaleX", "0.8"); Set("ScaleY", "1.1"); Set("ScaleZ", "2");
+                ulong beforeApply = GpuHostNative.vg_gpu_host_document_revision(
+                    viewport.NativeHandleForTest);
+                var apply = (Button)window.FindName("ApplyButton")!;
+                apply.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(GpuHostNative.vg_gpu_host_document_revision(
+                          viewport.NativeHandleForTest) > beforeApply &&
+                      viewport.TryGetSelectedTransform(out float[] pos,
+                          out float[] rot, out float[] scale) &&
+                      Math.Abs(pos[0] - 1.25f) < 0.001f &&
+                      Math.Abs(pos[1] + 3.25f) < 0.001f &&
+                      Math.Abs(scale[2] - 2f) < 0.001f &&
+                      Math.Abs(rot[2] - 0.3826834f) < 0.001f &&
+                      Math.Abs(rot[3] - 0.9238795f) < 0.001f,
+                    "Inspector XYZ/grados no aplicó posición, rotación y escala nativas.");
+                ulong afterApply = GpuHostNative.vg_gpu_host_document_revision(
+                    viewport.NativeHandleForTest);
+                Set("PositionX", "NaN");
+                apply.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(GpuHostNative.vg_gpu_host_document_revision(
+                          viewport.NativeHandleForTest) == afterApply &&
+                      !string.IsNullOrWhiteSpace(
+                          ((TextBlock)window.FindName("FieldError")!).Text),
+                    "Un campo inválido no debe mutar el documento y debe mostrar error.");
+                Set("PositionX", "1.25");
+                ((Button)window.FindName("UndoButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(viewport.TryGetSelectedTransform(out pos, out _, out _) &&
+                      Math.Abs(pos[0] - 1.25f) > 0.05f,
+                    "Deshacer no restauró transformación anterior.");
+                ((Button)window.FindName("RedoButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(viewport.TryGetSelectedTransform(out pos, out rot, out scale) &&
+                      Math.Abs(pos[0] - 1.25f) < 0.001f &&
+                      Math.Abs(rot[2] - 0.3826834f) < 0.001f,
+                    "Rehacer no restauró transformación y giro.");
+                Check(window.TrySaveToPath(saved) && File.Exists(saved) &&
+                      !viewport.IsDocumentDirty && window.ActiveLevelPath == saved,
+                    $"Guardar copia falló: {viewport.LastError}");
+                using (var savedDocument = System.Text.Json.JsonDocument.Parse(
+                           File.ReadAllText(saved)))
+                {
+                    var entity = savedDocument.RootElement.GetProperty("entities")
+                        .EnumerateArray().FirstOrDefault(item =>
+                            item.GetProperty("id").GetString() == addedId);
+                    Check(entity.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                          entity.GetProperty("components").GetProperty("engine.mesh")
+                              .GetProperty("node_index").GetInt32() == 2,
+                        "Archivo guardado perdió identidad o modelo del pilar.");
+                }
+                Check(SHA256.HashData(File.ReadAllBytes(sourceCopy)).AsSpan()
+                          .SequenceEqual(sourceHash) &&
+                      SHA256.HashData(File.ReadAllBytes(level)).AsSpan()
+                          .SequenceEqual(fixtureHash),
+                    "Guardar modificó el Atrium original o la copia fuente.");
+                Set("PositionX", "1.5");
+                apply.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(viewport.IsDocumentDirty, "Editar tras guardar debe marcar dirty.");
+                ((Button)window.FindName("UndoButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(!viewport.IsDocumentDirty &&
+                      viewport.TryGetSelectedTransform(out pos, out _, out _) &&
+                      Math.Abs(pos[0] - 1.25f) < 0.001f,
+                    "Deshacer hasta el estado guardado debe limpiar dirty.");
+                ((Button)window.FindName("RedoButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(viewport.IsDocumentDirty,
+                    "Rehacer desde el estado guardado debe volver a marcar dirty.");
+                ((Button)window.FindName("UndoButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(!viewport.IsDocumentDirty,
+                    "El segundo deshacer debe restaurar el estado guardado.");
+                Set("PositionY", "1.2345678");
+                apply.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+                Set("PositionX", "1.5");
+                apply.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(viewport.TryGetSelectedTransform(out pos, out _, out _) &&
+                      Math.Abs(pos[1] - 1.2345678f) < 0.0000001f,
+                    "Reaplicar otro campo redondeó un valor preciso del inspector.");
+                ((Button)window.FindName("UndoButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                ((Button)window.FindName("UndoButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(!viewport.IsDocumentDirty,
+                    "Deshacer ambos campos precisos debe volver al archivo guardado.");
+                byte[] savedBytes = File.ReadAllBytes(saved);
+                File.WriteAllText(saved, "{ invalid");
+                Check(!window.TryReopen() && viewport.EntityUuids().Count ==
+                      originalCount + 1 && viewport.TryGetSelectedTransform(
+                          out pos, out _, out _) &&
+                      Math.Abs(pos[0] - 1.25f) < 0.001f,
+                    "Reabrir archivo inválido destruyó la escena activa.");
+                File.WriteAllBytes(saved, savedBytes);
+                Check(window.TryReopen() && viewport.EntityUuids().Count ==
+                      originalCount + 1 && viewport.TrySelect(addedId) &&
+                      viewport.TryGetSelectedTransform(out pos, out rot, out scale) &&
+                      Math.Abs(pos[0] - 1.25f) < 0.001f &&
+                      Math.Abs(rot[2] - 0.3826834f) < 0.001f &&
+                      Math.Abs(scale[2] - 2f) < 0.001f,
+                    $"Round-trip guardar/reabrir no conservó UUID y transform: {viewport.LastError}");
+                string editedGpu = Path.Combine(output, "e04-edited.png");
+                Check(viewport.RenderForTest() && viewport.CaptureForTest(editedGpu) &&
+                      !SHA256.HashData(File.ReadAllBytes(initialGpu)).AsSpan()
+                          .SequenceEqual(SHA256.HashData(File.ReadAllBytes(editedGpu))),
+                    "No se capturó el nivel editado en GPU.");
+                byte[] beforePlay = SHA256.HashData(File.ReadAllBytes(saved));
+                ((Button)window.FindName("PlayButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                string playGpu = Path.Combine(output, "e04-play.png");
+                Check(viewport.IsPlaying && !add.IsEnabled &&
+                      !((Button)window.FindName("SaveButton")!).IsEnabled &&
+                      viewport.RenderForTest() && viewport.CaptureForTest(playGpu) &&
+                      !SHA256.HashData(File.ReadAllBytes(initialGpu)).AsSpan()
+                          .SequenceEqual(SHA256.HashData(File.ReadAllBytes(playGpu))),
+                    "Probar no mostró el objeto añadido ni bloqueó comandos de edición.");
+                ((Button)window.FindName("StopButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(!viewport.IsPlaying && !viewport.IsDocumentDirty &&
+                      SHA256.HashData(File.ReadAllBytes(saved)).AsSpan()
+                          .SequenceEqual(beforePlay),
+                    "Probar/Detener ensució o escribió el archivo guardado.");
+                content.UpdateLayout();
+                var shell = new RenderTargetBitmap(1320, 820, 96, 96,
+                    PixelFormats.Pbgra32);
+                shell.Render(content);
+                var png = new PngBitmapEncoder();
+                png.Frames.Add(BitmapFrame.Create(shell));
+                using var image = File.Create(Path.Combine(output, "e04-studio-shell.png"));
+                png.Save(image);
+            }
+            finally
+            {
+                source.RootVisual = null;
+                window.GpuViewport.Dispose();
+            }
+        }
+        Console.WriteLine("PASS E04 Studio add/transform/undo/redo/save/reopen/play GPU");
+    }
+
     [STAThread]
     private static int Main(string[] args)
     {
@@ -367,6 +563,11 @@ internal static class Program
                 VerifyAtrium3D(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]),
                     Path.GetFullPath(args[3]));
                 VerifyAtriumWindow(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
+                return 0;
+            }
+            if (args.Length == 3 && args[0] == "--e04")
+            {
+                VerifyWave4Editing(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
                 return 0;
             }
             string output = Path.GetFullPath(args[0]);

@@ -517,6 +517,46 @@ static VgJsonNode *vg_tool_find_entity(VgJsonNode *root, const char *id, size_t 
     return NULL;
 }
 
+bool vg_document_entity_transform(const VgDocument *document, const char *id,
+                                  VgDocumentTransform *out_transform,
+                                  VgDocumentDiagnostic *out_diagnostic) {
+    if (document == NULL || !vg_tool_uuid(id) || out_transform == NULL)
+        return vg_document_fail(out_diagnostic, VG_DOCUMENT_INVALID_ARGUMENT, "read_transform",
+                                "$.entities", id, 0u, vg_document_revision(document),
+                                "document, entity UUID and output are required");
+    const VgJsonNode *entity =
+        vg_tool_find_entity((VgJsonNode *)(uintptr_t)vg_document_root(document), id, NULL);
+    if (entity == NULL)
+        return vg_document_fail(out_diagnostic, VG_DOCUMENT_NOT_FOUND, "read_transform",
+                                "$.entities", id, 0u, vg_document_revision(document),
+                                "entity does not exist");
+    const VgJsonNode *transform = vg_json_object_get(entity, "transform");
+    const char *keys[] = {"position", "rotation", "scale"};
+    const size_t counts[] = {3u, 4u, 3u};
+    VgDocumentTransform value = {0};
+    double *destinations[] = {value.position, value.rotation, value.scale};
+    for (size_t group = 0u; group < 3u; ++group) {
+        const VgJsonNode *array = vg_json_object_get(transform, keys[group]);
+        if (array == NULL || array->type != VG_JSON_ARRAY || array->as.array.count != counts[group])
+            return vg_document_fail(out_diagnostic, VG_DOCUMENT_VALIDATION, "read_transform",
+                                    "$.entities[].transform", id, 0u,
+                                    vg_document_revision(document), "entity transform is invalid");
+        for (size_t index = 0u; index < counts[group]; ++index) {
+            const VgJsonNode *number = array->as.array.items[index];
+            if (number == NULL || number->type != VG_JSON_NUMBER ||
+                !isfinite(number->as.number.value))
+                return vg_document_fail(out_diagnostic, VG_DOCUMENT_VALIDATION, "read_transform",
+                                        "$.entities[].transform", id, 0u,
+                                        vg_document_revision(document), "entity transform is invalid");
+            destinations[group][index] = number->as.number.value;
+        }
+    }
+    *out_transform = value;
+    if (out_diagnostic != NULL)
+        memset(out_diagnostic, 0, sizeof(*out_diagnostic));
+    return true;
+}
+
 static bool vg_tool_append_entity(VgDocument *document, VgJsonNode *root, VgJsonNode *entity) {
     VgJsonNode *entities = vg_tool_entities(root);
     if (entities == NULL || entities->type != VG_JSON_ARRAY)

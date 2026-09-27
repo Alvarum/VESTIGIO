@@ -5,6 +5,7 @@
 #include "platform/win32_embed.h"
 #include "raylib.h"
 #include "render/gpu_raylib/gpu_renderer.h"
+#include "tooling/tool_api.h"
 #include "vestigio/controller.h"
 #include <limits.h>
 #include <math.h>
@@ -35,6 +36,7 @@ struct VgGpuHost {
     int32_t edit_camera_mode;
     VgEntity selected_entity;
     bool has_selection;
+    char selected_uuid[37];
     VgVec3 selected_center;
     VgVec3 selected_extent;
     uint32_t pick_mask;
@@ -42,6 +44,9 @@ struct VgGpuHost {
     float orbit_distance;
     double accumulator;
     bool jump_pending;
+    uint64_t saved_revision;
+    char *saved_json;
+    size_t saved_length;
 };
 
 static _Atomic(VgGpuHost *) active_host;
@@ -80,7 +85,12 @@ static void host_release_level(VgGpuHost *host) {
     host->accumulator = 0.0;
     host->jump_pending = false;
     host->has_selection = false;
+    host->selected_uuid[0] = '\0';
     host->edit_camera_mode = 0;
+    host->saved_revision = 0u;
+    free(host->saved_json);
+    host->saved_json = NULL;
+    host->saved_length = 0u;
 }
 
 static bool host_read_model(const char *path, void **out_data, uint64_t *out_size) {
@@ -293,6 +303,12 @@ int32_t vg_gpu_host_open_level(VgGpuHost *host, const char *level_path,
     host->edit_pitch = -0.12f;
     host->orbit_target = (VgVec3){0.0f, 1.5f, 0.0f};
     host->orbit_distance = 8.0f;
+    if (!vg_document_write_canonical(host->document, &host->saved_json,
+                                      &host->saved_length, &diagnostic)) {
+        host_error(error, error_capacity, diagnostic.message);
+        goto fail;
+    }
+    host->saved_revision = vg_document_revision(host->document);
     host_error(error, error_capacity, "");
     return true;
 fail:
@@ -440,6 +456,489 @@ uint64_t vg_gpu_host_document_revision(const VgGpuHost *host) {
         ? vg_document_revision(host->document) : 0u;
 }
 
+static void host_format_uuid(VgUuid id, char out[37]) {
+    (void)snprintf(out, 37u,
+                   "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+                   id.bytes[0], id.bytes[1], id.bytes[2], id.bytes[3],
+                   id.bytes[4], id.bytes[5], id.bytes[6], id.bytes[7],
+                   id.bytes[8], id.bytes[9], id.bytes[10], id.bytes[11],
+                   id.bytes[12], id.bytes[13], id.bytes[14], id.bytes[15]);
+}
+
+static bool host_entity_has_mesh(const VgGpuHost *host, size_t index) {
+    const VgJsonNode *entities = vg_json_object_get(vg_document_root(host->document),
+                                                    "entities");
+    if (entities == NULL || entities->type != VG_JSON_ARRAY ||
+        index >= entities->as.array.count)
+        return false;
+    const VgJsonNode *components = vg_json_object_get(entities->as.array.items[index],
+                                                       "components");
+    return vg_json_object_get(components, "engine.mesh") != NULL;
+}
+
+size_t vg_gpu_host_entity_count(const VgGpuHost *host) {
+    if (!host_is_current(host) || host->edit == NULL)
+        return 0u;
+    size_t count = 0u;
+    for (size_t i = 0u; i < vg_document_instance_entity_count(host->edit); ++i)
+        if (host_entity_has_mesh(host, i))
+            ++count;
+    return count;
+}
+
+int32_t vg_gpu_host_entity_at(const VgGpuHost *host, size_t index,
+                              char *uuid, size_t uuid_capacity) {
+    if (!host_is_current(host) || host->edit == NULL || uuid == NULL || uuid_capacity < 37u)
+        return false;
+    size_t mesh_index = 0u;
+    for (size_t i = 0u; i < vg_document_instance_entity_count(host->edit); ++i) {
+        if (!host_entity_has_mesh(host, i))
+            continue;
+        if (mesh_index++ != index)
+            continue;
+        VgUuid id;
+        VgEntity entity;
+        if (!vg_document_instance_entity_at(host->edit, i, &id, &entity))
+            return false;
+        host_format_uuid(id, uuid);
+        return true;
+    }
+    return false;
+}
+
+int32_t vg_gpu_host_select(VgGpuHost *host, const char *uuid) {
+    if (!host_is_current(host) || host->edit == NULL || host->play != NULL || uuid == NULL)
+        return false;
+    if (uuid[0] == '\0') {
+        host->has_selection = false;
+        host->selected_uuid[0] = '\0';
+        return true;
+    }
+    char current[37];
+    size_t count = vg_document_instance_entity_count(host->edit);
+    for (size_t index = 0u; index < count; ++index) {
+        VgUuid id;
+        VgEntity entity;
+        if (!vg_document_instance_entity_at(host->edit, index, &id, &entity) ||
+            entity.value == host->edit_camera.value)
+            continue;
+        host_format_uuid(id, current);
+        if (strcmp(current, uuid) != 0)
+            continue;
+        VgMeshRendererDesc mesh = {0};
+        mesh.struct_size = sizeof(mesh);
+        mesh.api_version = VG_API_VERSION;
+        bool has_mesh = vg_mesh_renderer_get(host->context, entity, &mesh) == VG_OK;
+        host->selected_entity = entity;
+        host->selected_center = has_mesh ? mesh.bounds_center : (VgVec3){0};
+        host->selected_extent = has_mesh ? mesh.bounds_extent
+                                         : (VgVec3){0.25f, 0.25f, 0.25f};
+        host->has_selection = true;
+        (void)snprintf(host->selected_uuid, sizeof(host->selected_uuid), "%s", current);
+        if (has_mesh)
+            (void)vg_asset_release(host->context, mesh.asset);
+        return true;
+    }
+    return false;
+}
+
+int32_t vg_gpu_host_selected_uuid(const VgGpuHost *host, char *uuid, size_t uuid_capacity) {
+    if (!host_is_current(host) || !host->has_selection || uuid == NULL || uuid_capacity < 37u)
+        return false;
+    (void)snprintf(uuid, uuid_capacity, "%s", host->selected_uuid);
+    return true;
+}
+
+int32_t vg_gpu_host_selected_transform(const VgGpuHost *host,
+                                        float position[3], float rotation[4], float scale[3]) {
+    if (!host_is_current(host) || host->play != NULL || !host->has_selection ||
+        position == NULL || rotation == NULL || scale == NULL)
+        return false;
+    VgDocumentTransform transform;
+    if (!vg_document_entity_transform(host->document, host->selected_uuid, &transform, NULL))
+        return false;
+    for (size_t i = 0u; i < 3u; ++i) {
+        position[i] = (float)transform.position[i];
+        scale[i] = (float)transform.scale[i];
+    }
+    for (size_t i = 0u; i < 4u; ++i)
+        rotation[i] = (float)transform.rotation[i];
+    return true;
+}
+
+static bool host_prepare_instance(VgGpuHost *host, const VgDocument *document,
+                                  VgDocumentInstance **out_edit, VgEntity *out_camera,
+                                  VgDocumentDiagnostic *diagnostic, bool preserve_camera) {
+    VgDocumentInstanceDesc description = {host_resolve_asset, host};
+    VgDocumentInstance *candidate = NULL;
+    if (vg_document_instantiate(host->context, document, &description,
+                                &candidate, diagnostic) != VG_OK)
+        return false;
+    VgEntity camera;
+    if (!host_find_camera(host, candidate, &camera)) {
+        vg_document_instance_destroy(candidate);
+        host_error(diagnostic->message, sizeof(diagnostic->message),
+                   "El nivel no contiene camara");
+        return false;
+    }
+    if (preserve_camera) {
+        VgTransform old_transform;
+        VgCameraDesc old_camera = {0};
+        old_camera.struct_size = sizeof(old_camera);
+        old_camera.api_version = VG_API_VERSION;
+        if (vg_entity_get_local_transform(host->context, host->edit_camera,
+                                           &old_transform) != VG_OK ||
+            vg_camera_get(host->context, host->edit_camera, &old_camera) != VG_OK ||
+            vg_entity_set_local_transform(host->context, camera, &old_transform) != VG_OK ||
+            vg_camera_set(host->context, camera, &old_camera) != VG_OK) {
+            vg_document_instance_destroy(candidate);
+            host_error(diagnostic->message, sizeof(diagnostic->message),
+                       "No se pudo conservar la camara de edicion");
+            return false;
+        }
+    }
+    *out_edit = candidate;
+    *out_camera = camera;
+    return true;
+}
+
+static void host_swap_edit(VgGpuHost *host, VgDocumentInstance *candidate,
+                           VgEntity camera) {
+    char selected[37];
+    (void)snprintf(selected, sizeof(selected), "%s", host->selected_uuid);
+    vg_document_instance_destroy(host->edit);
+    host->edit = candidate;
+    host->edit_camera = camera;
+    host->has_selection = false;
+    host->selected_uuid[0] = '\0';
+    if (selected[0] != '\0')
+        (void)vg_gpu_host_select(host, selected);
+}
+
+static bool host_apply_batch(VgGpuHost *host, VgToolBatch *batch,
+                             VgToolResult *out_result, char *error, size_t error_capacity) {
+    VgDocumentDiagnostic diagnostic = {0};
+    char *json = NULL;
+    size_t length = 0u;
+    VgToolResult preview_result;
+    if (!vg_tool_preview(batch, &json, &length, &preview_result, &diagnostic)) {
+        host_error(error, error_capacity, diagnostic.message);
+        vg_tool_cancel(batch);
+        return false;
+    }
+    VgDocument *preview = NULL;
+    bool opened = vg_document_open_memory("<edit-preview>", json, length,
+                                          &preview, &diagnostic);
+    free(json);
+    if (!opened) {
+        host_error(error, error_capacity, diagnostic.message);
+        vg_tool_cancel(batch);
+        return false;
+    }
+    VgDocumentInstance *candidate = NULL;
+    VgEntity camera;
+    bool prepared = host_prepare_instance(host, preview, &candidate, &camera,
+                                           &diagnostic, true);
+    vg_document_destroy(preview);
+    if (!prepared) {
+        host_error(error, error_capacity, diagnostic.message);
+        vg_tool_cancel(batch);
+        return false;
+    }
+    VgToolResult committed;
+    if (!vg_tool_commit(batch, &committed, &diagnostic)) {
+        host_error(error, error_capacity, diagnostic.message);
+        vg_document_instance_destroy(candidate);
+        vg_tool_cancel(batch);
+        return false;
+    }
+    host_swap_edit(host, candidate, camera);
+    if (out_result != NULL)
+        *out_result = committed;
+    host_error(error, error_capacity, "");
+    return true;
+}
+
+static VgToolBatch *host_begin_edit(VgGpuHost *host, char *error,
+                                    size_t error_capacity) {
+    if (!host_is_current(host) || host->document == NULL || host->edit == NULL ||
+        host->play != NULL) {
+        host_error(error, error_capacity, "La edicion requiere el modo Editar");
+        return NULL;
+    }
+    VgDocumentDiagnostic diagnostic = {0};
+    VgToolBatch *batch = NULL;
+    if (!vg_tool_begin(host->document, vg_document_revision(host->document),
+                       &batch, &diagnostic))
+        host_error(error, error_capacity, diagnostic.message);
+    return batch;
+}
+
+static bool host_result_id(const VgToolResult *result, const char *temporary,
+                            char *uuid, size_t uuid_capacity) {
+    for (size_t i = 0u; i < result->mapping_count; ++i) {
+        if (strcmp(result->mappings[i].temporary, temporary) == 0) {
+            (void)snprintf(uuid, uuid_capacity, "%s", result->mappings[i].id);
+            return true;
+        }
+    }
+    return false;
+}
+
+int32_t vg_gpu_host_add_mesh(VgGpuHost *host, char *uuid, size_t uuid_capacity,
+                              char *error, size_t error_capacity) {
+    if (uuid == NULL || uuid_capacity < 37u) {
+        host_error(error, error_capacity, "Se requiere un UUID de salida");
+        return false;
+    }
+    VgToolBatch *batch = host_begin_edit(host, error, error_capacity);
+    if (batch == NULL)
+        return false;
+    static const char *components =
+        "{\"engine.mesh\":{\"version\":1,\"asset\":\"4a30312d-6174-7269-756d-2d6d6f64656c\",\"node_index\":2},"
+        "\"engine.collider\":{\"version\":1,\"shape\":\"box\",\"motion\":\"static\","
+        "\"center\":[0,0,0],\"half_extents\":[0.5,0.5,0.5]}}";
+    VgDocumentTransform transform = {
+        {0.0, -3.0, 0.95}, {0.0, 0.0, 0.0, 1.0}, {0.65, 0.65, 1.9}};
+    VgDocumentDiagnostic diagnostic = {0};
+    if (!vg_tool_create_entity(batch, "$new-pillar", NULL, &transform,
+                               components, &diagnostic)) {
+        host_error(error, error_capacity, diagnostic.message);
+        vg_tool_cancel(batch);
+        return false;
+    }
+    VgToolResult result;
+    if (!host_apply_batch(host, batch, &result, error, error_capacity))
+        return false;
+    if (!host_result_id(&result, "$new-pillar", uuid, uuid_capacity)) {
+        host_error(error, error_capacity, "No se devolvio el UUID creado");
+        return false;
+    }
+    (void)vg_gpu_host_select(host, uuid);
+    return true;
+}
+
+int32_t vg_gpu_host_duplicate_selected(VgGpuHost *host, char *uuid, size_t uuid_capacity,
+                                        char *error, size_t error_capacity) {
+    if (uuid == NULL || uuid_capacity < 37u || !host_is_current(host) ||
+        !host->has_selection) {
+        host_error(error, error_capacity, "Selecciona un objeto para duplicarlo");
+        return false;
+    }
+    VgToolBatch *batch = host_begin_edit(host, error, error_capacity);
+    if (batch == NULL)
+        return false;
+    VgDocumentDiagnostic diagnostic = {0};
+    VgDocumentTransform transform;
+    if (!vg_document_entity_transform(host->document, host->selected_uuid,
+                                      &transform, &diagnostic) ||
+        !vg_tool_duplicate_entity(batch, host->selected_uuid, "$duplicate", NULL,
+                                  &diagnostic)) {
+        host_error(error, error_capacity, diagnostic.message);
+        vg_tool_cancel(batch);
+        return false;
+    }
+    transform.position[0] += 1.5;
+    if (!vg_tool_set_transform(batch, "$duplicate", &transform, &diagnostic)) {
+        host_error(error, error_capacity, diagnostic.message);
+        vg_tool_cancel(batch);
+        return false;
+    }
+    VgToolResult result;
+    if (!host_apply_batch(host, batch, &result, error, error_capacity))
+        return false;
+    if (!host_result_id(&result, "$duplicate", uuid, uuid_capacity)) {
+        host_error(error, error_capacity, "No se devolvio el UUID duplicado");
+        return false;
+    }
+    (void)vg_gpu_host_select(host, uuid);
+    return true;
+}
+
+int32_t vg_gpu_host_set_selected_transform(VgGpuHost *host,
+                                            const float position[3],
+                                            const float rotation[4],
+                                            const float scale[3], char *error,
+                                            size_t error_capacity) {
+    if (!host_is_current(host) || !host->has_selection || position == NULL ||
+        rotation == NULL || scale == NULL) {
+        host_error(error, error_capacity, "Selecciona un objeto y transformacion valida");
+        return false;
+    }
+    VgDocumentTransform transform = {0};
+    for (size_t i = 0u; i < 3u; ++i) {
+        if (!isfinite(position[i]) || !isfinite(scale[i]) || scale[i] <= 0.0f) {
+            host_error(error, error_capacity, "Posicion o escala invalida");
+            return false;
+        }
+        transform.position[i] = position[i];
+        transform.scale[i] = scale[i];
+    }
+    double norm = 0.0;
+    for (size_t i = 0u; i < 4u; ++i) {
+        if (!isfinite(rotation[i])) {
+            host_error(error, error_capacity, "Rotacion invalida");
+            return false;
+        }
+        norm += (double)rotation[i] * rotation[i];
+    }
+    if (norm < 1.0e-10) {
+        host_error(error, error_capacity, "Rotacion nula");
+        return false;
+    }
+    norm = sqrt(norm);
+    for (size_t i = 0u; i < 4u; ++i)
+        transform.rotation[i] = rotation[i] / norm;
+    VgToolBatch *batch = host_begin_edit(host, error, error_capacity);
+    if (batch == NULL)
+        return false;
+    VgDocumentDiagnostic diagnostic = {0};
+    if (!vg_tool_set_transform(batch, host->selected_uuid, &transform, &diagnostic)) {
+        host_error(error, error_capacity, diagnostic.message);
+        vg_tool_cancel(batch);
+        return false;
+    }
+    return host_apply_batch(host, batch, NULL, error, error_capacity);
+}
+
+int32_t vg_gpu_host_save_level(VgGpuHost *host, const char *path,
+                                char *error, size_t error_capacity) {
+    if (!host_is_current(host) || host->document == NULL || host->play != NULL ||
+        path == NULL || path[0] == '\0') {
+        host_error(error, error_capacity, "Guardar requiere una ruta y el modo Editar");
+        return false;
+    }
+    VgDocumentDiagnostic diagnostic = {0};
+    uint64_t revision = vg_document_revision(host->document);
+    char *canonical = NULL;
+    size_t length = 0u;
+    if (!vg_document_write_canonical(host->document, &canonical, &length, &diagnostic)) {
+        host_error(error, error_capacity, diagnostic.message);
+        return false;
+    }
+    if (!vg_document_save_atomic(host->document, path, revision, &diagnostic)) {
+        host_error(error, error_capacity, diagnostic.message);
+        free(canonical);
+        return false;
+    }
+    free(host->saved_json);
+    host->saved_json = canonical;
+    host->saved_length = length;
+    host->saved_revision = revision;
+    host_error(error, error_capacity, "");
+    return true;
+}
+
+int32_t vg_gpu_host_is_dirty(const VgGpuHost *host) {
+    if (!host_is_current(host) || host->document == NULL)
+        return false;
+    if (vg_document_revision(host->document) == host->saved_revision)
+        return false;
+    char *canonical = NULL;
+    size_t length = 0u;
+    if (!vg_document_write_canonical(host->document, &canonical, &length, NULL))
+        return true;
+    bool dirty = length != host->saved_length || host->saved_json == NULL ||
+                 memcmp(canonical, host->saved_json, length) != 0;
+    free(canonical);
+    return dirty;
+}
+
+int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path,
+                                  const char *model_path, char *error,
+                                  size_t error_capacity) {
+    if (!host_is_current(host) || host->edit == NULL || host->play != NULL ||
+        level_path == NULL || level_path[0] == '\0' || model_path == NULL ||
+        model_path[0] == '\0') {
+        host_error(error, error_capacity, "Reabrir requiere rutas y el modo Editar");
+        return false;
+    }
+    void *model = NULL;
+    uint64_t model_size = 0u;
+    if (!host_read_model(model_path, &model, &model_size)) {
+        host_error(error, error_capacity, "No se pudo leer el modelo Atrium");
+        return false;
+    }
+    bool same_model = model_size == host->model_size &&
+                      memcmp(model, host->model_data, (size_t)model_size) == 0;
+    free(model);
+    if (!same_model) {
+        host_error(error, error_capacity, "El modelo difiere del Atrium cargado");
+        return false;
+    }
+    VgDocumentDiagnostic diagnostic = {0};
+    VgDocument *document = NULL;
+    if (!vg_document_open_file(level_path, &document, &diagnostic)) {
+        host_error(error, error_capacity, diagnostic.message);
+        return false;
+    }
+    char *canonical = NULL;
+    size_t length = 0u;
+    if (!vg_document_write_canonical(document, &canonical, &length, &diagnostic)) {
+        host_error(error, error_capacity, diagnostic.message);
+        vg_document_destroy(document);
+        return false;
+    }
+    VgDocumentInstance *candidate = NULL;
+    VgEntity camera;
+    if (!host_prepare_instance(host, document, &candidate, &camera,
+                               &diagnostic, true)) {
+        host_error(error, error_capacity, diagnostic.message);
+        free(canonical);
+        vg_document_destroy(document);
+        return false;
+    }
+    host_swap_edit(host, candidate, camera);
+    vg_document_destroy(host->document);
+    host->document = document;
+    free(host->saved_json);
+    host->saved_json = canonical;
+    host->saved_length = length;
+    host->saved_revision = vg_document_revision(document);
+    host_error(error, error_capacity, "");
+    return true;
+}
+
+static int32_t host_history(VgGpuHost *host, bool undo, char *error,
+                             size_t error_capacity) {
+    if (!host_is_current(host) || host->edit == NULL || host->play != NULL) {
+        host_error(error, error_capacity, "Historial requiere el modo Editar");
+        return false;
+    }
+    VgDocumentDiagnostic diagnostic = {0};
+    uint64_t revision = vg_document_revision(host->document);
+    bool moved = undo ? vg_document_undo(host->document, revision, &diagnostic)
+                      : vg_document_redo(host->document, revision, &diagnostic);
+    if (!moved) {
+        host_error(error, error_capacity, diagnostic.message);
+        return false;
+    }
+    VgDocumentInstance *candidate = NULL;
+    VgEntity camera;
+    if (!host_prepare_instance(host, host->document, &candidate, &camera,
+                               &diagnostic, true)) {
+        char failure[256];
+        (void)snprintf(failure, sizeof(failure), "%s", diagnostic.message);
+        uint64_t rollback_revision = vg_document_revision(host->document);
+        bool rolled_back = undo
+            ? vg_document_redo(host->document, rollback_revision, &diagnostic)
+            : vg_document_undo(host->document, rollback_revision, &diagnostic);
+        host_error(error, error_capacity, rolled_back ? failure : diagnostic.message);
+        return false;
+    }
+    host_swap_edit(host, candidate, camera);
+    host_error(error, error_capacity, "");
+    return true;
+}
+
+int32_t vg_gpu_host_undo(VgGpuHost *host, char *error, size_t error_capacity) {
+    return host_history(host, true, error, error_capacity);
+}
+
+int32_t vg_gpu_host_redo(VgGpuHost *host, char *error, size_t error_capacity) {
+    return host_history(host, false, error, error_capacity);
+}
+
 uint64_t vg_gpu_host_readbacks(const VgGpuHost *host) {
     return host_is_current(host) && host->renderer != NULL
         ? vg_gpu_renderer_stats(host->renderer).readbacks : 0u;
@@ -500,6 +999,7 @@ int32_t vg_gpu_host_pick(VgGpuHost *host, float u, float v,
         return false;
     uuid[0] = '\0';
     host->has_selection = false;
+    host->selected_uuid[0] = '\0';
     unsigned int width = 0u, height = 0u;
     if (!vg_win32_embedded_size(host->window, &width, &height) || height == 0u)
         return false;
@@ -623,6 +1123,7 @@ int32_t vg_gpu_host_pick(VgGpuHost *host, float u, float v,
                    chosen.bytes[4], chosen.bytes[5], chosen.bytes[6], chosen.bytes[7],
                    chosen.bytes[8], chosen.bytes[9], chosen.bytes[10], chosen.bytes[11],
                    chosen.bytes[12], chosen.bytes[13], chosen.bytes[14], chosen.bytes[15]);
+    (void)snprintf(host->selected_uuid, sizeof(host->selected_uuid), "%s", uuid);
     return true;
 }
 
@@ -683,6 +1184,7 @@ int32_t vg_gpu_host_set_pick_mask(VgGpuHost *host, uint32_t mask) {
         return false;
     host->pick_mask = mask;
     host->has_selection = false;
+    host->selected_uuid[0] = '\0';
     return true;
 }
 

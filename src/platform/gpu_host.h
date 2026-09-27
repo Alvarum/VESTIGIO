@@ -34,6 +34,36 @@ VG_GPU_HOST_API int32_t vg_gpu_host_frame(VgGpuHost *host, double elapsed_second
 VG_GPU_HOST_API int32_t vg_gpu_host_pick(VgGpuHost *host, float u, float v,
                                          char *uuid, size_t uuid_capacity);
 VG_GPU_HOST_API uint64_t vg_gpu_host_document_revision(const VgGpuHost *host);
+/* Wave 4 document editing. All mutations require Edit mode on the owner thread.
+ * Quaternions use XYZW and transforms are local to the entity parent. */
+VG_GPU_HOST_API int32_t vg_gpu_host_add_mesh(VgGpuHost *host, char *uuid,
+                                            size_t uuid_capacity, char *error,
+                                            size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_duplicate_selected(VgGpuHost *host, char *uuid,
+                                                       size_t uuid_capacity, char *error,
+                                                       size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_select(VgGpuHost *host, const char *uuid);
+VG_GPU_HOST_API int32_t vg_gpu_host_selected_uuid(const VgGpuHost *host, char *uuid,
+                                                  size_t uuid_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_selected_transform(const VgGpuHost *host,
+                                                       float position[3], float rotation[4],
+                                                       float scale[3]);
+VG_GPU_HOST_API int32_t vg_gpu_host_set_selected_transform(VgGpuHost *host,
+                                                           const float position[3],
+                                                           const float rotation[4],
+                                                           const float scale[3], char *error,
+                                                           size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_save_level(VgGpuHost *host, const char *path,
+                                               char *error, size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path,
+                                                 const char *model_path, char *error,
+                                                 size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_is_dirty(const VgGpuHost *host);
+VG_GPU_HOST_API int32_t vg_gpu_host_undo(VgGpuHost *host, char *error, size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_redo(VgGpuHost *host, char *error, size_t error_capacity);
+VG_GPU_HOST_API size_t vg_gpu_host_entity_count(const VgGpuHost *host);
+VG_GPU_HOST_API int32_t vg_gpu_host_entity_at(const VgGpuHost *host, size_t index,
+                                              char *uuid, size_t uuid_capacity);
 VG_GPU_HOST_API uint64_t vg_gpu_host_readbacks(const VgGpuHost *host);
 VG_GPU_HOST_API int32_t vg_gpu_host_camera_position(const VgGpuHost *host,
                                                     float *x, float *y, float *z);

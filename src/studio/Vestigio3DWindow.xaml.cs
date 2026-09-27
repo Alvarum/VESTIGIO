@@ -1,13 +1,27 @@
+using System.Globalization;
+using System.Numerics;
+using System.Text.Json;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
-using System.Text.Json;
+using Microsoft.Win32;
 
 namespace RetroForge.Studio;
 
-/// <summary>Editor 3D autónomo: el documento y las instancias Edit/Play pertenecen
-/// al host GPU. No abre proyectos .retro ni crea una sesión de renderer CPU.</summary>
+/// <summary>Edición del documento 3D nativo. WPF envía comandos al host y
+/// mantiene un inspector, sin poseer una copia mutable de la escena.</summary>
 public partial class Vestigio3DWindow : Window
 {
+    private readonly string _sourceLevelPath;
+    private bool _savedWorkingCopy;
+    private bool _refreshingHierarchy;
+    private readonly Dictionary<string, string> _entityLabels = new(StringComparer.OrdinalIgnoreCase);
+    private float[] _displayedPosition = [0, 0, 0];
+    private float[] _displayedRotation = [0, 0, 0, 1];
+    private float[] _displayedScale = [1, 1, 1];
+    private Vector3 _displayedEuler;
+    private readonly string[] _displayedTexts = new string[9];
+
     internal Vestigio3DWindow(string levelPath, string modelPath)
     {
         if (!File.Exists(levelPath))
@@ -15,18 +29,60 @@ public partial class Vestigio3DWindow : Window
         if (!File.Exists(modelPath))
             throw new FileNotFoundException("No se encontró el modelo 3D.", modelPath);
         InitializeComponent();
-        Viewport.LevelPath = levelPath;
+        _sourceLevelPath = Path.GetFullPath(levelPath);
+        LoadEntityLabels(_sourceLevelPath);
+        Viewport.LevelPath = _sourceLevelPath;
         Viewport.ModelPath = modelPath;
+        Viewport.SelectionChanged += (_, _) => RefreshSelection();
         LevelTitle.Text = DocumentName(levelPath);
+        LevelPathText.Text = _sourceLevelPath;
+        LevelPathText.ToolTip = _sourceLevelPath;
         Loaded += (_, _) =>
         {
             if (!Viewport.IsNativeReady)
                 StatusText.Text = $"No se pudo abrir el viewport: {Viewport.LastError}";
+            else
+                RefreshDocument();
         };
         Closed += (_, _) => Viewport.Dispose();
+        Closing += ConfirmClose;
     }
 
     internal GpuViewportHost GpuViewport => Viewport;
+    internal string ActiveLevelPath => Viewport.LevelPath ?? _sourceLevelPath;
+    internal void RefreshForTest() => RefreshDocument();
+
+    private void LoadEntityLabels(string levelPath)
+    {
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(File.ReadAllText(levelPath));
+            if (!document.RootElement.TryGetProperty("entities", out JsonElement entities))
+                return;
+            foreach (JsonElement entity in entities.EnumerateArray())
+            {
+                string? id = entity.GetProperty("id").GetString();
+                if (id is null) continue;
+                if (!entity.TryGetProperty("components", out JsonElement components))
+                    continue;
+                if (components.TryGetProperty("engine.camera", out _))
+                    _entityLabels[id] = "Cámara";
+                else if (components.TryGetProperty("engine.mesh", out JsonElement mesh) &&
+                         mesh.TryGetProperty("node_index", out JsonElement node))
+                    _entityLabels[id] = node.GetInt32() switch
+                    {
+                        0 => "Suelo",
+                        1 => "Monumento",
+                        2 => "Pilar",
+                        _ => "Modelo"
+                    };
+            }
+        }
+        catch (JsonException)
+        {
+            // La apertura nativa informa el error de estructura.
+        }
+    }
 
     private static string DocumentName(string levelPath)
     {
@@ -45,6 +101,107 @@ public partial class Vestigio3DWindow : Window
         return Path.GetFileNameWithoutExtension(levelPath);
     }
 
+    private void RefreshDocument()
+    {
+        if (!Viewport.IsNativeReady) return;
+        _refreshingHierarchy = true;
+        try
+        {
+            string selected = Viewport.SelectedUuid;
+            EntityList.Items.Clear();
+            IReadOnlyList<string> ids = Viewport.EntityUuids();
+            for (int index = 0; index < ids.Count; ++index)
+            {
+                string id = ids[index];
+                var row = new ListBoxItem
+                {
+                    Content = $"{(_entityLabels.TryGetValue(id, out string? label) ?
+                        label : "Objeto")} · {id[^8..]}",
+                    Tag = id,
+                    ToolTip = id
+                };
+                EntityList.Items.Add(row);
+                if (id == selected)
+                    EntityList.SelectedItem = row;
+            }
+        }
+        finally
+        {
+            _refreshingHierarchy = false;
+        }
+        RefreshSelectionFields();
+        RefreshDirty();
+    }
+
+    private void RefreshSelection()
+    {
+        if (!Viewport.IsNativeReady) return;
+        RefreshDocument();
+    }
+
+    private void RefreshSelectionFields()
+    {
+        string selected = Viewport.SelectedUuid;
+        SelectedLabel.Text = selected == "Ninguno"
+            ? "Ningún objeto seleccionado" : $"UUID {selected}";
+        float[] position = [], rotation = [], scale = [];
+        bool hasTransform = selected != "Ninguno" &&
+            Viewport.TryGetSelectedTransform(out position, out rotation, out scale);
+        TransformPanel.IsEnabled = hasTransform && !Viewport.IsPlaying;
+        DuplicateButton.IsEnabled = hasTransform && !Viewport.IsPlaying;
+        if (!hasTransform)
+        {
+            PositionX.Text = PositionY.Text = PositionZ.Text = string.Empty;
+            RotationX.Text = RotationY.Text = RotationZ.Text = string.Empty;
+            ScaleX.Text = ScaleY.Text = ScaleZ.Text = string.Empty;
+            return;
+        }
+        _displayedPosition = (float[])position.Clone();
+        _displayedRotation = (float[])rotation.Clone();
+        _displayedScale = (float[])scale.Clone();
+        Vector3 angles = ToEulerDegrees(rotation);
+        _displayedEuler = angles;
+        PositionX.Text = Format(position[0]); PositionY.Text = Format(position[1]);
+        PositionZ.Text = Format(position[2]);
+        RotationX.Text = Format(angles.X); RotationY.Text = Format(angles.Y);
+        RotationZ.Text = Format(angles.Z);
+        ScaleX.Text = Format(scale[0]); ScaleY.Text = Format(scale[1]);
+        ScaleZ.Text = Format(scale[2]);
+        TextBox[] fields = [PositionX, PositionY, PositionZ,
+            RotationX, RotationY, RotationZ, ScaleX, ScaleY, ScaleZ];
+        for (int index = 0; index < fields.Length; ++index)
+            _displayedTexts[index] = fields[index].Text;
+        FieldError.Text = string.Empty;
+    }
+
+    private void RefreshDirty()
+    {
+        bool dirty = Viewport.IsDocumentDirty;
+        DirtyMark.Visibility = dirty ? Visibility.Visible : Visibility.Collapsed;
+        Title = $"VESTIGIO Studio — {LevelTitle.Text}{(dirty ? " *" : "")}";
+        LevelPathText.Text = ActiveLevelPath;
+        LevelPathText.ToolTip = ActiveLevelPath;
+    }
+
+    private static string Format(float value) =>
+        value.ToString("0.####", CultureInfo.CurrentCulture);
+
+    private void SetEditingEnabled(bool enabled)
+    {
+        PlayButton.IsEnabled = enabled;
+        StopButton.IsEnabled = !enabled;
+        CameraMode.IsEnabled = enabled;
+        FrameButton.IsEnabled = enabled;
+        AddButton.IsEnabled = enabled;
+        DuplicateButton.IsEnabled = enabled && Viewport.SelectedUuid != "Ninguno";
+        UndoButton.IsEnabled = enabled;
+        RedoButton.IsEnabled = enabled;
+        SaveButton.IsEnabled = enabled;
+        ReopenButton.IsEnabled = enabled;
+        EntityList.IsEnabled = enabled;
+        TransformPanel.IsEnabled = enabled && Viewport.SelectedUuid != "Ninguno";
+    }
+
     private void Play_Click(object sender, RoutedEventArgs e)
     {
         if (!Viewport.TrySetPlaying(true))
@@ -52,10 +209,7 @@ public partial class Vestigio3DWindow : Window
             StatusText.Text = "No se pudo iniciar la prueba 3D";
             return;
         }
-        PlayButton.IsEnabled = false;
-        StopButton.IsEnabled = true;
-        CameraMode.IsEnabled = false;
-        FrameButton.IsEnabled = false;
+        SetEditingEnabled(false);
         StatusText.Text = "Probar · instancia aislada del documento";
     }
 
@@ -66,11 +220,238 @@ public partial class Vestigio3DWindow : Window
             StatusText.Text = "No se pudo detener la prueba 3D";
             return;
         }
-        PlayButton.IsEnabled = true;
-        StopButton.IsEnabled = false;
-        CameraMode.IsEnabled = true;
-        FrameButton.IsEnabled = true;
+        SetEditingEnabled(true);
+        RefreshDocument();
         StatusText.Text = "Editar · documento sin cambios por la prueba";
+    }
+
+    private void Add_Click(object sender, RoutedEventArgs e)
+    {
+        if (!Viewport.TryAddMesh())
+        {
+            ShowNativeError("No se pudo añadir el pilar");
+            return;
+        }
+        _entityLabels[Viewport.SelectedUuid] = "Pilar nuevo";
+        RefreshDocument();
+        StatusText.Text = "Pilar añadido · guardar como para conservarlo";
+    }
+
+    private void Duplicate_Click(object sender, RoutedEventArgs e)
+    {
+        if (!Viewport.TryDuplicateSelected())
+        {
+            ShowNativeError("No se pudo duplicar el objeto");
+            return;
+        }
+        _entityLabels[Viewport.SelectedUuid] = "Copia de objeto";
+        RefreshDocument();
+        StatusText.Text = "Objeto duplicado";
+    }
+
+    private void Undo_Click(object sender, RoutedEventArgs e)
+    {
+        if (!Viewport.TryUndo())
+        {
+            ShowNativeError("No hay cambio que deshacer");
+            return;
+        }
+        RefreshDocument();
+        StatusText.Text = "Cambio deshecho";
+    }
+
+    private void Redo_Click(object sender, RoutedEventArgs e)
+    {
+        if (!Viewport.TryRedo())
+        {
+            ShowNativeError("No hay cambio que rehacer");
+            return;
+        }
+        RefreshDocument();
+        StatusText.Text = "Cambio rehecho";
+    }
+
+    private void Save_Click(object sender, RoutedEventArgs e)
+    {
+        string path;
+        if (_savedWorkingCopy)
+            path = ActiveLevelPath;
+        else
+        {
+            var dialog = new SaveFileDialog
+            {
+                Title = "Guardar copia de trabajo VESTIGIO",
+                Filter = "Nivel VESTIGIO (*.level.json)|*.level.json|JSON (*.json)|*.json",
+                FileName = Path.GetFileNameWithoutExtension(_sourceLevelPath) +
+                           "-editado.level.json",
+                InitialDirectory = Path.GetDirectoryName(_sourceLevelPath)
+            };
+            if (dialog.ShowDialog(this) != true) return;
+            path = dialog.FileName;
+            if (Path.GetFullPath(path).Equals(_sourceLevelPath,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                FieldError.Text = "Elige otra ruta para conservar intacto el Atrium de ejemplo.";
+                return;
+            }
+        }
+        if (TrySaveToPath(path))
+            StatusText.Text = $"Guardado · {Path.GetFileName(path)}";
+        else
+            ShowNativeError("No se pudo guardar el nivel");
+    }
+
+    internal bool TrySaveToPath(string path)
+    {
+        if (!Viewport.TrySaveLevel(path)) return false;
+        _savedWorkingCopy = true;
+        SaveButton.Content = "Guardar";
+        FieldError.Text = string.Empty;
+        RefreshDirty();
+        return true;
+    }
+
+    private void Reopen_Click(object sender, RoutedEventArgs e)
+    {
+        if (Viewport.IsDocumentDirty &&
+            MessageBox.Show(this, "Hay cambios sin guardar. ¿Descartarlos y reabrir el archivo?",
+                "Reabrir nivel", MessageBoxButton.YesNo, MessageBoxImage.Warning) !=
+            MessageBoxResult.Yes)
+            return;
+        if (!TryReopen())
+            ShowNativeError("No se pudo reabrir el nivel");
+        else
+            StatusText.Text = $"Reabierto · {Path.GetFileName(ActiveLevelPath)}";
+    }
+
+    internal bool TryReopen()
+    {
+        if (!Viewport.TryReopenLevel()) return false;
+        LoadEntityLabels(ActiveLevelPath);
+        CameraMode.SelectedIndex = 0;
+        RefreshDocument();
+        return true;
+    }
+
+    private void EntityList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_refreshingHierarchy || EntityList.SelectedItem is not ListBoxItem
+            { Tag: string uuid })
+            return;
+        if (!Viewport.TrySelect(uuid))
+        {
+            ShowNativeError("No se pudo seleccionar el objeto");
+            return;
+        }
+        RefreshSelectionFields();
+    }
+
+    private void ApplyTransform_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryReadTransform(out float[] position, out float[] rotation,
+                out float[] scale))
+            return;
+        if (!Viewport.TrySetSelectedTransform(position, rotation, scale))
+        {
+            ShowNativeError("No se pudo aplicar la transformación");
+            return;
+        }
+        FieldError.Text = string.Empty;
+        RefreshDirty();
+        RefreshSelectionFields();
+        StatusText.Text = "Transformación aplicada · Deshacer disponible";
+    }
+
+    private bool TryReadTransform(out float[] position, out float[] rotation,
+        out float[] scale)
+    {
+        position = new float[3]; rotation = new float[4]; scale = new float[3];
+        TextBox[] fields = [PositionX, PositionY, PositionZ,
+            RotationX, RotationY, RotationZ, ScaleX, ScaleY, ScaleZ];
+        float[] values = new float[fields.Length];
+        for (int index = 0; index < fields.Length; ++index)
+        {
+            string raw = fields[index].Text.Trim();
+            if ((!float.TryParse(raw, NumberStyles.Float, CultureInfo.CurrentCulture,
+                     out values[index]) &&
+                 !float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture,
+                     out values[index])) || !float.IsFinite(values[index]))
+            {
+                FieldError.Text = $"{fields[index].ToolTip}: introduce un número válido.";
+                fields[index].Focus();
+                return false;
+            }
+        }
+        if (values[6] <= 0.001f || values[7] <= 0.001f || values[8] <= 0.001f)
+        {
+            FieldError.Text = "La escala X, Y y Z debe ser mayor que 0,001.";
+            return false;
+        }
+        for (int index = 0; index < 3; ++index)
+        {
+            if (fields[index].Text == _displayedTexts[index])
+                values[index] = _displayedPosition[index];
+            if (fields[index + 6].Text == _displayedTexts[index + 6])
+                values[index + 6] = _displayedScale[index];
+        }
+        Array.Copy(values, position, 3);
+        Array.Copy(values, 6, scale, 0, 3);
+        if (fields[3].Text == _displayedTexts[3] &&
+            fields[4].Text == _displayedTexts[4] &&
+            fields[5].Text == _displayedTexts[5])
+            Array.Copy(_displayedRotation, rotation, 4);
+        else
+        {
+            float x = fields[3].Text == _displayedTexts[3]
+                ? _displayedEuler.X : values[3];
+            float y = fields[4].Text == _displayedTexts[4]
+                ? _displayedEuler.Y : values[4];
+            float z = fields[5].Text == _displayedTexts[5]
+                ? _displayedEuler.Z : values[5];
+            Quaternion q = Quaternion.CreateFromYawPitchRoll(ToRadians(y),
+                ToRadians(x), ToRadians(z));
+            rotation[0] = q.X; rotation[1] = q.Y; rotation[2] = q.Z;
+            rotation[3] = q.W;
+        }
+        return true;
+    }
+
+    private static float ToRadians(float degrees) => degrees * MathF.PI / 180f;
+
+    private static Vector3 ToEulerDegrees(float[] values)
+    {
+        Quaternion q = Quaternion.Normalize(new Quaternion(values[0], values[1],
+            values[2], values[3]));
+        float x = MathF.Asin(Math.Clamp(2f * (q.W * q.X - q.Y * q.Z), -1f, 1f));
+        float y = MathF.Atan2(2f * (q.W * q.Y + q.X * q.Z),
+            1f - 2f * (q.X * q.X + q.Y * q.Y));
+        float z = MathF.Atan2(2f * (q.W * q.Z + q.X * q.Y),
+            1f - 2f * (q.X * q.X + q.Z * q.Z));
+        return new Vector3(x, y, z) * (180f / MathF.PI);
+    }
+
+    private void ShowNativeError(string prefix)
+    {
+        string detail = string.IsNullOrWhiteSpace(Viewport.LastError)
+            ? prefix : $"{prefix}: {Viewport.LastError}";
+        FieldError.Text = detail;
+        StatusText.Text = detail;
+    }
+
+    private void ConfirmClose(object? sender, CancelEventArgs e)
+    {
+        if (!Viewport.IsDocumentDirty) return;
+        MessageBoxResult choice = MessageBox.Show(this,
+            "Hay cambios sin guardar. ¿Guardar una copia antes de cerrar?",
+            "Cambios de VESTIGIO", MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Warning);
+        if (choice == MessageBoxResult.Cancel)
+            e.Cancel = true;
+        else if (choice == MessageBoxResult.Yes)
+        {
+            Save_Click(this, new RoutedEventArgs());
+            e.Cancel = Viewport.IsDocumentDirty;
+        }
     }
 
     private void CameraMode_SelectionChanged(object sender, SelectionChangedEventArgs e)

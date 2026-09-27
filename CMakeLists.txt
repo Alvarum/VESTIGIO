@@ -252,6 +252,12 @@ if(RETRO_BUILD_APPS)
                 "${PROJECT_SOURCE_DIR}/assets/demo/atrium.gltf")
             set_tests_properties(vestigio_studio_3d PROPERTIES
                 LABELS "window;gpu;studio;document;app")
+            add_test(NAME vestigio_studio_editing COMMAND dotnet
+                "${CMAKE_BINARY_DIR}/bin/RetroForge.Studio.Tests.dll"
+                --e04 "${CMAKE_BINARY_DIR}/studio-editing-evidence"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json")
+            set_tests_properties(vestigio_studio_editing PROPERTIES
+                LABELS "window;gpu;studio;document;app")
         endif()
         add_executable(retro_platform_test tests/platform_test.c)
         retro_target(retro_platform_test)

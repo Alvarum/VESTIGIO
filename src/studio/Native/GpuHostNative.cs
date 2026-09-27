@@ -42,6 +42,60 @@ internal static class GpuHostNative
     internal static extern int vg_gpu_host_set_pick_mask(nint host, uint mask);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_add_mesh(nint host, [Out] byte[] uuid,
+        nuint uuidCapacity, [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_duplicate_selected(nint host, [Out] byte[] uuid,
+        nuint uuidCapacity, [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_select(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string uuid);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_selected_uuid(nint host, [Out] byte[] uuid,
+        nuint uuidCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_selected_transform(nint host,
+        [Out] float[] position, [Out] float[] rotation, [Out] float[] scale);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_set_selected_transform(nint host,
+        [In] float[] position, [In] float[] rotation, [In] float[] scale,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_save_level(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_reopen_level(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string levelPath,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string modelPath,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_is_dirty(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_undo(nint host, [Out] byte[] error,
+        nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_redo(nint host, [Out] byte[] error,
+        nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nuint vg_gpu_host_entity_count(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_entity_at(nint host, nuint index,
+        [Out] byte[] uuid, nuint uuidCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern ulong vg_gpu_host_document_revision(nint host);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]

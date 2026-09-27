@@ -50,6 +50,8 @@ public sealed class GpuViewportHost : HwndHost
 
     public string SelectedUuid => (string)GetValue(SelectedUuidProperty);
 
+    internal event EventHandler? SelectionChanged;
+
     // Rutas opcionales para abrir un documento concreto en una prueba o proyecto.
     // Deben asignarse antes de que WPF cree el HWND.
     public string? LevelPath { get; set; }
@@ -182,7 +184,11 @@ public sealed class GpuViewportHost : HwndHost
         IsPlaying = play;
         ClearInput();
         if (!play)
-            SetValue(SelectedUuidPropertyKey, "Ninguno");
+        {
+            byte[] uuid = new byte[80];
+            SetSelection(GpuHostNative.vg_gpu_host_selected_uuid(_nativeHost, uuid,
+                (nuint)uuid.Length) != 0 ? GpuHostNative.Error(uuid) : "Ninguno");
+        }
         return true;
     }
 
@@ -191,6 +197,144 @@ public sealed class GpuViewportHost : HwndHost
 
     internal bool FrameSelection() => _levelOpen && !IsPlaying &&
         GpuHostNative.vg_gpu_host_frame_selection(_nativeHost) != 0;
+
+    internal bool IsDocumentDirty => _levelOpen && _nativeHost != 0 &&
+        GpuHostNative.vg_gpu_host_is_dirty(_nativeHost) != 0;
+
+    internal IReadOnlyList<string> EntityUuids()
+    {
+        var ids = new List<string>();
+        if (!_levelOpen || _nativeHost == 0) return ids;
+        nuint count = GpuHostNative.vg_gpu_host_entity_count(_nativeHost);
+        for (nuint index = 0; index < count; ++index)
+        {
+            byte[] uuid = new byte[80];
+            if (GpuHostNative.vg_gpu_host_entity_at(_nativeHost, index, uuid,
+                    (nuint)uuid.Length) != 0)
+                ids.Add(GpuHostNative.Error(uuid));
+        }
+        return ids;
+    }
+
+    internal bool TrySelect(string uuid)
+    {
+        if (!_levelOpen || IsPlaying || _nativeHost == 0 ||
+            GpuHostNative.vg_gpu_host_select(_nativeHost, uuid) == 0)
+            return false;
+        SetSelection(uuid);
+        return true;
+    }
+
+    internal bool TryAddMesh()
+    {
+        byte[] uuid = new byte[80], error = new byte[512];
+        if (!_levelOpen || IsPlaying || _nativeHost == 0 ||
+            GpuHostNative.vg_gpu_host_add_mesh(_nativeHost, uuid, (nuint)uuid.Length,
+                error, (nuint)error.Length) == 0)
+        {
+            LastError = GpuHostNative.Error(error);
+            return false;
+        }
+        SetSelection(GpuHostNative.Error(uuid));
+        return true;
+    }
+
+    internal bool TryDuplicateSelected()
+    {
+        byte[] uuid = new byte[80], error = new byte[512];
+        if (!_levelOpen || IsPlaying || _nativeHost == 0 ||
+            GpuHostNative.vg_gpu_host_duplicate_selected(_nativeHost, uuid,
+                (nuint)uuid.Length, error, (nuint)error.Length) == 0)
+        {
+            LastError = GpuHostNative.Error(error);
+            return false;
+        }
+        SetSelection(GpuHostNative.Error(uuid));
+        return true;
+    }
+
+    internal bool TryGetSelectedTransform(out float[] position,
+        out float[] rotation, out float[] scale)
+    {
+        position = new float[3];
+        rotation = new float[4];
+        scale = new float[3];
+        return _levelOpen && !IsPlaying && _nativeHost != 0 &&
+            GpuHostNative.vg_gpu_host_selected_transform(_nativeHost, position,
+                rotation, scale) != 0;
+    }
+
+    internal bool TrySetSelectedTransform(float[] position, float[] rotation,
+        float[] scale)
+    {
+        byte[] error = new byte[512];
+        if (!_levelOpen || IsPlaying || _nativeHost == 0 ||
+            GpuHostNative.vg_gpu_host_set_selected_transform(_nativeHost, position,
+                rotation, scale, error, (nuint)error.Length) == 0)
+        {
+            LastError = GpuHostNative.Error(error);
+            return false;
+        }
+        return true;
+    }
+
+    internal bool TrySaveLevel(string path)
+    {
+        byte[] error = new byte[512];
+        if (!_levelOpen || IsPlaying || _nativeHost == 0 ||
+            GpuHostNative.vg_gpu_host_save_level(_nativeHost, path, error,
+                (nuint)error.Length) == 0)
+        {
+            LastError = GpuHostNative.Error(error);
+            return false;
+        }
+        LevelPath = path;
+        return true;
+    }
+
+    internal bool TryReopenLevel()
+    {
+        if (!_levelOpen || IsPlaying || _nativeHost == 0) return false;
+        byte[] error = new byte[512];
+        if (GpuHostNative.vg_gpu_host_reopen_level(_nativeHost,
+                LevelPath ?? ResolveDemoAsset("atrium.level.json"),
+                ModelPath ?? ResolveDemoAsset("atrium.gltf"), error,
+                (nuint)error.Length) == 0)
+        {
+            LastError = GpuHostNative.Error(error);
+            return false;
+        }
+        byte[] uuid = new byte[80];
+        SetSelection(GpuHostNative.vg_gpu_host_selected_uuid(_nativeHost, uuid,
+            (nuint)uuid.Length) != 0 ? GpuHostNative.Error(uuid) : "Ninguno");
+        return true;
+    }
+
+    internal bool TryUndo() => TryHistory(false);
+    internal bool TryRedo() => TryHistory(true);
+
+    private bool TryHistory(bool redo)
+    {
+        byte[] error = new byte[512];
+        if (!_levelOpen || IsPlaying || _nativeHost == 0 ||
+            (redo ? GpuHostNative.vg_gpu_host_redo(_nativeHost, error,
+                (nuint)error.Length) : GpuHostNative.vg_gpu_host_undo(_nativeHost,
+                error, (nuint)error.Length)) == 0)
+        {
+            LastError = GpuHostNative.Error(error);
+            return false;
+        }
+        byte[] uuid = new byte[80];
+        SetSelection(GpuHostNative.vg_gpu_host_selected_uuid(_nativeHost, uuid,
+            (nuint)uuid.Length) != 0 ? GpuHostNative.Error(uuid) : "Ninguno");
+        return true;
+    }
+
+    private void SetSelection(string uuid)
+    {
+        SetValue(SelectedUuidPropertyKey, uuid);
+        SelectionChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     internal bool NativeHasFocus =>
         _nativeHost != 0 && GpuHostNative.vg_gpu_host_has_focus(_nativeHost) != 0;
@@ -297,9 +441,8 @@ public sealed class GpuViewportHost : HwndHost
             byte[] uuid = new byte[80];
             float u = cursor.X / (float)width;
             float v = cursor.Y / (float)height;
-            SetValue(SelectedUuidPropertyKey,
-                GpuHostNative.vg_gpu_host_pick(_nativeHost, u, v, uuid,
-                    (nuint)uuid.Length) != 0 ? GpuHostNative.Error(uuid) : "Ninguno");
+            SetSelection(GpuHostNative.vg_gpu_host_pick(_nativeHost, u, v, uuid,
+                (nuint)uuid.Length) != 0 ? GpuHostNative.Error(uuid) : "Ninguno");
         }
         _leftDown = left;
         int jump = 0;

@@ -1,6 +1,7 @@
 #include "content/document.h"
 #include "tooling/tool_api.h"
 
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -471,6 +472,88 @@ static void test_recoverable_save_and_future_guard(void) {
     clean_save_files(orphan);
 }
 
+static void test_place_transform_save_reopen_and_play_source(void) {
+    (void)VG_TEST_MKDIR(VG_CONTENT_TEST_DIR);
+    char target[1024];
+    (void)snprintf(target, sizeof(target), "%s/authored.level.json", VG_CONTENT_TEST_DIR);
+    clean_save_files(target);
+    VgDocument *document = open_level();
+    if (document == NULL)
+        return;
+    VgDocumentDiagnostic diagnostic;
+    VgDocumentTransform missing = identity;
+    missing.position[0] = 731.0;
+    CHECK(!vg_document_entity_transform(document,
+                                        "40000000-0000-0000-0000-000000000099", &missing,
+                                        &diagnostic));
+    CHECK(diagnostic.code == VG_DOCUMENT_NOT_FOUND && missing.position[0] == 731.0);
+    VgDocumentTransform original;
+    CHECK(vg_document_entity_transform(document,
+                                       "40000000-0000-0000-0000-000000000001", &original,
+                                       &diagnostic));
+    CHECK(original.position[0] == 1.25 && original.scale[1] == 2.0);
+    CHECK(vg_document_revision(document) == 1u);
+
+    VgDocumentTransform placed = identity;
+    placed.position[0] = -3.0;
+    placed.position[1] = 4.5;
+    placed.position[2] = 1.25;
+    placed.scale[0] = 1.5;
+    placed.scale[1] = 0.75;
+    VgToolBatch *batch = NULL;
+    CHECK(vg_tool_begin(document, 1u, &batch, &diagnostic));
+    if (batch == NULL) {
+        vg_document_destroy(document);
+        return;
+    }
+    static const char mesh[] =
+        "{\"engine.mesh\":{\"version\":1,\"asset\":"
+        "\"50000000-0000-0000-0000-000000000001\",\"node_index\":1}}";
+    CHECK(vg_tool_create_entity(batch, "$placed", NULL, &identity, mesh, &diagnostic));
+    CHECK(vg_tool_set_transform(batch, "$placed", &placed, &diagnostic));
+    char *preview = NULL;
+    size_t preview_length = 0u;
+    VgToolResult preview_result;
+    CHECK(vg_tool_preview(batch, &preview, &preview_length, &preview_result, &diagnostic));
+    CHECK(vg_document_revision(document) == 1u && vg_document_undo_count(document) == 0u);
+    VgToolResult result;
+    CHECK(vg_tool_commit(batch, &result, &diagnostic));
+    const char *placed_id = mapped_id(&result, "$placed");
+    const char *preview_id = mapped_id(&preview_result, "$placed");
+    CHECK(placed_id != NULL && preview_id != NULL && strcmp(placed_id, preview_id) == 0);
+    if (placed_id != NULL) {
+        VgDocumentTransform actual;
+        CHECK(vg_document_entity_transform(document, placed_id, &actual, &diagnostic));
+        CHECK(actual.position[0] == -3.0 && actual.position[1] == 4.5 &&
+              actual.position[2] == 1.25 && actual.scale[0] == 1.5 &&
+              actual.scale[1] == 0.75);
+        CHECK(vg_document_undo_count(document) == 1u);
+        CHECK(vg_document_undo(document, 2u, &diagnostic));
+        CHECK(!vg_document_entity_transform(document, placed_id, &actual, &diagnostic));
+        CHECK(vg_document_redo(document, 3u, &diagnostic));
+        CHECK(vg_document_entity_transform(document, placed_id, &actual, &diagnostic));
+    }
+    size_t committed_length = 0u;
+    char *committed = canonical(document, &committed_length);
+    CHECK(preview != NULL && committed != NULL && preview_length == committed_length &&
+          memcmp(preview, committed, committed_length) == 0);
+    CHECK(vg_document_save_atomic(document, target, 4u, &diagnostic));
+    VgDocument *reopened = NULL;
+    CHECK(vg_document_open_file(target, &reopened, &diagnostic));
+    if (reopened != NULL && placed_id != NULL) {
+        CHECK(same_document(document, reopened));
+        VgDocumentTransform actual;
+        CHECK(vg_document_entity_transform(reopened, placed_id, &actual, &diagnostic));
+        CHECK(fabs(actual.position[1] - 4.5) < 1e-12 &&
+              fabs(actual.scale[1] - 0.75) < 1e-12);
+    }
+    vg_document_destroy(reopened);
+    vg_content_string_destroy(committed);
+    vg_content_string_destroy(preview);
+    vg_document_destroy(document);
+    clean_save_files(target);
+}
+
 int main(void) {
     test_batch_preview_temp_ids_and_unknown_fields();
     test_failed_batches_preserve_document_and_redo();
@@ -478,6 +561,7 @@ int main(void) {
     test_duplicate_group_remaps_internal_references();
     test_batch_and_sequential_equivalence();
     test_recoverable_save_and_future_guard();
+    test_place_transform_save_reopen_and_play_source();
     if (failures != 0)
         (void)fprintf(stderr, "%d document checks failed\n", failures);
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

@@ -29,6 +29,12 @@ typedef struct VgToolResult {
 
 typedef struct VgToolBatch VgToolBatch;
 
+/* Reads the entity's local transform without changing revision or history.
+ * On failure, out_transform is left untouched. */
+bool vg_document_entity_transform(const VgDocument *document, const char *id,
+                                  VgDocumentTransform *out_transform,
+                                  VgDocumentDiagnostic *out_diagnostic);
+
 bool vg_tool_begin(VgDocument *document, uint64_t expected_revision, VgToolBatch **out_batch,
                    VgDocumentDiagnostic *out_diagnostic);
 void vg_tool_cancel(VgToolBatch *batch);
