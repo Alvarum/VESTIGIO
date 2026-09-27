@@ -2,15 +2,15 @@
 
 **Paquete de implementación para agentes.** Este paquete convierte el [roadmap de investigación](../research/12-roadmap.md) en tickets con dependencias, alcance, responsabilidades, pruebas y criterios de cierre.
 
-**Actualización 2026-09-27:** hay 16 de 30 tickets integrados. La entrega avanza por [oleadas funcionales revisables](ENTREGABLES-HOBBY.md), una a la vez. El usuario revisó J01 y S01/S02. E01 abrió el Atrium en Studio; la oleada 4 añade [edición, guardado y reapertura de un pilar](evidence/W04.md), verificados como flujo hobby. E02/E03 no están formalmente completos. El usuario encargó cuatro oleadas consecutivas, 4–7: edición, interacción/puertas, efectos visuales y audio, con cierre y push separados. Se retiraron los tickets de compatibilidad y migración de proyectos anteriores.
+**Actualización 2026-09-27:** hay **17 de 30 tickets integrados**. La entrega avanza por [oleadas o tickets revisables](ENTREGABLES-HOBBY.md), uno a la vez salvo encargo explícito de varios. El usuario revisó J01 y S01/S02. E01 abrió el Atrium en Studio; las oleadas 4–9 añadieron funciones jugables parciales. Tras ellas, el usuario pidió cerrar un ticket completo: [E02](evidence/E02.md) cumple ahora todos sus criterios. E03 es el siguiente ticket editorial elegible, pero requiere un nuevo encargo. Se retiraron los tickets de compatibilidad y migración de proyectos anteriores.
 
 La prioridad confirmada es **render de geometría, materiales y efectos en GPU**. SDK C y Studio deben usar el mismo runtime. El renderer CPU previo no es requisito de compatibilidad para los entregables nuevos.
 
 ## Cómo empezar
 
-1. Elegir una oleada de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). Sólo ejecutar la encargada; no confundirla con las filas técnicas de `WAVES.md`.
+1. Elegir una oleada o ticket de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). Sólo ejecutar lo encargado; no confundirlo con las filas técnicas de `WAVES.md`.
 2. El agente lee [PLAN.md](PLAN.md), [CONTRACTS.md](CONTRACTS.md) y [VALIDATION.md](VALIDATION.md), y verifica el estado real del repositorio.
-3. Completar su gate, hacer commit y push a `origin/main`, entregar SHA e instrucciones para probar. Las oleadas 4–7 ya fueron encargadas de forma consecutiva; tras la 7 se espera un nuevo encargo. No hay límite fijo de tiempo.
+3. Completar todos los criterios del ticket si el encargo pide cerrarlo; verificar, hacer commit y push a `origin/main`, entregar SHA e instrucciones para probar. Tras E02 se espera un nuevo encargo. No hay límite fijo de tiempo.
 
 No es necesario copiar toda la investigación en un prompt. Entregar acceso al repositorio y este archivo con el prompt elegido basta; cada ticket indica sus lecturas y verificaciones a través del plan.
 

@@ -107,7 +107,7 @@
       "validation": ["V-APP", "V-GPU", "V-WPF", "V-DATA"], "unlocks": "Edición directa sobre la escena real."
     },
     {
-      "id": "E02", "phase": "P5", "title": "Gizmos, multiselección y comandos de transformación", "role": "editor", "dependencies": ["E01"], "locks": ["wpf-viewport", "document-commands"], "status": "IN_PROGRESS", "evidence": ["docs/implementation/evidence/W04.md"],
+      "id": "E02", "phase": "P5", "title": "Gizmos, multiselección y comandos de transformación", "role": "editor", "dependencies": ["E01"], "locks": ["wpf-viewport", "document-commands"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/W04.md", "docs/implementation/evidence/E02.md"], "integrated_commit": "c3f475206f9c770f79b074037dc28690b05df387",
       "paths": ["src/studio/Controls/", "src/editor/", "src/render/overlays/", "tests/studio/", "tests/content/"],
       "steps": ["Implementar move/rotate/scale, local/world, pivots y snapping compartido; preview efímero con commit al terminar gesto.", "Añadir duplicar/borrar/reparentar en lote con UUIDs/remap; validar parent cycles/shear antes del commit.", "Dibujar gizmos GPU y mantener selección válida al cambiar índices/revisión; Escape cancela y un drag equivale a un undo."],
       "acceptance": ["Undo/redo restaura gesto y refs completos; fallo o Escape no borra redo ni ensucia documento.", "Multiselección y pivots producen mismo resultado por Tool API y UI, incluida jerarquía rotada.", "Guardar/reabrir reproduce transforms; tests de datos más revisión visual real del gizmo."],
