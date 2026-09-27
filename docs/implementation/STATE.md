@@ -1,5 +1,13 @@
 # Estado de implementación
 
+**Revisión del usuario, 2026-09-27:** el Studio 3D mostrado fue rechazado por
+su usabilidad y por la confusión entre los dos motores. Las cifras históricas
+de tickets `INTEGRATED` reflejan código y pruebas técnicas; **no significan
+que VESTIGIO Studio esté aceptado como editor utilizable**. La separación
+física de RetroForge y VESTIGIO es el encargo actual. La corrección de UX 3D
+queda pendiente; no avanzar tickets funcionales nuevos hasta abordarla en un
+entregable revisable.
+
 ## Ampliación documental de 2026-09-27
 
 La auditoría [integral de `js-game`](../research/13-js-game-full-audit.md) y el [inventario trazable](../research/14-js-game-inventory.md) incorporan 60 tickets nuevos al backlog: **90 total, 19 INTEGRATED, 4 IN_PROGRESS, 67 PLANNED** tras cerrar E04. Los 30 tickets originales y sus estados se preservan; 19 de ellos están integrados. `Z01` cierra el alcance original; `ZA1` depende de `Z01`, de la demo guiada `X01` y de la procedencia de assets `X02`. El inventario de la demo antigua es estático; su ejecución y aprobación visual siguen `NOT_RUN`. Cada ticket adicional requiere encargo propio.

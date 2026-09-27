@@ -45,9 +45,14 @@ try {
     if (!(Get-Command dotnet -ErrorAction SilentlyContinue)) {
         throw 'RetroForge Studio requiere el SDK de .NET 10 para Windows.'
     }
-    & dotnet restore 'src/studio/RetroForge.Studio.csproj' --packages '.nuget/packages'
-    if ($LASTEXITCODE) { throw 'No se pudo restaurar Studio' }
-    & dotnet restore 'tests/studio/RetroForge.Studio.Tests.csproj' --packages '.nuget/packages'
-    if ($LASTEXITCODE) { throw 'Fallo restaurando las dependencias fijadas de Studio' }
-    Write-Output 'Herramientas listas. Siguiente: ./tools/build.ps1 -Preset debug -Test'
+    foreach ($project in @(
+        'engines/retroforge/studio/RetroForge.Studio.csproj',
+        'engines/retroforge/studio.tests/RetroForge.Studio.Tests.csproj',
+        'engines/vestigio/studio/Vestigio.Studio.csproj',
+        'engines/vestigio/studio.tests/Vestigio.Studio.Tests.csproj'
+    )) {
+        & dotnet restore $project --packages '.nuget/packages'
+        if ($LASTEXITCODE) { throw "No se pudieron restaurar dependencias de $project" }
+    }
+    Write-Output 'Herramientas listas. Compila con ./tools/build.ps1 -Engine RetroForge o -Engine Vestigio.'
 } finally { Pop-Location }

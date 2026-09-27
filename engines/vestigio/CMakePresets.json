@@ -1,0 +1,107 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/../../build/vestigio/${presetName}",
+      "environment": {
+        "PATH": "${sourceDir}/../../.tools/msys64/ucrt64/bin;$penv{PATH}"
+      },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "${sourceDir}/../../.tools/msys64/ucrt64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "${sourceDir}/../../.tools/msys64/ucrt64/bin/g++.exe",
+        "CMAKE_MAKE_PROGRAM": "${sourceDir}/../../.tools/msys64/ucrt64/bin/ninja.exe",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": true
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "analyze",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VG_BUILD_APPS": false,
+        "VG_ANALYZE": true
+      }
+    },
+    {
+      "name": "ubsan",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VG_BUILD_APPS": false,
+        "CMAKE_C_COMPILER": "${sourceDir}/../../.tools/msys64/ucrt64/bin/clang.exe",
+        "CMAKE_CXX_COMPILER": "${sourceDir}/../../.tools/msys64/ucrt64/bin/clang++.exe",
+        "CMAKE_C_FLAGS": "-fsanitize=undefined -fsanitize-trap=all"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "analyze",
+      "configurePreset": "analyze"
+    },
+    {
+      "name": "ubsan",
+      "configurePreset": "ubsan"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "analyze",
+      "configurePreset": "analyze",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ubsan",
+      "configurePreset": "ubsan",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

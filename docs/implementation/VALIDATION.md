@@ -1,48 +1,76 @@
 # Verificación durante implementación
 
-Los comandos siguientes se contrastaron con `tools/build.ps1`, `tools/check.ps1`, `CMakePresets.json` y `CMakeLists.txt` en `28dafa9`. **No se ejecutaron builds del motor durante la redacción de este plan.** F00 obtiene resultados actuales. Si cambian scripts o targets, actualizar instrucciones y evidencia; no seguir ejecutando comandos inexistentes.
+Este plan verifica **VESTIGIO**, dentro de `engines/vestigio/`. RetroForge
+permanece separado en `engines/retroforge/`; sus resultados no cuentan como
+pruebas de VESTIGIO. Los scripts estables aceptan `-Engine Vestigio` o
+`-Engine RetroForge`, y cada salida usa una carpeta de build distinta. Los
+comandos de esta guía se ejecutan desde la raíz del repositorio.
 
 ## Matriz baseline y cierre integrado
 
 Desde la raíz del checkout preparado, en PowerShell:
 
 ```powershell
-./tools/check.ps1 -Full
+./tools/check.ps1 -Engine Vestigio -Full
 ```
 
-Actualmente comprueba formato C/H sin reescribir y ejecuta analyze+UBSan+debug+release con pruebas. `analyze` y `ubsan` configuran `RETRO_BUILD_APPS=false`: **no verifican GPU, sesión con ventana ni WPF**. Debug/release incluyen build .NET y CTest. Revisar exit code y salida real de cada etapa; proceso lanzado no significa prueba terminada.
+`-Engine Both` ejecuta la matriz para los dos motores, cada cual en su propio
+build. El chequeo verifica formato sin reescribir y ejecuta analyze, UBSan,
+Debug y Release con pruebas. Analyze y UBSan desactivan las aplicaciones, así
+que **no verifican GPU, ventana ni WPF**. Debug/Release compilan Studio .NET y
+ejecutan CTest. Revisar exit code y salida real de cada etapa; proceso lanzado
+no significa prueba terminada.
 
 Para iterar en un cambio que necesite aplicaciones:
 
 ```powershell
-./tools/build.ps1 -Preset debug -Test
+./tools/build.ps1 -Engine Vestigio -Preset debug -Test
 ```
+
+Para RetroForge, sustituye el selector por `-Engine RetroForge`; el resultado
+queda en `build/retroforge/debug/` en vez de `build/vestigio/debug/`.
 
 Para cambios C independientes de ventana:
 
 ```powershell
-./tools/build.ps1 -Preset analyze -Test
-./tools/build.ps1 -Preset ubsan -Test
+./tools/build.ps1 -Engine Vestigio -Preset analyze -Test
+./tools/build.ps1 -Engine Vestigio -Preset ubsan -Test
 ```
 
 Una vez configurado y compilado el preset, se puede seleccionar la prueba existente pertinente:
 
 ```powershell
-& './.tools/msys64/ucrt64/bin/ctest.exe' --test-dir build/debug --output-on-failure -R '^retro_contracts$'
-& './.tools/msys64/ucrt64/bin/ctest.exe' --test-dir build/debug --output-on-failure -R '^retro_shared_session$'
-& './.tools/msys64/ucrt64/bin/ctest.exe' --test-dir build/debug --output-on-failure -R '^retro_studio_authoring$'
-& './.tools/msys64/ucrt64/bin/ctest.exe' --test-dir build/debug --output-on-failure -R '^retro_window$'
+& './.tools/msys64/ucrt64/bin/ctest.exe' --test-dir build/vestigio/debug --output-on-failure -R '^vestigio_document$'
+& './.tools/msys64/ucrt64/bin/ctest.exe' --test-dir build/vestigio/debug --output-on-failure -R '^vestigio_spatial$'
+& './.tools/msys64/ucrt64/bin/ctest.exe' --test-dir build/vestigio/debug --output-on-failure -R '^vestigio_gpu_scene$'
+& './.tools/msys64/ucrt64/bin/ctest.exe' --test-dir build/retroforge/debug --output-on-failure -R '^retro_contracts$'
+& './.tools/msys64/ucrt64/bin/ctest.exe' --test-dir build/retroforge/debug --output-on-failure -R '^retro_shared_session$'
 ```
 
 No basta CTest si no se ha recompilado el candidato. Confirmar que el filtro encontró y ejecutó pruebas; cero tests no es PASS. Las pruebas nuevas deben registrarse con nombre y requisitos claros en CMake/CTest al incorporarse, sin inventar hoy comandos de targets futuros.
 
-`retro_window` actual verifica ventana/OpenGL, presentación del framebuffer CPU, resize, lectura de imagen y letterbox. Su mensaje PASS contiene “GPU readback”; **no demuestra rasterizado de mallas GPU**, de ahí el perfil V-GPU nuevo. Una ventana oculta también requiere contexto/driver/entorno gráfico válidos.
+La prueba `retro_window` de **RetroForge** verifica ventana/OpenGL, presentación
+del framebuffer CPU, resize, lectura de imagen y letterbox. Su mensaje PASS
+contiene “GPU readback”; **no demuestra rasterizado de mallas GPU**. En
+VESTIGIO, selecciona pruebas `vestigio_gpu_*` según el cambio; una ventana
+oculta también requiere contexto, driver y entorno gráfico válidos.
 
 ## Preparación y aislamiento
 
-Comprobar `.tools/msys64/ucrt64/bin`, fuente raylib fijada en `.deps`, SDK .NET, paquetes/restore y accesibilidad del desktop. `tools/build.ps1` no restaura NuGet por sí solo. `tools/bootstrap.ps1` descarga y actualiza el entorno local; no ejecutarlo sobre recursos compartidos en mitad de otras compilaciones. Registrar versiones realmente usadas.
+Comprobar `.tools/msys64/ucrt64/bin`, fuente raylib fijada en `.deps`, SDK .NET,
+restore de ambos Studio y acceso al desktop. `tools/build.ps1` no restaura NuGet
+por sí solo; `tools/bootstrap.ps1` prepara herramientas y restaura los proyectos
+de Studio de ambos motores. No ejecutar bootstrap sobre recursos compartidos en
+mitad de otras compilaciones. Registrar versiones realmente usadas.
 
-Ejecutar builds sin writers concurrentes en ese checkout. Cada prueba que exporta/guarda usa una copia de proyecto dentro de su carpeta de evidencia. El empaquetado `-Package` escribe `dist/RetroForge` y ZIP: reservarlo para P02/Z01, no usarlo como prueba inocua sobre un paquete ajeno.
+Ejecutar builds sin writers concurrentes en ese checkout. Los directorios
+`build/retroforge/<preset>/` y `build/vestigio/<preset>/` mantienen separados
+objetos, binarios y pruebas nativas; los proyectos .NET también viven bajo el
+árbol de su motor. Cada prueba que exporta/guarda usa una copia de proyecto
+dentro de su carpeta de evidencia. El parámetro `-Package` del wrapper sólo
+empaqueta RetroForge en `dist/RetroForge`; ese paquete no demuestra entrega de
+VESTIGIO. La distribución VESTIGIO requiere su propio flujo y aceptación antes
+de marcar sus tickets de entrega.
 
 No instalar herramientas de captura ni cambiar configuración global sólo para obtener un PASS. Si falta contexto gráfico o dispositivo, registrar bloqueo de esas comprobaciones y ejecutar lo independiente. Un agente con acceso visual hace los recorridos necesarios; una aceptación humana pendiente no se inventa.
 

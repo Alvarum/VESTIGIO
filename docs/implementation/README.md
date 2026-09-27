@@ -2,6 +2,13 @@
 
 **Paquete de implementación para agentes.** Este paquete convierte el [roadmap de investigación](../research/12-roadmap.md) en tickets con dependencias, alcance, responsabilidades, pruebas y criterios de cierre.
 
+**Frontera del repositorio:** este plan gobierna únicamente **VESTIGIO**, en
+`engines/vestigio/` (CMake, `src/`, `include/`, `tests/`, `studio/`,
+`studio.tests/` y `assets/`). **RetroForge** vive aparte en
+`engines/retroforge/`; no comparte código, contenido ni resultados de pruebas
+con VESTIGIO. `tools/`, `.tools/`, `.deps/` y `.nuget/` están en la raíz y son
+compartidos. Cada motor se compila y acepta por separado.
+
 **Actualización 2026-09-27:** hay **19 de 90 tickets integrados**. La entrega avanza por [oleadas o tickets revisables](ENTREGABLES-HOBBY.md), uno a la vez salvo encargo explícito de varios. El usuario revisó J01 y S01/S02. E01 abrió el Atrium en Studio; las oleadas 4–9 añadieron funciones jugables parciales. Después se cerraron [E02](evidence/E02.md), [E03](evidence/E03.md) y [E04](evidence/E04.md) con sus criterios formales. E04 queda para revisión interactiva antes del siguiente ticket. Se retiraron los tickets de compatibilidad y migración de proyectos anteriores.
 
 **Ampliación de investigación 2026-09-27:** la [auditoría integral de `js-game`](../research/13-js-game-full-audit.md) y su [inventario por archivo](../research/14-js-game-inventory.md) añaden 60 tickets `PLANNED`, sin ejecutar esas funciones. El backlog tiene ahora **90 tickets: 19 INTEGRATED, 4 IN_PROGRESS y 67 PLANNED**. `Z01` conserva el cierre original de 30 tickets; `ZA1` cierra la ampliación. La demo antigua sigue `NOT_RUN` en navegador. Cada ticket añadido requiere una entrega propia.
@@ -36,7 +43,12 @@ Desde la raíz del repositorio:
 
 ```powershell
 python docs/implementation/validate-plan.py
+./tools/build.ps1 -Engine Vestigio -Preset debug -Test
 ```
+
+El build de VESTIGIO escribe en `build/vestigio/debug/`; el de RetroForge
+escribe en `build/retroforge/debug/`. Los perfiles de análisis y UBSan también
+se seleccionan por motor con `-Preset analyze` o `-Preset ubsan`.
 
 Para regenerar las fichas y oleadas después de editar el backlog:
 

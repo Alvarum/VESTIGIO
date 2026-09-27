@@ -18,10 +18,15 @@ raylib y raygui en `.deps`; no modifica `C:/msys64` ni el PATH permanente.
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/bootstrap.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Preset debug -Test
-./build/debug/bin/retro_lab.exe
-./build/debug/bin/retro_fps.exe
-./build/debug/bin/retro_studio.exe
+./build/retroforge/debug/bin/retro_lab.exe
+./build/retroforge/debug/bin/retro_fps.exe
+./build/retroforge/debug/bin/retro_studio.exe
 ```
+
+Esta ruta corresponde a **RetroForge**, el motor retro 2.5D. Para compilar el
+motor 3D separado, usa `./tools/build.ps1 -Engine Vestigio -Preset debug -Test`;
+sus binarios quedan en `build/vestigio/debug/bin`. Las fuentes viven bajo
+`engines/retroforge/` y `engines/vestigio/` respectivamente.
 
 `-ExecutionPolicy Bypass` afecta sólo a ese proceso. No es necesario cambiar
 la política global de Windows. Si tu terminal ya permite scripts, puedes usar
@@ -58,14 +63,14 @@ conserva si ya tienes vida completa. Escape pausa; perder foco también pausa.
 
 ## Orden de lectura
 
-1. `include/retro/math.h`: tipos pequeños, funciones puras y unidades.
-2. `src/lab/main.c`: ciclo completo sin reglas de combate.
-3. `include/retro/render.h` y `src/engine/render.c`: memoria y píxeles.
-4. `src/engine/input.c`: eventos y tiempo fijo.
-5. `src/engine/map.c` y `src/engine/world.c`: datos y geometría física.
-6. `src/fps/game.c`: comportamiento expresado como estados.
-7. `src/fps/main.c`: composición del juego, recursos y plataforma.
-8. `tests/test_main.c`: experimentos reproducibles de los contratos anteriores.
+1. `engines/retroforge/include/retro/math.h`: tipos pequeños, funciones puras y unidades.
+2. `engines/retroforge/src/lab/main.c`: ciclo completo sin reglas de combate.
+3. `engines/retroforge/include/retro/render.h` y `engines/retroforge/src/engine/render.c`: memoria y píxeles.
+4. `engines/retroforge/src/engine/input.c`: eventos y tiempo fijo.
+5. `engines/retroforge/src/engine/map.c` y `engines/retroforge/src/engine/world.c`: datos y geometría física.
+6. `engines/retroforge/src/fps/game.c`: comportamiento expresado como estados.
+7. `engines/retroforge/src/fps/main.c`: composición del juego, recursos y plataforma.
+8. `engines/retroforge/tests/test_main.c`: experimentos reproducibles de los contratos anteriores.
 
 Lee cada bloque junto al capítulo correspondiente. No hace falta entender todo
 el renderer antes de ejecutar el primer experimento.
@@ -74,7 +79,7 @@ el renderer antes de ejecutar el primer experimento.
 
 ```powershell
 $env:PATH = "$PWD/.tools/msys64/ucrt64/bin;$env:PATH"
-./.tools/msys64/ucrt64/bin/gdb.exe ./build/debug/bin/retro_fps.exe
+./.tools/msys64/ucrt64/bin/gdb.exe ./build/retroforge/debug/bin/retro_fps.exe
 ```
 
 Dentro de GDB:
@@ -112,7 +117,7 @@ puede parecer bloqueada: su hilo tampoco está procesando eventos.
 ## Entrega portátil
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Preset release -Test -Package
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Engine RetroForge -Preset release -Test -Package
 ```
 
 `dist/RetroForge` contiene los cuatro ejecutables, proyectos, mapas, documentación,

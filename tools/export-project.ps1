@@ -12,10 +12,10 @@ $projectRoot=Split-Path -Parent $manifest
 $sourceRoot=Split-Path -Parent $PSScriptRoot
 $player=Join-Path $sourceRoot 'retro_player.exe'
 if (!(Test-Path -LiteralPath $player)) {
-    $player=Join-Path $sourceRoot 'build/release/bin/retro_player.exe'
+    $player=Join-Path $sourceRoot 'build/retroforge/release/bin/retro_player.exe'
 }
 if (!(Test-Path -LiteralPath $player)) {
-    throw 'No existe retro_player.exe Release. Ejecuta tools/build.ps1 -Preset release.'
+    throw 'No existe retro_player.exe Release. Ejecuta tools/build.ps1 -Engine RetroForge -Preset release.'
 }
 $name=[IO.Path]::GetFileNameWithoutExtension($manifest)
 $gameName=if($ExecutableName){$ExecutableName}else{$name}
@@ -44,6 +44,9 @@ if(Test-Path -LiteralPath $projectGuide) {
         -Destination (Join-Path $target 'GUIA-DEL-JUEGO.md') -Force
 }
 $engineReadme=Join-Path $sourceRoot 'README.md'
+if (Test-Path -LiteralPath (Join-Path $sourceRoot 'engines/retroforge/README.md')) {
+    $engineReadme=Join-Path $sourceRoot 'engines/retroforge/README.md'
+}
 if(Test-Path -LiteralPath $engineReadme) {
     Copy-Item -LiteralPath $engineReadme -Destination (Join-Path $target 'RETROFORGE.md') -Force
 }

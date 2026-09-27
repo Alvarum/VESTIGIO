@@ -1,4 +1,4 @@
-# RetroForge Studio / Foundry
+# RetroForge y VESTIGIO
 
 > **¿Buscas el motor VESTIGIO nuevo y el Atrium 3D?** Empieza por
 > [VESTIGIO: compilar, abrir y usar](VESTIGIO-COMO-USAR.md). Los pasos de
@@ -8,9 +8,12 @@
 > aberturas parciales y evita que conectar dos habitaciones elimine toda la
 > pared. Consulta [Portales y recursos visuales](docs/14-portales-y-recursos-visuales.md).
 
-Motor retro en **C23**, renderer propio en CPU y plataforma **raylib 6.0**.
-Incluye gameplay dirigido por datos, el editor visual RetroForge Studio, un
-reproductor genérico, Foundry y el laboratorio independiente.
+Este repositorio contiene dos motores en desarrollo, cada uno con su propio
+código, recursos, pruebas y Studio: **RetroForge** (juego retro 2.5D, C23,
+renderer CPU y raylib) vive en `engines/retroforge`; **VESTIGIO** (escenas 3D
+con render GPU) vive en `engines/vestigio`. Comparten las herramientas de
+desarrollo de la raíz, pero sus fuentes y carpetas de compilación están separadas.
+Consulta [la estructura y los límites de cada motor](docs/REPO-STRUCTURE.md).
 
 La primera escena del motor VESTIGIO nuevo se ejecuta con
 `powershell -NoProfile -ExecutionPolicy Bypass -File tools/run-3d-demo.ps1`.
@@ -19,17 +22,21 @@ Player y Studio, conocer los controles y probar la escena GPU con colisiones.
 
 ## Empezar en Windows
 
-Desde PowerShell, en esta carpeta:
+Desde PowerShell, en esta carpeta. RetroForge queda como motor predeterminado;
+indica `-Engine Vestigio` para elegir el motor 3D:
 
 ```powershell
 ./tools/bootstrap.ps1
 ./tools/build.ps1 -Preset debug -Test
-./build/debug/bin/retro_fps.exe
-./build/debug/bin/retro_lab.exe
-./build/debug/bin/retro_studio.exe
+./tools/build.ps1 -Engine Vestigio -Preset debug -Test
+./build/retroforge/debug/bin/retro_fps.exe
+./build/retroforge/debug/bin/retro_lab.exe
+./build/retroforge/debug/bin/retro_studio.exe
+./build/vestigio/debug/bin/vestigio_player.exe
+./build/vestigio/debug/bin/vestigio_studio.exe
 ```
 
-Studio abre `assets/studio/haunted.retro`: una casa con plantas superpuestas,
+RetroForge Studio abre `engines/retroforge/assets/studio/haunted.retro`: una casa con plantas superpuestas,
 triggers 3D, diálogos, objetivos, luces dinámicas, escalera, perseguidora, drop
 de llave y jefe de dos fases. **PROBAR** ejecuta una copia aislada del nivel;
 **EXPORTAR** genera una carpeta y ZIP para Windows.
@@ -55,7 +62,7 @@ bordes. F1: plano, F2: geometría, F3: profundidad, F4: contadores del FPS.
 En el reproductor genérico F5 guarda rápido y F9 carga. El menú de pausa permite
 usar tres ranuras manuales; los checkpoints crean autoguardado.
 
-**Objetivo:** recoger la llave naranja en el depósito lateral, abrir la compuerta
+**Objetivo en RetroForge:** recoger la llave naranja en el depósito lateral, abrir la compuerta
 con E y llegar a la terminal de salida. Hay tres guardias y suministros.
 
 ## Estudiar el proyecto

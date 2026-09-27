@@ -1,6 +1,9 @@
 # VESTIGIO: compilar, abrir y usar el Atrium 3D
 
-Esta guía es para el **motor VESTIGIO nuevo** y su escena de ejemplo Atrium 3D. Los ejecutables `retro_fps`, `retro_lab` y el Studio abierto sin `--atrium` corresponden a otras partes del repositorio. Ejecuta los comandos siguientes desde la **raíz de este repositorio** en PowerShell.
+Esta guía es para el motor **VESTIGIO 3D**. Sus fuentes, pruebas, Studio y
+recursos están separados en `engines/vestigio/`; RetroForge se mantiene en
+`engines/retroforge/`. Las herramientas de preparación y compilación de la raíz
+son compartidas. Ejecuta los comandos desde la **raíz del repositorio**.
 
 ## Requisitos y primera preparación
 
@@ -21,7 +24,7 @@ La opción `ExecutionPolicy Bypass` sólo se aplica a ese proceso. No hace falta
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/run-3d-demo.ps1
 ```
 
-El script configura y compila `vestigio_player`, y luego abre la escena `assets/demo/atrium.level.json`. El ejecutable queda en `build/vestigio-demo/bin/vestigio_player.exe`; sus recursos se copian junto al binario durante la compilación. Si quieres iniciarlo directamente después de compilar, usa `./build/vestigio-demo/bin/vestigio_player.exe`.
+El script compila VESTIGIO y abre la escena `engines/vestigio/assets/demo/atrium.level.json`. El ejecutable queda en `build/vestigio/debug/bin/vestigio_player.exe`; al abrirlo con el script, éste copia los recursos demo junto al binario.
 
 | Control | Acción en Player |
 |---|---|
@@ -52,7 +55,7 @@ Para jugar otro nivel guardado desde Studio, pasa `-Level ruta\nivel.level.json`
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/run-studio-3d.ps1
 ```
 
-El script compila el host GPU y la aplicación WPF, luego inicia **VESTIGIO Studio — Atrium 3D**. La aplicación queda en `build/vestigio-studio/bin/retro_studio.exe`. Si se abre directamente, usa `./build/vestigio-studio/bin/retro_studio.exe --atrium`: sin `--atrium` abre otro proyecto. Para abrir un nivel propio directamente: `./build/vestigio-studio/bin/retro_studio.exe --atrium --level "ruta\nivel.level.json"`.
+El script compila el host GPU y la aplicación WPF, luego inicia **VESTIGIO Studio — Atrium 3D**. La aplicación queda en `build/vestigio/debug/bin/vestigio_studio.exe` y abre niveles 3D sin argumentos especiales. Para abrir un nivel propio directamente: `./build/vestigio/debug/bin/vestigio_studio.exe --level "ruta\nivel.level.json"`. RetroForge tiene otro ejecutable: `build/retroforge/debug/bin/retro_studio.exe`.
 
 En **Editar**, haz clic sobre un objeto o selecciónalo en **Jerarquía**. Con **Añadir pilar** o **Duplicar** creas otra instancia; cambia posición, rotación o escala en el inspector y pulsa **Aplicar transformación**. **Deshacer/Rehacer** revierten o repiten cambios. **Guardar como…** crea una copia de trabajo sin sobrescribir el Atrium original; después usa **Guardar** y **Reabrir** para comprobar el archivo. La vista de edición permite cámara libre con WASD, botón derecho para mirar y Espacio/Ctrl para subir/bajar; también ofrece órbita, ortográfica y **Encuadrar selección**.
 
@@ -89,8 +92,8 @@ Las aberturas de esta receta son vacíos en el muro: una abertura de tipo puerta
 Los scripts de apertura ya compilan sólo lo necesario. Para compilar todos los targets y correr las pruebas del preset:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Preset debug -Test
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Preset release -Test
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Engine Vestigio -Preset debug -Test
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Engine Vestigio -Preset release -Test
 ```
 
 `tools/check.ps1` ejecuta formato y análisis; `-Full` añade Debug y Release. Las pruebas automatizadas no sustituyen inspeccionar la imagen ni escuchar el ambiente. `tools/run-studio-3d.ps1 -NoLaunch` sólo compila Studio. La documentación y los resultados por oleada están en `docs/implementation/evidence/`.
@@ -99,8 +102,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Preset rele
 
 - **Falta `cmake.exe` o falla la restauración de .NET:** ejecuta `tools/bootstrap.ps1`; confirma `dotnet --version` y que el SDK instalado sea 10.
 - **No se abre la ventana o falla el shader:** actualiza el controlador de la GPU y comprueba que el dispositivo exponga OpenGL 3.3. El Player imprime la GPU detectada; un contexto OpenGL por software no verifica la ruta GPU real.
-- **No aparecen recursos del Atrium al lanzar el `.exe` manualmente:** usa los scripts desde la raíz para recompilar y copiar `assets/demo`; verifica que `atrium.gltf`, `atrium.level.json` y `audio/*.wav` estén junto al binario en `assets/demo/`.
+- **No aparecen recursos del Atrium al lanzar el `.exe` manualmente:** usa los scripts desde la raíz para recompilar y copiar los recursos; verifica que `atrium.gltf`, `atrium.level.json` y `audio/*.wav` estén en `build/vestigio/debug/bin/assets/demo/`. Los originales viven en `engines/vestigio/assets/demo/`.
 - **No se aprecian luces o niebla:** recompila con los scripts para copiar el glTF y nivel corregidos, prueba el Atrium original y revisa `visual=... lights=... fog=...` en el Player. Las luces y la niebla provienen del `.level.json`; F6 sólo cambia Limpio/Retro. La [comparación de referencia](docs/implementation/evidence/W06-fix.md) muestra el efecto esperado desde la misma cámara.
-- **No hay sonido:** confirma que Windows tenga una salida de audio activa, revisa los deslizantes y F7/F8, y verifica los dos WAV en `assets/demo/audio`. Puedes aislar un problema de dispositivo ejecutando la demo con `-NoAudio`; el juego debe seguir funcionando sin sonido.
+- **No hay sonido:** confirma que Windows tenga una salida de audio activa, revisa los deslizantes y F7/F8, y verifica los dos WAV en `engines/vestigio/assets/demo/audio`. Puedes aislar un problema de dispositivo ejecutando la demo con `-NoAudio`; el juego debe seguir funcionando sin sonido.
 
 Para las opciones de la demo, revisa `tools/run-3d-demo.ps1` o ejecuta el binario con una opción inválida para ver su sintaxis. Entre las opciones útiles están `-ShowColliders`, `-Settings`, `-Visual`, `-VolumeMaster`, `-VolumeSfx`, `-VolumeAmbience`, `-SaveAudio`, `-NoAudio`, `-Smoke` y `-Capture`.

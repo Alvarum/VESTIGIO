@@ -92,11 +92,11 @@
       "integrated_commit": "2052e5b4d69f8ae169df073f3ed8a761b80c62dc",
       "paths": [
         "docs/implementation/CONTRACTS.md",
-        "include/vestigio/",
-        "src/runtime/",
-        "src/render/",
-        "CMakeLists.txt",
-        "tests/sdk/"
+        "engines/vestigio/include/vestigio/",
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/src/render/",
+        "engines/vestigio/CMakeLists.txt",
+        "engines/vestigio/tests/sdk/"
       ],
       "steps": [
         "Convertir C01-C08 de CONTRACTS.md en declaraciones mínimas de tipos, responsabilidades y errores; fijar nombres y export macros sin implementar toda la API hipotética del informe.",
@@ -132,10 +132,8 @@
       ],
       "integrated_commit": "a13fb8beb89691d842709773abadb0b755d8f9a6",
       "paths": [
-        "src/render/gpu_raylib/",
-        "src/platform/raylib_platform.c",
-        "src/lab/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/gpu_raylib/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Crear backend raylib/rlgl con un dueño de contexto y recursos mesh, textura, shader y render target; escena sintética independiente del juego incorporado.",
@@ -172,11 +170,10 @@
       ],
       "integrated_commit": "9ed4d5e",
       "paths": [
-        "include/vestigio/",
-        "src/runtime/",
-        "src/world/",
-        "src/engine/math.c",
-        "tests/runtime/"
+        "engines/vestigio/include/vestigio/",
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/src/world/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Implementar contexto/mundos y pools por tipo con handles generacionales validados por contexto/mundo; UUID documental separado.",
@@ -213,11 +210,10 @@
       ],
       "integrated_commit": "9811b03",
       "paths": [
-        "src/studio/Controls/GameViewport.cs",
-        "src/studio/Controls/",
-        "src/studio/Native/",
-        "src/platform/",
-        "tests/studio/",
+        "engines/vestigio/studio/Controls/",
+        "engines/vestigio/studio/Native/",
+        "engines/vestigio/src/platform/",
+        "engines/vestigio/studio.tests/",
         "docs/implementation/CONTRACTS.md"
       ],
       "steps": [
@@ -255,9 +251,9 @@
       ],
       "integrated_commit": "9ed4d5e",
       "paths": [
-        "src/assets/",
-        "include/vestigio/",
-        "tests/assets/"
+        "engines/vestigio/src/assets/",
+        "engines/vestigio/include/vestigio/",
+        "engines/vestigio/tests/assets/"
       ],
       "steps": [
         "Implementar AssetId, handles y estados loading/ready/failed para Texture/Mesh; catálogo fuente/meta separado de residente.",
@@ -295,13 +291,11 @@
       ],
       "integrated_commit": "df05608",
       "paths": [
-        "include/vestigio/",
-        "src/api/",
-        "src/runtime/",
-        "src/session/session.c",
-        "src/player/main.c",
-        "cmake/",
-        "tests/sdk/"
+        "engines/vestigio/include/vestigio/",
+        "engines/vestigio/src/api/",
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/cmake/",
+        "engines/vestigio/tests/sdk/"
       ],
       "steps": [
         "Implementar init/world_ready/fixed_update/event/draw_ui/shutdown y stepping embebido; separar composición de juego de lifecycle en un cambio acotado.",
@@ -341,14 +335,10 @@
       ],
       "integrated_commit": "683ad2d",
       "paths": [
-        "src/input/",
-        "src/config/",
-        "src/engine/input.c",
-        "src/platform/raylib_platform.c",
-        "src/player/main.c",
-        "src/studio/Controls/GameViewport.cs",
-        "src/studio/Native/",
-        "tests/input/"
+        "engines/vestigio/src/input/",
+        "engines/vestigio/src/config/",
+        "engines/vestigio/studio/Native/",
+        "engines/vestigio/tests/input/"
       ],
       "steps": [
         "Definir pressed/held/released por acción y adaptar Player/Studio al mismo acumulador de tick, con clear al perder foco.",
@@ -384,9 +374,9 @@
       ],
       "integrated_commit": "1acbd03",
       "paths": [
-        "src/content/",
+        "engines/vestigio/src/content/",
         "docs/formats/",
-        "tests/content/",
+        "engines/vestigio/tests/content/",
         "docs/implementation/CONTRACTS.md"
       ],
       "steps": [
@@ -422,8 +412,8 @@
       ],
       "integrated_commit": "656fda7",
       "paths": [
-        "src/assets/import/",
-        "tests/assets/fixtures/",
+        "engines/vestigio/src/assets/import/",
+        "engines/vestigio/tests/assets/fixtures/",
         "THIRD_PARTY.md"
       ],
       "steps": [
@@ -463,11 +453,11 @@
       ],
       "integrated_commit": "50ece2a",
       "paths": [
-        "src/render/",
-        "src/assets/",
-        "src/api/",
-        "tests/gpu/",
-        "tests/sdk/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/assets/",
+        "engines/vestigio/src/api/",
+        "engines/vestigio/tests/gpu/",
+        "engines/vestigio/tests/sdk/"
       ],
       "steps": [
         "Conectar IR importada al registro de assets y backend; render packets mesh/material/transform/bounds, sprites y cámara desde World.",
@@ -508,11 +498,11 @@
       ],
       "integrated_commit": "7efc54c",
       "paths": [
-        "src/player/",
-        "src/api/",
-        "examples/",
-        "tests/sdk/",
-        "tests/gpu/"
+        "engines/vestigio/src/player/",
+        "engines/vestigio/src/api/",
+        "engines/vestigio/examples/",
+        "engines/vestigio/tests/sdk/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Crear un proyecto de ejemplo nuevo con suelo visual, algunos objetos y un modelo glTF/GLB importado; no convertir ni migrar Haunted.",
@@ -550,11 +540,9 @@
       ],
       "integrated_commit": "2e15e5e",
       "paths": [
-        "src/content/",
-        "src/editor/editor.c",
-        "src/gameplay/transaction.c",
-        "include/vestigio/",
-        "tests/content/"
+        "engines/vestigio/src/content/",
+        "engines/vestigio/include/vestigio/",
+        "engines/vestigio/tests/content/"
       ],
       "steps": [
         "Implementar documento/instanciador con mismos constructores/validadores de componentes del runtime y assets por ID; mantener blobs y GPU fuera del historial.",
@@ -593,11 +581,10 @@
       ],
       "integrated_commit": "73fe637",
       "paths": [
-        "src/studio/Controls/",
-        "src/studio/Native/",
-        "src/studio/Models/EditorDocument.cs",
-        "src/editor/",
-        "tests/studio/"
+        "engines/vestigio/studio/Controls/",
+        "engines/vestigio/studio/Native/",
+        "engines/vestigio/src/editor/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Integrar superficie aprobada en G02 con EditWorld, cámara libre/orbit/ortográfica, frame seleccionado y renderables de G03.",
@@ -636,11 +623,11 @@
       ],
       "integrated_commit": "c3f475206f9c770f79b074037dc28690b05df387",
       "paths": [
-        "src/studio/Controls/",
-        "src/editor/",
-        "src/render/overlays/",
-        "tests/studio/",
-        "tests/content/"
+        "engines/vestigio/studio/Controls/",
+        "engines/vestigio/src/editor/",
+        "engines/vestigio/src/render/overlays/",
+        "engines/vestigio/studio.tests/",
+        "engines/vestigio/tests/content/"
       ],
       "steps": [
         "Implementar move/rotate/scale, local/world, pivots y snapping compartido; preview efímero con commit al terminar gesto.",
@@ -678,12 +665,10 @@
       ],
       "integrated_commit": "69f9e81",
       "paths": [
-        "src/studio/ViewModels/StudioViewModel.cs",
-        "src/studio/Models/",
-        "src/studio/MainWindow.xaml",
-        "src/studio/Services/",
-        "src/editor/",
-        "tests/studio/"
+        "engines/vestigio/studio/Models/",
+        "engines/vestigio/studio/Services/",
+        "engines/vestigio/src/editor/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Generar campos desde esquemas tipados con unidades/rangos/referencias y mensajes de error; multiedición conserva valores no modificados.",
@@ -723,11 +708,11 @@
       ],
       "integrated_commit": "7048a59e0d79f6f34a34828bd3d98fc945c43a77",
       "paths": [
-        "src/editor/",
-        "src/content/",
-        "src/studio/Controls/",
-        "tests/content/",
-        "tests/studio/"
+        "engines/vestigio/src/editor/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio/Controls/",
+        "engines/vestigio/tests/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Añadir recetas nuevas y acotadas de habitación/pared y abertura con preview y geometría derivada.",
@@ -766,10 +751,10 @@
       ],
       "integrated_commit": "22e937a2d589e256f38ff7268603c26723343cae",
       "paths": [
-        "src/physics/",
-        "src/world/",
-        "src/api/",
-        "tests/spatial/"
+        "engines/vestigio/src/physics/",
+        "engines/vestigio/src/world/",
+        "engines/vestigio/src/api/",
+        "engines/vestigio/tests/spatial/"
       ],
       "steps": [
         "Implementar raycast/sweep/overlap con máscaras, ignored entity y resultados entidad/normal/distancia/fracción; static mesh con aceleración acotada y colliders dinámicos simples.",
@@ -807,11 +792,10 @@
       ],
       "integrated_commit": "22e937a2d589e256f38ff7268603c26723343cae",
       "paths": [
-        "src/gamekit/",
-        "src/physics/",
-        "src/session/session.c",
-        "tests/spatial/",
-        "tests/gamekit/"
+        "engines/vestigio/src/gamekit/",
+        "engines/vestigio/src/physics/",
+        "engines/vestigio/tests/spatial/",
+        "engines/vestigio/tests/gamekit/"
       ],
       "steps": [
         "Construir controlador cinemático de cápsula/volumen admitido con suelo, pendiente, escalón, techo y dt fijo; configuración expuesta al SDK.",
@@ -846,11 +830,10 @@
       ],
       "status": "IN_PROGRESS",
       "paths": [
-        "src/gamekit/",
-        "src/gameplay/interaction.c",
-        "src/content/",
-        "tests/gamekit/",
-        "tests/spatial/"
+        "engines/vestigio/src/gamekit/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gamekit/",
+        "engines/vestigio/tests/spatial/"
       ],
       "steps": [
         "Implementar raíz/bisagra/panel con eje/pivot/ángulos/speed, estados closed/opening/open/closing/blocked/locked y obstrucción segura.",
@@ -886,11 +869,11 @@
       ],
       "status": "IN_PROGRESS",
       "paths": [
-        "src/render/",
-        "src/assets/",
-        "src/content/",
-        "assets/shaders/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/assets/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/assets/shaders/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Implementar ShaderAsset/material params tipados y metadata de inspector; reload candidato con dependencias y log de compilación.",
@@ -926,11 +909,11 @@
       ],
       "status": "PLANNED",
       "paths": [
-        "src/render/",
-        "src/config/",
-        "assets/shaders/",
-        "tests/gpu/",
-        "tests/config/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/config/",
+        "engines/vestigio/assets/shaders/",
+        "engines/vestigio/tests/gpu/",
+        "engines/vestigio/tests/config/"
       ],
       "steps": [
         "Implementar presets clean/retro/PSX/custom con snapping, UV affine opcional, Bayer/dither y cuantización después de fog/lighting a resolución interna.",
@@ -967,12 +950,11 @@
       ],
       "status": "IN_PROGRESS",
       "paths": [
-        "src/audio/",
-        "src/assets/",
-        "src/platform/raylib_platform.c",
-        "src/api/",
-        "src/content/",
-        "tests/audio/"
+        "engines/vestigio/src/audio/",
+        "engines/vestigio/src/assets/",
+        "engines/vestigio/src/api/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/audio/"
       ],
       "steps": [
         "Separar Sound compartido, Voice mutable y Music streaming; buses master/music/SFX/ambience y listener/emisor espacial.",
@@ -1011,12 +993,12 @@
       ],
       "status": "IN_PROGRESS",
       "paths": [
-        "src/assets/import/",
-        "src/world/",
-        "src/render/",
-        "src/content/",
-        "tests/assets/",
-        "tests/gpu/"
+        "engines/vestigio/src/assets/import/",
+        "engines/vestigio/src/world/",
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/assets/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Extender importer/IR con clips de nodos y después skins/joints/inverse bind matrices; definir interpolaciones soportadas y rechazar el resto explícitamente.",
@@ -1056,10 +1038,10 @@
       ],
       "status": "PLANNED",
       "paths": [
-        "src/studio/",
-        "src/editor/",
-        "tests/studio/",
-        "tests/journeys/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/editor/",
+        "engines/vestigio/studio.tests/",
+        "engines/vestigio/tests/journeys/"
       ],
       "steps": [
         "Integrar campos/gizmos de luz/fog/material/shader/audio/trigger/interactable/puerta/spawn/actor/cámara/animación sobre esquemas reales; bridge para tipos de juego registrados.",
@@ -1095,10 +1077,10 @@
       ],
       "status": "PLANNED",
       "paths": [
-        "src/debug/",
-        "src/render/",
-        "src/runtime/",
-        "tests/perf/",
+        "engines/vestigio/src/debug/",
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/tests/perf/",
         "docs/implementation/evidence/"
       ],
       "steps": [
@@ -1138,12 +1120,10 @@
       ],
       "status": "PLANNED",
       "paths": [
-        "src/content/",
-        "src/gamekit/",
-        "src/gameplay/interaction.c",
-        "src/session/session.c",
-        "tests/content/",
-        "tests/gamekit/"
+        "engines/vestigio/src/content/",
+        "engines/vestigio/src/gamekit/",
+        "engines/vestigio/tests/content/",
+        "engines/vestigio/tests/gamekit/"
       ],
       "steps": [
         "Separar nivel/autosave/partida y definir persistencia de jugador, puertas, actores, variables, inventario, RNG, triggers y estado de módulo C.",
@@ -1184,13 +1164,13 @@
       ],
       "status": "PLANNED",
       "paths": [
-        "examples/",
-        "cmake/",
+        "engines/vestigio/examples/",
+        "engines/vestigio/cmake/",
         "tools/export-project.ps1",
-        "CMakeLists.txt",
+        "engines/vestigio/CMakeLists.txt",
         "THIRD_PARTY.md",
-        "tests/sdk/",
-        "tests/export/"
+        "engines/vestigio/tests/sdk/",
+        "engines/vestigio/tests/export/"
       ],
       "steps": [
         "Crear FPS/editor y exploración C sin armas con mismo runtime; registrar tipos/acciones propios visibles en Studio y generar habitación/entidades/luces por Tool API.",
@@ -1225,9 +1205,9 @@
       ],
       "status": "PLANNED",
       "paths": [
-        "src/cli/",
-        "src/editor/",
-        "tests/cli/",
+        "engines/vestigio/src/cli/",
+        "engines/vestigio/src/editor/",
+        "engines/vestigio/tests/cli/",
         "docs/"
       ],
       "steps": [
@@ -1266,7 +1246,7 @@
         "docs/implementation/STATE.md",
         "docs/implementation/evidence/",
         "docs/",
-        "tests/"
+        "engines/vestigio/tests/"
       ],
       "steps": [
         "Construir candidato único con todos los tickets integrados y ejecutar matriz completa y recorridos editor-first/code-first/export/restore.",
@@ -1310,9 +1290,9 @@
         "engine/SceneEditor.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/content/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Crear, seleccionar y mover un objeto en la escena viva sin modificar Play al volver a Editar.",
@@ -1349,9 +1329,9 @@
         "assets/models/manifest.json"
       ],
       "paths": [
-        "src/studio/",
-        "src/content/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Elegir un GLB y un nodo o submodelo identificable y conservar su referencia al reabrir.",
@@ -1386,9 +1366,9 @@
         "engine/PropFactory.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/content/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Crear un prop parametrico desde Studio y regenerarlo sin perder materiales ni colision.",
@@ -1425,9 +1405,9 @@
         "engine/effects/FlickerLight.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/content/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Colocar point spot y directional con color intensidad alcance sombra y parpadeo reproducible.",
@@ -1463,9 +1443,9 @@
         "engine/WallHoleTool.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/content/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Insertar una ventana editable en un muro y mantener vano marco vidrio y collider alineados.",
@@ -1501,9 +1481,9 @@
         "engine/FloorManager.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/content/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Crear pisos y escalera o escalera vertical con navegacion y luces asignadas por piso.",
@@ -1540,9 +1520,9 @@
         "engine/TriggerZone.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/content/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Dibujar volumen enter exit once cooldown y evento con vista previa en Play.",
@@ -1578,9 +1558,9 @@
         "engine/SceneLoader.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/content/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Cargar escena candidata y cambiar solo tras validarla conservando la escena previa ante error.",
@@ -1615,9 +1595,9 @@
         "engine/RoomBuilder.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/content/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Editar perimetro irregular con suelo techo paredes UV y colliders derivados del mismo poligono.",
@@ -1653,9 +1633,9 @@
         ".planning/requirements/v6.0-REQUIREMENTS.md"
       ],
       "paths": [
-        "src/studio/",
-        "src/content/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Editar hueco de piso persistente con geometria collider y paso vertical coherentes.",
@@ -1690,9 +1670,9 @@
         "engine/effects/FogShaders.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Reproducir capas filamentos viento y densidad espacial con parametros de escena persistentes.",
@@ -1726,9 +1706,9 @@
         "engine/effects/VolumetricFog.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Muestrear depth valido y componer raymarch antes del perfil retro con oclusion verificable.",
@@ -1763,9 +1743,9 @@
         "engine/shaders/HorrorFXShader.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Configurar passes y orden incluido PSX bloom glitch y aberracion sin degradar resize.",
@@ -1801,9 +1781,9 @@
         "engine/shaders/OrganicShader.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Asignar presets fluid neon organico charco TV y holograma con parametros por material.",
@@ -1837,9 +1817,9 @@
         "engine/effects/ParticleSystem.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Emitir y reciclar particulas con limite medible y estado claro al cambiar escena.",
@@ -1874,9 +1854,9 @@
         "engine/effects/FireSystem.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Instanciar fuego con emisor humo y luz vinculada y liberar recursos al retirar entidad.",
@@ -1912,9 +1892,9 @@
         "engine/effects/BreakableGlass.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Proyectar decals limitados y romper vidrio sincronizando visual colision y evento.",
@@ -1949,9 +1929,9 @@
         "engine/effects/WaterSystem.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Crear superficie animada y entrada salida del agua con render audio y movimiento coherentes.",
@@ -1985,9 +1965,9 @@
         "engine/effects/SkySystem.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Configurar cielo sol estrellas y hora persistente con lectura visible en Play.",
@@ -2022,9 +2002,9 @@
         "engine/effects/Weather.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Activar lluvia truenos viento y niebla ambiental con limites y configuracion de nivel.",
@@ -2058,9 +2038,9 @@
         "engine/effects/VegetationSystem.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Pintar vegetacion con viento y contador de instancias y liberar lote al descargar.",
@@ -2094,9 +2074,9 @@
         "engine/MirrorSystem.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Reflejar escena con camara y target controlados tras resize y descarga.",
@@ -2130,9 +2110,9 @@
         "engine/effects/LensFlare.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Mostrar destello solo con fuente visible y presupuesto de coste medido.",
@@ -2166,9 +2146,9 @@
         "engine/VideoPlayer.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Reproducir pausar y liberar video texturizado en una entidad de nivel.",
@@ -2203,9 +2183,9 @@
         "engine/effects/FleshInfestation.js"
       ],
       "paths": [
-        "src/render/",
-        "src/content/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Instanciar capa organica compartiendo material y sincronizar shader y estado de juego.",
@@ -2240,9 +2220,8 @@
         "engine/ui/ContextMenu.js"
       ],
       "paths": [
-        "src/runtime/",
-        "src/gameplay/",
-        "tests/runtime/"
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Mostrar acciones disponibles bloqueo y respuesta visible desde distancia y foco correctos.",
@@ -2277,9 +2256,8 @@
         "engine/StateMachine.js"
       ],
       "paths": [
-        "src/runtime/",
-        "src/gameplay/",
-        "tests/runtime/"
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Definir eventos tipados y transiciones deterministas sin perder estado al guardar.",
@@ -2314,9 +2292,8 @@
         "game/apartment/Day1Script.js"
       ],
       "paths": [
-        "src/runtime/",
-        "src/gameplay/",
-        "tests/runtime/"
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Ejecutar dialogo espera flag audio y eleccion con pausa cancelacion y restauracion definidas.",
@@ -2352,9 +2329,8 @@
         "engine/CameraDolly.js"
       ],
       "paths": [
-        "src/runtime/",
-        "src/gameplay/",
-        "tests/runtime/"
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Editar keyframes y curva de camara con eventos sincronizados y salida limpia a control del jugador.",
@@ -2390,9 +2366,8 @@
         "engine/ui/PuzzleHelpers.js"
       ],
       "paths": [
-        "src/runtime/",
-        "src/gameplay/",
-        "tests/runtime/"
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Resolver combinacion terminal cables o sliders mediante estado y eventos guardables.",
@@ -2427,9 +2402,8 @@
         "engine/CarrySystem.js"
       ],
       "paths": [
-        "src/runtime/",
-        "src/gameplay/",
-        "tests/runtime/"
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Recoger sostener soltar y depositar objeto con colision foco y estado reproducible.",
@@ -2464,9 +2438,8 @@
         "engine/AIController.js"
       ],
       "paths": [
-        "src/runtime/",
-        "src/gameplay/",
-        "tests/runtime/"
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Ejecutar idle investigate chase lost con percepcion y transiciones visibles.",
@@ -2501,9 +2474,8 @@
         "engine/PlayerVitals.js"
       ],
       "paths": [
-        "src/runtime/",
-        "src/gameplay/",
-        "tests/runtime/"
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Exponer salud oxigeno hambre cordura stamina y estados de movimiento con guardado.",
@@ -2538,9 +2510,8 @@
         "engine/Flashlight.js"
       ],
       "paths": [
-        "src/runtime/",
-        "src/gameplay/",
-        "tests/runtime/"
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Iluminar desde jugador con bateria parpadeo y cono consistente con fog.",
@@ -2575,9 +2546,8 @@
         "engine/Weapon.js"
       ],
       "paths": [
-        "src/runtime/",
-        "src/gameplay/",
-        "tests/runtime/"
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Equipar disparar recargar y emitir impacto con municion y estado guardables.",
@@ -2612,9 +2582,8 @@
         "engine/Ragdoll.js"
       ],
       "paths": [
-        "src/runtime/",
-        "src/gameplay/",
-        "tests/runtime/"
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Activar cuerpo fisico temporal con limite y limpieza sin fugas.",
@@ -2648,8 +2617,8 @@
         "engine/AudioWorld.js"
       ],
       "paths": [
-        "src/audio/",
-        "tests/audio/"
+        "engines/vestigio/src/audio/",
+        "engines/vestigio/tests/audio/"
       ],
       "steps": [
         "Oir emisor con distancia y orientacion correctas en Player y escena.",
@@ -2682,8 +2651,8 @@
         "engine/ReverbZones.js"
       ],
       "paths": [
-        "src/audio/",
-        "tests/audio/"
+        "engines/vestigio/src/audio/",
+        "engines/vestigio/tests/audio/"
       ],
       "steps": [
         "Cruzar zona y cambiar envio de reverb sin recrear voces ni acumular nodos.",
@@ -2717,8 +2686,8 @@
         "engine/FootstepSystem.js"
       ],
       "paths": [
-        "src/audio/",
-        "tests/audio/"
+        "engines/vestigio/src/audio/",
+        "engines/vestigio/tests/audio/"
       ],
       "steps": [
         "Escuchar pasos segun material velocidad y estado de movimiento.",
@@ -2752,8 +2721,8 @@
         "engine/MusicDirector.js"
       ],
       "paths": [
-        "src/audio/",
-        "tests/audio/"
+        "engines/vestigio/src/audio/",
+        "engines/vestigio/tests/audio/"
       ],
       "steps": [
         "Cambiar stems o capas por tension con crossfade y pausa estable.",
@@ -2787,9 +2756,9 @@
         "engine/ui/SubtitleUI.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/runtime/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Mostrar dialogo y subtitulos sincronizados con avance pausa y accesibilidad.",
@@ -2824,9 +2793,9 @@
         "engine/ui/ContextMenu.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/runtime/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Elegir accion narrativa y devolver control sin conflicto de pointer lock.",
@@ -2859,9 +2828,9 @@
         "engine/ui/InventoryUI.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/runtime/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Recoger usar y quitar item con estado guardado y feedback.",
@@ -2896,9 +2865,9 @@
         "engine/ui/ItemRevealUI.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/runtime/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Examinar objeto 3D y volver al juego liberando recursos y foco.",
@@ -2932,9 +2901,9 @@
         "engine/ui/CodexUI.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/runtime/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Abrir nota y registro persistente con texto subtitulado.",
@@ -2968,9 +2937,9 @@
         "engine/ui/DiegeticHUD.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/runtime/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Mostrar estado con modo plano o diegetico y actualizacion sin duplicados.",
@@ -3003,9 +2972,9 @@
         "engine/ui/PhoneUI.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/runtime/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Recibir y responder evento telefonico dentro de secuencia guardable.",
@@ -3039,9 +3008,9 @@
         "engine/i18n.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/runtime/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Cambiar tema e idioma en runtime con cadenas externas y fallback.",
@@ -3077,9 +3046,9 @@
         "engine/ui/ScreenManager.js"
       ],
       "paths": [
-        "src/studio/",
-        "src/runtime/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Persistir ajustes y transiciones sin acciones pegadas ni pointer lock perdido.",
@@ -3113,7 +3082,7 @@
         "assets/models/manifest.json"
       ],
       "paths": [
-        "src/assets/",
+        "engines/vestigio/src/assets/",
         "docs/research/",
         "THIRD_PARTY.md"
       ],
@@ -3150,9 +3119,9 @@
         ".planning/research/FEATURES.md"
       ],
       "paths": [
-        "src/studio/",
-        "src/content/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Crear cabina y puertas con destino de piso, guardar y reabrir; Player cambia piso sin perder estado.",
@@ -3187,9 +3156,9 @@
         ".planning/requirements/v6.0-REQUIREMENTS.md"
       ],
       "paths": [
-        "src/studio/",
-        "src/content/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Instanciar pod configurable con vidrio, apertura y eventos sin geometria fija de juego.",
@@ -3223,9 +3192,9 @@
         ".planning/research/FEATURES.md"
       ],
       "paths": [
-        "src/runtime/",
-        "src/input/",
-        "tests/runtime/"
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/src/input/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Crear criatura con percepcion, animacion y perfil de conducta configurable por proyecto.",
@@ -3259,9 +3228,9 @@
         ".planning/research/FEATURES.md"
       ],
       "paths": [
-        "src/runtime/",
-        "src/input/",
-        "tests/runtime/"
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/src/input/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Impactos por hitbox cambian malla y estado de IA con evidencia visual y guardado.",
@@ -3293,9 +3262,9 @@
         ".planning/research/FEATURES.md"
       ],
       "paths": [
-        "src/studio/",
-        "src/content/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Mover y rotar items con reglas de espacio, apilado y persistencia reproducible.",
@@ -3330,9 +3299,9 @@
         ".planning/research/FEATURES.md"
       ],
       "paths": [
-        "src/studio/",
-        "src/content/",
-        "tests/studio/"
+        "engines/vestigio/studio/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/studio.tests/"
       ],
       "steps": [
         "Abrir inventario proyectado con seleccion y foco correctos sin segunda escena permanente.",
@@ -3366,8 +3335,8 @@
         ".planning/research/FEATURES.md"
       ],
       "paths": [
-        "src/render/",
-        "tests/gpu/"
+        "engines/vestigio/src/render/",
+        "engines/vestigio/tests/gpu/"
       ],
       "steps": [
         "Pausar juego, mover camara libre y exportar captura sin alterar estado ni recursos residentes.",
@@ -3401,9 +3370,9 @@
         ".planning/ROADMAP.md"
       ],
       "paths": [
-        "src/runtime/",
-        "src/input/",
-        "tests/runtime/"
+        "engines/vestigio/src/runtime/",
+        "engines/vestigio/src/input/",
+        "engines/vestigio/tests/runtime/"
       ],
       "steps": [
         "Usar acciones equivalentes en interfaz tactil y validar layout, foco y rendimiento en dispositivo objetivo.",
@@ -3495,8 +3464,8 @@
         ".planning/phases/36-engine-showcase-guided-qa-and-fps-horror-systems-polish/36-QA-CHECKLIST.md"
       ],
       "paths": [
-        "examples/",
-        "tests/",
+        "engines/vestigio/examples/",
+        "engines/vestigio/tests/",
         "docs/implementation/evidence/"
       ],
       "steps": [
@@ -3537,7 +3506,7 @@
       "paths": [
         "docs/implementation/",
         "docs/research/",
-        "tests/"
+        "engines/vestigio/tests/"
       ],
       "steps": [
         "Integrar evidencia de Z01, demo X01 y procedencia X02 en un unico candidato.",

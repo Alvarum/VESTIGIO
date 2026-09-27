@@ -17,19 +17,24 @@ Studio WPF -> retro_editor.dll -> retro_gameplay -> retro_core
 Esta división importa por dos motivos: Player y Studio interpretan los mismos
 archivos y ejecutan la misma `retro_session.dll`. Una asignación creada en C siempre se libera en C.
 
+RetroForge es independiente de VESTIGIO. Su código, pruebas, Studio y recursos
+están en `engines/retroforge/`; el motor 3D vive en `engines/vestigio/`. Desde
+la raíz se compila RetroForge con `tools/build.ps1 -Engine RetroForge` (también
+es el valor predeterminado).
+
 ## Inicio
 
 Después de compilar el preset `debug`, abre:
 
 ```powershell
-build\debug\bin\retro_studio.exe
+build\retroforge\debug\bin\retro_studio.exe
 ```
 
 Sin argumentos carga el Haunted copiado junto al ejecutable. También acepta un
 manifiesto directo o la forma explícita:
 
 ```powershell
-build\debug\bin\retro_studio.exe --project "C:\Mis juegos\Casa\project.retro"
+build\retroforge\debug\bin\retro_studio.exe --project "C:\Mis juegos\Casa\project.retro"
 ```
 
 Studio crea un bloqueo local por proyecto. Un segundo proceso puede abrir otro
@@ -144,23 +149,23 @@ mantiene la ventana abierta. El autosave de cambios no guardados sigue pendiente
 
 | Archivo | Responsabilidad |
 |---|---|
-| `include/retro/editor.h` | Contrato C estable consumido por .NET. |
-| `src/editor/editor.c` | Documento autorizado, consultas, validación e historial. |
-| `src/studio/App.xaml.cs` | Inicio, resolución y bloqueo del proyecto. |
-| `src/studio/MainWindow.xaml` | Composición visual y espacios de trabajo. |
-| `src/studio/ViewModels/StudioViewModel.cs` | Selección, comandos, conexiones y Player. |
-| `src/studio/Models/EditorDocument.cs` | Dueño administrado del handle nativo. |
-| `src/studio/Native/EditorNative.cs` | Firmas de interoperabilidad C/C#. |
-| `include/retro/session.h`, `src/session/session.c` | Sesión compartida y framebuffer. |
-| `src/studio/Native/SessionNative.cs` | Frontera administrada de la sesión. |
-| `src/studio/Controls/GameViewport.cs` | Entrada y presentación de la prueba. |
-| `src/studio/Services/SpriteThumbnail.cs` | Recortes validados y caché de imágenes. |
-| `include/retro/character_art.h`, `src/gameplay/character_art.c` | Arte provisional compartido. |
-| `include/retro/transaction.h`, `src/gameplay/transaction.c` | Guardado coordinado y recuperación. |
-| `tests/studio/Program.cs` | Recorrido de modelos y composiciones WPF de prueba. |
-| `tests/studio/RetroForge.Studio.Tests.csproj` | Ejecutable de pruebas .NET sin framework externo. |
-| `tests/session_test.c` | Aislamiento y equivalencia determinista de sesiones. |
-| `src/studio/Themes/Graphite.xaml` | Colores, tipografía, foco y controles. |
+| `engines/retroforge/include/retro/editor.h` | Contrato C estable consumido por .NET. |
+| `engines/retroforge/src/editor/editor.c` | Documento autorizado, consultas, validación e historial. |
+| `engines/retroforge/studio/App.xaml.cs` | Inicio, resolución y bloqueo del proyecto. |
+| `engines/retroforge/studio/MainWindow.xaml` | Composición visual y espacios de trabajo. |
+| `engines/retroforge/studio/ViewModels/StudioViewModel.cs` | Selección, comandos, conexiones y Player. |
+| `engines/retroforge/studio/Models/EditorDocument.cs` | Dueño administrado del handle nativo. |
+| `engines/retroforge/studio/Native/EditorNative.cs` | Firmas de interoperabilidad C/C#. |
+| `engines/retroforge/include/retro/session.h`, `engines/retroforge/src/session/session.c` | Sesión compartida y framebuffer. |
+| `engines/retroforge/studio/Native/SessionNative.cs` | Frontera administrada de la sesión. |
+| `engines/retroforge/studio/Controls/GameViewport.cs` | Entrada y presentación de la prueba. |
+| `engines/retroforge/studio/Services/SpriteThumbnail.cs` | Recortes validados y caché de imágenes. |
+| `engines/retroforge/include/retro/character_art.h`, `engines/retroforge/src/gameplay/character_art.c` | Arte provisional compartido. |
+| `engines/retroforge/include/retro/transaction.h`, `engines/retroforge/src/gameplay/transaction.c` | Guardado coordinado y recuperación. |
+| `engines/retroforge/studio.tests/Program.cs` | Recorrido de modelos y composiciones WPF de prueba. |
+| `engines/retroforge/studio.tests/RetroForge.Studio.Tests.csproj` | Ejecutable de pruebas .NET sin framework externo. |
+| `engines/retroforge/tests/session_test.c` | Aislamiento y equivalencia determinista de sesiones. |
+| `engines/retroforge/studio/Themes/Graphite.xaml` | Colores, tipografía, foco y controles. |
 
 ## Exportación
 
@@ -169,7 +174,7 @@ asistente visual:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/export-project.ps1 `
-  -Project assets/studio/haunted.retro -Output dist/Games
+  -Project engines/retroforge/assets/studio/haunted.retro -Output dist/Games
 ```
 
 El resultado incluye Player, `retro_session.dll`, proyecto, recursos y licencias.

@@ -44,7 +44,7 @@ Dependencias: F00.
 
 Locks: `public-api`, `build`, `contracts`.
 
-Puntos de entrada: `docs/implementation/CONTRACTS.md`, `include/vestigio/`, `src/runtime/`, `src/render/`, `CMakeLists.txt`, `tests/sdk/`.
+Puntos de entrada: `docs/implementation/CONTRACTS.md`, `engines/vestigio/include/vestigio/`, `engines/vestigio/src/runtime/`, `engines/vestigio/src/render/`, `engines/vestigio/CMakeLists.txt`, `engines/vestigio/tests/sdk/`.
 
 **Trabajo:**
 
@@ -74,7 +74,7 @@ Dependencias: F01.
 
 Locks: `gpu-backend`, `platform-window`.
 
-Puntos de entrada: `src/render/gpu_raylib/`, `src/platform/raylib_platform.c`, `src/lab/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/gpu_raylib/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -104,7 +104,7 @@ Dependencias: F01.
 
 Locks: `runtime-core`, `public-api`.
 
-Puntos de entrada: `include/vestigio/`, `src/runtime/`, `src/world/`, `src/engine/math.c`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/include/vestigio/`, `engines/vestigio/src/runtime/`, `engines/vestigio/src/world/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -134,7 +134,7 @@ Dependencias: G01.
 
 Locks: `gpu-backend`, `platform-window`, `wpf-viewport`.
 
-Puntos de entrada: `src/studio/Controls/GameViewport.cs`, `src/studio/Controls/`, `src/studio/Native/`, `src/platform/`, `tests/studio/`, `docs/implementation/CONTRACTS.md`.
+Puntos de entrada: `engines/vestigio/studio/Controls/`, `engines/vestigio/studio/Native/`, `engines/vestigio/src/platform/`, `engines/vestigio/studio.tests/`, `docs/implementation/CONTRACTS.md`.
 
 **Trabajo:**
 
@@ -164,7 +164,7 @@ Dependencias: R01.
 
 Locks: `asset-core`, `public-api`.
 
-Puntos de entrada: `src/assets/`, `include/vestigio/`, `tests/assets/`.
+Puntos de entrada: `engines/vestigio/src/assets/`, `engines/vestigio/include/vestigio/`, `engines/vestigio/tests/assets/`.
 
 **Trabajo:**
 
@@ -194,7 +194,7 @@ Dependencias: R02.
 
 Locks: `runtime-core`, `public-api`, `session-bridge`, `build`.
 
-Puntos de entrada: `include/vestigio/`, `src/api/`, `src/runtime/`, `src/session/session.c`, `src/player/main.c`, `cmake/`, `tests/sdk/`.
+Puntos de entrada: `engines/vestigio/include/vestigio/`, `engines/vestigio/src/api/`, `engines/vestigio/src/runtime/`, `engines/vestigio/cmake/`, `engines/vestigio/tests/sdk/`.
 
 **Trabajo:**
 
@@ -224,7 +224,7 @@ Dependencias: R03.
 
 Locks: `input-settings`, `session-bridge`, `public-api`, `platform-window`, `wpf-viewport`.
 
-Puntos de entrada: `src/input/`, `src/config/`, `src/engine/input.c`, `src/platform/raylib_platform.c`, `src/player/main.c`, `src/studio/Controls/GameViewport.cs`, `src/studio/Native/`, `tests/input/`.
+Puntos de entrada: `engines/vestigio/src/input/`, `engines/vestigio/src/config/`, `engines/vestigio/studio/Native/`, `engines/vestigio/tests/input/`.
 
 **Trabajo:**
 
@@ -254,7 +254,7 @@ Dependencias: R01.
 
 Locks: `document-schema`.
 
-Puntos de entrada: `src/content/`, `docs/formats/`, `tests/content/`, `docs/implementation/CONTRACTS.md`.
+Puntos de entrada: `engines/vestigio/src/content/`, `docs/formats/`, `engines/vestigio/tests/content/`, `docs/implementation/CONTRACTS.md`.
 
 **Trabajo:**
 
@@ -284,7 +284,7 @@ Dependencias: R02.
 
 Locks: `asset-import`.
 
-Puntos de entrada: `src/assets/import/`, `tests/assets/fixtures/`, `THIRD_PARTY.md`.
+Puntos de entrada: `engines/vestigio/src/assets/import/`, `engines/vestigio/tests/assets/fixtures/`, `THIRD_PARTY.md`.
 
 **Trabajo:**
 
@@ -314,7 +314,7 @@ Dependencias: G01, R03, M01.
 
 Locks: `gpu-backend`, `asset-gpu`, `public-api`.
 
-Puntos de entrada: `src/render/`, `src/assets/`, `src/api/`, `tests/gpu/`, `tests/sdk/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/assets/`, `engines/vestigio/src/api/`, `engines/vestigio/tests/gpu/`, `engines/vestigio/tests/sdk/`.
 
 **Trabajo:**
 
@@ -344,7 +344,7 @@ Dependencias: G03, I01, D02.
 
 Locks: `platform-window`, `session-bridge`, `public-api`.
 
-Puntos de entrada: `src/player/`, `src/api/`, `examples/`, `tests/sdk/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/player/`, `engines/vestigio/src/api/`, `engines/vestigio/examples/`, `engines/vestigio/tests/sdk/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -374,7 +374,7 @@ Dependencias: D01, R02.
 
 Locks: `document-core`, `tool-api`.
 
-Puntos de entrada: `src/content/`, `src/editor/editor.c`, `src/gameplay/transaction.c`, `include/vestigio/`, `tests/content/`.
+Puntos de entrada: `engines/vestigio/src/content/`, `engines/vestigio/include/vestigio/`, `engines/vestigio/tests/content/`.
 
 **Trabajo:**
 
@@ -404,7 +404,7 @@ Dependencias: G02, G03, D02, I01.
 
 Locks: `wpf-viewport`, `tool-api`.
 
-Puntos de entrada: `src/studio/Controls/`, `src/studio/Native/`, `src/studio/Models/EditorDocument.cs`, `src/editor/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/Controls/`, `engines/vestigio/studio/Native/`, `engines/vestigio/src/editor/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -434,7 +434,7 @@ Dependencias: E01.
 
 Locks: `wpf-viewport`, `document-commands`.
 
-Puntos de entrada: `src/studio/Controls/`, `src/editor/`, `src/render/overlays/`, `tests/studio/`, `tests/content/`.
+Puntos de entrada: `engines/vestigio/studio/Controls/`, `engines/vestigio/src/editor/`, `engines/vestigio/src/render/overlays/`, `engines/vestigio/studio.tests/`, `engines/vestigio/tests/content/`.
 
 **Trabajo:**
 
@@ -464,7 +464,7 @@ Dependencias: E02, M01.
 
 Locks: `wpf-inspector`, `document-commands`.
 
-Puntos de entrada: `src/studio/ViewModels/StudioViewModel.cs`, `src/studio/Models/`, `src/studio/MainWindow.xaml`, `src/studio/Services/`, `src/editor/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/Models/`, `engines/vestigio/studio/Services/`, `engines/vestigio/src/editor/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -495,7 +495,7 @@ Dependencias: E03, S01.
 
 Locks: `wpf-viewport`, `document-commands`.
 
-Puntos de entrada: `src/editor/`, `src/content/`, `src/studio/Controls/`, `tests/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/src/editor/`, `engines/vestigio/src/content/`, `engines/vestigio/studio/Controls/`, `engines/vestigio/tests/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -525,7 +525,7 @@ Dependencias: G03, D02.
 
 Locks: `spatial-core`, `public-api`.
 
-Puntos de entrada: `src/physics/`, `src/world/`, `src/api/`, `tests/spatial/`.
+Puntos de entrada: `engines/vestigio/src/physics/`, `engines/vestigio/src/world/`, `engines/vestigio/src/api/`, `engines/vestigio/tests/spatial/`.
 
 **Trabajo:**
 
@@ -555,7 +555,7 @@ Dependencias: S01, I01.
 
 Locks: `spatial-core`, `gamekit`, `session-bridge`.
 
-Puntos de entrada: `src/gamekit/`, `src/physics/`, `src/session/session.c`, `tests/spatial/`, `tests/gamekit/`.
+Puntos de entrada: `engines/vestigio/src/gamekit/`, `engines/vestigio/src/physics/`, `engines/vestigio/tests/spatial/`, `engines/vestigio/tests/gamekit/`.
 
 **Trabajo:**
 
@@ -585,7 +585,7 @@ Dependencias: S02, D02, R03.
 
 Locks: `gamekit`, `document-schema`.
 
-Puntos de entrada: `src/gamekit/`, `src/gameplay/interaction.c`, `src/content/`, `tests/gamekit/`, `tests/spatial/`.
+Puntos de entrada: `engines/vestigio/src/gamekit/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gamekit/`, `engines/vestigio/tests/spatial/`.
 
 **Trabajo:**
 
@@ -612,7 +612,7 @@ Dependencias: G03, I01, D02.
 
 Locks: `gpu-backend`, `shader-schema`.
 
-Puntos de entrada: `src/render/`, `src/assets/`, `src/content/`, `assets/shaders/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/assets/`, `engines/vestigio/src/content/`, `engines/vestigio/assets/shaders/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -639,7 +639,7 @@ Dependencias: V01.
 
 Locks: `gpu-backend`, `input-settings`, `shader-schema`.
 
-Puntos de entrada: `src/render/`, `src/config/`, `assets/shaders/`, `tests/gpu/`, `tests/config/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/config/`, `engines/vestigio/assets/shaders/`, `engines/vestigio/tests/gpu/`, `engines/vestigio/tests/config/`.
 
 **Trabajo:**
 
@@ -666,7 +666,7 @@ Dependencias: R02, I01, D02.
 
 Locks: `audio-core`, `public-api`.
 
-Puntos de entrada: `src/audio/`, `src/assets/`, `src/platform/raylib_platform.c`, `src/api/`, `src/content/`, `tests/audio/`.
+Puntos de entrada: `engines/vestigio/src/audio/`, `engines/vestigio/src/assets/`, `engines/vestigio/src/api/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/audio/`.
 
 **Trabajo:**
 
@@ -693,7 +693,7 @@ Dependencias: G03, D02.
 
 Locks: `asset-import`, `gpu-skinning`, `gpu-backend`, `document-schema`.
 
-Puntos de entrada: `src/assets/import/`, `src/world/`, `src/render/`, `src/content/`, `tests/assets/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/assets/import/`, `engines/vestigio/src/world/`, `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/assets/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -720,7 +720,7 @@ Dependencias: E04, S03, V02, A01, A02.
 
 Locks: `wpf-inspector`, `wpf-viewport`, `tool-api`.
 
-Puntos de entrada: `src/studio/`, `src/editor/`, `tests/studio/`, `tests/journeys/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/editor/`, `engines/vestigio/studio.tests/`, `engines/vestigio/tests/journeys/`.
 
 **Trabajo:**
 
@@ -746,7 +746,7 @@ Dependencias: E05.
 
 Locks: `profiling`, `gpu-backend`.
 
-Puntos de entrada: `src/debug/`, `src/render/`, `src/runtime/`, `tests/perf/`, `docs/implementation/evidence/`.
+Puntos de entrada: `engines/vestigio/src/debug/`, `engines/vestigio/src/render/`, `engines/vestigio/src/runtime/`, `engines/vestigio/tests/perf/`, `docs/implementation/evidence/`.
 
 **Trabajo:**
 
@@ -773,7 +773,7 @@ Dependencias: S03, A01, A02, R03, D02.
 
 Locks: `savegame`, `document-core`, `gamekit`.
 
-Puntos de entrada: `src/content/`, `src/gamekit/`, `src/gameplay/interaction.c`, `src/session/session.c`, `tests/content/`, `tests/gamekit/`.
+Puntos de entrada: `engines/vestigio/src/content/`, `engines/vestigio/src/gamekit/`, `engines/vestigio/tests/content/`, `engines/vestigio/tests/gamekit/`.
 
 **Trabajo:**
 
@@ -800,7 +800,7 @@ Dependencias: E05, P01, Q01, J01.
 
 Locks: `integration`, `build`, `public-api`, `packaging`.
 
-Puntos de entrada: `examples/`, `cmake/`, `tools/export-project.ps1`, `CMakeLists.txt`, `THIRD_PARTY.md`, `tests/sdk/`, `tests/export/`.
+Puntos de entrada: `engines/vestigio/examples/`, `engines/vestigio/cmake/`, `tools/export-project.ps1`, `engines/vestigio/CMakeLists.txt`, `THIRD_PARTY.md`, `engines/vestigio/tests/sdk/`, `engines/vestigio/tests/export/`.
 
 **Trabajo:**
 
@@ -826,7 +826,7 @@ Dependencias: P02.
 
 Locks: `tool-api`, `cli`.
 
-Puntos de entrada: `src/cli/`, `src/editor/`, `tests/cli/`, `docs/`.
+Puntos de entrada: `engines/vestigio/src/cli/`, `engines/vestigio/src/editor/`, `engines/vestigio/tests/cli/`, `docs/`.
 
 **Trabajo:**
 
@@ -852,7 +852,7 @@ Dependencias: P02, T01.
 
 Locks: `integration`, `build`, `packaging`.
 
-Puntos de entrada: `docs/implementation/STATE.md`, `docs/implementation/evidence/`, `docs/`, `tests/`.
+Puntos de entrada: `docs/implementation/STATE.md`, `docs/implementation/evidence/`, `docs/`, `engines/vestigio/tests/`.
 
 **Trabajo:**
 
@@ -878,7 +878,7 @@ Dependencias: E03.
 
 Locks: `document-core`, `wpf-viewport`.
 
-Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -905,7 +905,7 @@ Dependencias: E03, M01.
 
 Locks: `document-core`, `wpf-viewport`.
 
-Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -932,7 +932,7 @@ Dependencias: E03.
 
 Locks: `document-core`, `wpf-viewport`.
 
-Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -959,7 +959,7 @@ Dependencias: E03, V01.
 
 Locks: `document-core`, `wpf-viewport`.
 
-Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -986,7 +986,7 @@ Dependencias: E04, S03.
 
 Locks: `document-core`, `wpf-viewport`.
 
-Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -1013,7 +1013,7 @@ Dependencias: E04, S02.
 
 Locks: `document-core`, `wpf-viewport`.
 
-Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -1040,7 +1040,7 @@ Dependencias: E04, S03.
 
 Locks: `document-core`, `wpf-viewport`.
 
-Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -1067,7 +1067,7 @@ Dependencias: E05.
 
 Locks: `document-core`, `wpf-viewport`.
 
-Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -1094,7 +1094,7 @@ Dependencias: E04.
 
 Locks: `document-core`, `wpf-viewport`.
 
-Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -1121,7 +1121,7 @@ Dependencias: H06, H09.
 
 Locks: `document-core`, `wpf-viewport`.
 
-Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -1148,7 +1148,7 @@ Dependencias: V01.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1175,7 +1175,7 @@ Dependencias: V01.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1202,7 +1202,7 @@ Dependencias: V02.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1229,7 +1229,7 @@ Dependencias: V01.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1256,7 +1256,7 @@ Dependencias: V01.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1283,7 +1283,7 @@ Dependencias: V07, V01.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1310,7 +1310,7 @@ Dependencias: V07, S03.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1337,7 +1337,7 @@ Dependencias: V06, S02.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1364,7 +1364,7 @@ Dependencias: V01.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1391,7 +1391,7 @@ Dependencias: V07, V11.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1418,7 +1418,7 @@ Dependencias: V07.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1445,7 +1445,7 @@ Dependencias: V01.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1472,7 +1472,7 @@ Dependencias: V01.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1499,7 +1499,7 @@ Dependencias: V01.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1526,7 +1526,7 @@ Dependencias: V06, V07.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/src/content/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -1553,7 +1553,7 @@ Dependencias: S03.
 
 Locks: `runtime-core`.
 
-Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/src/runtime/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -1580,7 +1580,7 @@ Dependencias: K01.
 
 Locks: `runtime-core`.
 
-Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/src/runtime/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -1607,7 +1607,7 @@ Dependencias: K02.
 
 Locks: `runtime-core`.
 
-Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/src/runtime/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -1634,7 +1634,7 @@ Dependencias: K03, A02.
 
 Locks: `runtime-core`.
 
-Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/src/runtime/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -1661,7 +1661,7 @@ Dependencias: K01, K02.
 
 Locks: `runtime-core`.
 
-Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/src/runtime/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -1688,7 +1688,7 @@ Dependencias: K05, S02.
 
 Locks: `runtime-core`.
 
-Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/src/runtime/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -1715,7 +1715,7 @@ Dependencias: K02, S02.
 
 Locks: `runtime-core`.
 
-Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/src/runtime/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -1742,7 +1742,7 @@ Dependencias: S02.
 
 Locks: `runtime-core`.
 
-Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/src/runtime/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -1769,7 +1769,7 @@ Dependencias: K08, V01.
 
 Locks: `runtime-core`.
 
-Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/src/runtime/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -1796,7 +1796,7 @@ Dependencias: K07, K08.
 
 Locks: `runtime-core`.
 
-Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/src/runtime/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -1823,7 +1823,7 @@ Dependencias: K10, A02.
 
 Locks: `runtime-core`.
 
-Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/src/runtime/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -1850,7 +1850,7 @@ Dependencias: A01.
 
 Locks: `audio-core`.
 
-Puntos de entrada: `src/audio/`, `tests/audio/`.
+Puntos de entrada: `engines/vestigio/src/audio/`, `engines/vestigio/tests/audio/`.
 
 **Trabajo:**
 
@@ -1877,7 +1877,7 @@ Dependencias: A03.
 
 Locks: `audio-core`.
 
-Puntos de entrada: `src/audio/`, `tests/audio/`.
+Puntos de entrada: `engines/vestigio/src/audio/`, `engines/vestigio/tests/audio/`.
 
 **Trabajo:**
 
@@ -1904,7 +1904,7 @@ Dependencias: A03, S02.
 
 Locks: `audio-core`.
 
-Puntos de entrada: `src/audio/`, `tests/audio/`.
+Puntos de entrada: `engines/vestigio/src/audio/`, `engines/vestigio/tests/audio/`.
 
 **Trabajo:**
 
@@ -1931,7 +1931,7 @@ Dependencias: A01, K02.
 
 Locks: `audio-core`.
 
-Puntos de entrada: `src/audio/`, `tests/audio/`.
+Puntos de entrada: `engines/vestigio/src/audio/`, `engines/vestigio/tests/audio/`.
 
 **Trabajo:**
 
@@ -1958,7 +1958,7 @@ Dependencias: K03.
 
 Locks: `ui-core`.
 
-Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/runtime/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -1985,7 +1985,7 @@ Dependencias: K01, K03.
 
 Locks: `ui-core`.
 
-Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/runtime/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -2012,7 +2012,7 @@ Dependencias: K05.
 
 Locks: `ui-core`.
 
-Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/runtime/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -2039,7 +2039,7 @@ Dependencias: U03, H02.
 
 Locks: `ui-core`.
 
-Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/runtime/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -2066,7 +2066,7 @@ Dependencias: U03.
 
 Locks: `ui-core`.
 
-Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/runtime/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -2093,7 +2093,7 @@ Dependencias: K08.
 
 Locks: `ui-core`.
 
-Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/runtime/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -2120,7 +2120,7 @@ Dependencias: K03.
 
 Locks: `ui-core`.
 
-Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/runtime/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -2147,7 +2147,7 @@ Dependencias: U01.
 
 Locks: `ui-core`.
 
-Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/runtime/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -2174,7 +2174,7 @@ Dependencias: I01, U08.
 
 Locks: `ui-core`.
 
-Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/runtime/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -2201,7 +2201,7 @@ Dependencias: H02.
 
 Locks: `asset-import`.
 
-Puntos de entrada: `src/assets/`, `docs/research/`, `THIRD_PARTY.md`.
+Puntos de entrada: `engines/vestigio/src/assets/`, `docs/research/`, `THIRD_PARTY.md`.
 
 **Trabajo:**
 
@@ -2228,7 +2228,7 @@ Dependencias: H06, H08, S03.
 
 Locks: `document-core`.
 
-Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -2254,7 +2254,7 @@ Dependencias: H02, H05, K01.
 
 Locks: `document-core`.
 
-Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -2280,7 +2280,7 @@ Dependencias: K07, A02.
 
 Locks: `runtime-core`.
 
-Puntos de entrada: `src/runtime/`, `src/input/`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/src/runtime/`, `engines/vestigio/src/input/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -2306,7 +2306,7 @@ Dependencias: K10, K12, V09.
 
 Locks: `runtime-core`.
 
-Puntos de entrada: `src/runtime/`, `src/input/`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/src/runtime/`, `engines/vestigio/src/input/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -2332,7 +2332,7 @@ Dependencias: U03.
 
 Locks: `document-core`.
 
-Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -2358,7 +2358,7 @@ Dependencias: U03, U06, V06.
 
 Locks: `document-core`.
 
-Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/src/content/`, `engines/vestigio/studio.tests/`.
 
 **Trabajo:**
 
@@ -2384,7 +2384,7 @@ Dependencias: V05, K04.
 
 Locks: `gpu-backend`.
 
-Puntos de entrada: `src/render/`, `tests/gpu/`.
+Puntos de entrada: `engines/vestigio/src/render/`, `engines/vestigio/tests/gpu/`.
 
 **Trabajo:**
 
@@ -2410,7 +2410,7 @@ Dependencias: I01, U09.
 
 Locks: `runtime-core`.
 
-Puntos de entrada: `src/runtime/`, `src/input/`, `tests/runtime/`.
+Puntos de entrada: `engines/vestigio/src/runtime/`, `engines/vestigio/src/input/`, `engines/vestigio/tests/runtime/`.
 
 **Trabajo:**
 
@@ -2436,7 +2436,7 @@ Dependencias: H01, H02, H03, H04, H05, H06, H07, H08, H09, H10, V03, V04, V05, V
 
 Locks: `integration`, `build`, `packaging`.
 
-Puntos de entrada: `examples/`, `tests/`, `docs/implementation/evidence/`.
+Puntos de entrada: `engines/vestigio/examples/`, `engines/vestigio/tests/`, `docs/implementation/evidence/`.
 
 **Trabajo:**
 
@@ -2462,7 +2462,7 @@ Dependencias: Z01, X01, X02.
 
 Locks: `integration`, `build`, `packaging`.
 
-Puntos de entrada: `docs/implementation/`, `docs/research/`, `tests/`.
+Puntos de entrada: `docs/implementation/`, `docs/research/`, `engines/vestigio/tests/`.
 
 **Trabajo:**
 

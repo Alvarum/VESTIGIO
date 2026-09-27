@@ -1,39 +1,200 @@
 {
   "version": 6,
-  "cmakeMinimumRequired": { "major": 3, "minor": 28, "patch": 0 },
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
   "configurePresets": [
     {
       "name": "base",
       "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
+      "environment": {
+        "PATH": "${sourceDir}/.tools/msys64/ucrt64/bin;$penv{PATH}"
+      },
       "cacheVariables": {
         "CMAKE_C_COMPILER": "${sourceDir}/.tools/msys64/ucrt64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "${sourceDir}/.tools/msys64/ucrt64/bin/g++.exe",
         "CMAKE_MAKE_PROGRAM": "${sourceDir}/.tools/msys64/ucrt64/bin/ninja.exe",
         "CMAKE_EXPORT_COMPILE_COMMANDS": true
       }
     },
-    { "name": "debug", "inherits": "base", "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" } },
-    { "name": "release", "inherits": "base", "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" } },
-    { "name": "ubsan", "inherits": "base", "cacheVariables": {
-      "CMAKE_C_COMPILER": "${sourceDir}/.tools/msys64/ucrt64/bin/clang.exe",
-      "CMAKE_BUILD_TYPE": "Debug", "RETRO_BUILD_APPS": false,
-      "CMAKE_C_FLAGS": "-fsanitize=undefined -fsanitize-trap=all"
-    } },
-    { "name": "analyze", "inherits": "base", "cacheVariables": {
-      "CMAKE_BUILD_TYPE": "Debug", "RETRO_ANALYZE": true, "RETRO_BUILD_APPS": false
-    } }
+    {
+      "name": "retroforge-debug",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/workspace/retroforge-debug",
+      "cacheVariables": {
+        "ENGINE": "retroforge",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "retroforge-release",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/workspace/retroforge-release",
+      "cacheVariables": {
+        "ENGINE": "retroforge",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "retroforge-analyze",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/workspace/retroforge-analyze",
+      "cacheVariables": {
+        "ENGINE": "retroforge",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "RETRO_BUILD_APPS": false,
+        "RETRO_ANALYZE": true
+      }
+    },
+    {
+      "name": "retroforge-ubsan",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/workspace/retroforge-ubsan",
+      "cacheVariables": {
+        "ENGINE": "retroforge",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "RETRO_BUILD_APPS": false,
+        "CMAKE_C_COMPILER": "${sourceDir}/.tools/msys64/ucrt64/bin/clang.exe",
+        "CMAKE_CXX_COMPILER": "${sourceDir}/.tools/msys64/ucrt64/bin/clang++.exe",
+        "CMAKE_C_FLAGS": "-fsanitize=undefined -fsanitize-trap=all"
+      }
+    },
+    {
+      "name": "vestigio-debug",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/workspace/vestigio-debug",
+      "cacheVariables": {
+        "ENGINE": "vestigio",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "vestigio-release",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/workspace/vestigio-release",
+      "cacheVariables": {
+        "ENGINE": "vestigio",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "vestigio-analyze",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/workspace/vestigio-analyze",
+      "cacheVariables": {
+        "ENGINE": "vestigio",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VG_BUILD_APPS": false,
+        "VG_ANALYZE": true
+      }
+    },
+    {
+      "name": "vestigio-ubsan",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/workspace/vestigio-ubsan",
+      "cacheVariables": {
+        "ENGINE": "vestigio",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VG_BUILD_APPS": false,
+        "CMAKE_C_COMPILER": "${sourceDir}/.tools/msys64/ucrt64/bin/clang.exe",
+        "CMAKE_CXX_COMPILER": "${sourceDir}/.tools/msys64/ucrt64/bin/clang++.exe",
+        "CMAKE_C_FLAGS": "-fsanitize=undefined -fsanitize-trap=all"
+      }
+    }
   ],
   "buildPresets": [
-    { "name": "debug", "configurePreset": "debug" },
-    { "name": "release", "configurePreset": "release" },
-    { "name": "ubsan", "configurePreset": "ubsan" },
-    { "name": "analyze", "configurePreset": "analyze" }
+    {
+      "name": "retroforge-debug",
+      "configurePreset": "retroforge-debug"
+    },
+    {
+      "name": "retroforge-release",
+      "configurePreset": "retroforge-release"
+    },
+    {
+      "name": "retroforge-analyze",
+      "configurePreset": "retroforge-analyze"
+    },
+    {
+      "name": "retroforge-ubsan",
+      "configurePreset": "retroforge-ubsan"
+    },
+    {
+      "name": "vestigio-debug",
+      "configurePreset": "vestigio-debug"
+    },
+    {
+      "name": "vestigio-release",
+      "configurePreset": "vestigio-release"
+    },
+    {
+      "name": "vestigio-analyze",
+      "configurePreset": "vestigio-analyze"
+    },
+    {
+      "name": "vestigio-ubsan",
+      "configurePreset": "vestigio-ubsan"
+    }
   ],
   "testPresets": [
-    { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true } },
-    { "name": "release", "configurePreset": "release", "output": { "outputOnFailure": true } },
-    { "name": "ubsan", "configurePreset": "ubsan", "output": { "outputOnFailure": true } },
-    { "name": "analyze", "configurePreset": "analyze", "output": { "outputOnFailure": true } }
+    {
+      "name": "retroforge-debug",
+      "configurePreset": "retroforge-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "retroforge-release",
+      "configurePreset": "retroforge-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "retroforge-analyze",
+      "configurePreset": "retroforge-analyze",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "retroforge-ubsan",
+      "configurePreset": "retroforge-ubsan",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "vestigio-debug",
+      "configurePreset": "vestigio-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "vestigio-release",
+      "configurePreset": "vestigio-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "vestigio-analyze",
+      "configurePreset": "vestigio-analyze",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "vestigio-ubsan",
+      "configurePreset": "vestigio-ubsan",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
   ]
 }

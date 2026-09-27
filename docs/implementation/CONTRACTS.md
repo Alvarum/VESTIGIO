@@ -1,12 +1,12 @@
 # Contratos de integración que F01 debe fijar
 
-Estado: **contrato v0.1 materializado por F01** para vocabulario mínimo, ownership y fronteras; implementación funcional se añade en sus tickets. `include/vestigio/vestigio.h` existe y se compila como C11/C++11. `src/render/render_contract.h` es privado y tampoco implica que exista todavía un renderer GPU. Los agentes implementan contra esta versión y registran cualquier revisión necesaria.
+Estado: **contrato v0.1 materializado por F01** para vocabulario mínimo, ownership y fronteras; implementación funcional se añade en sus tickets. VESTIGIO vive bajo `engines/vestigio/`: `engines/vestigio/include/vestigio/vestigio.h` se compila como C11/C++11, y `engines/vestigio/src/render/render_contract.h` es privado. La existencia del contrato interno no implica por sí sola una capacidad de renderer. RetroForge tiene su propio árbol `engines/retroforge/` y no forma parte de estas fronteras.
 
 ## C01 — Frontera pública y distribución
 
 Runtime interno C23; header público consumible C11/C++ sin tipos privados/raylib/WPF. Contextos opacos, handles tipados y descriptores POD con tamaño/versión. `create`/`get` por punteros de salida y `Result` explícito; enums/flags de ABI con ancho fijo. UTF-8 con ownership y unidades documentados. Librería estática primero; DLL de tooling con exports explícitos. SDK no incluye una Game DLL como requisito.
 
-F01 fija Windows x64 como primera ABI, C calling convention por defecto, `VG_API_VERSION=0.1`, `VgResult`, `VgContext` opaco, handles de 64 bits, descriptores con `struct_size/api_version`, target `Vestigio::Headers` y `#include <vestigio/vestigio.h>`. R01 materializa `Vestigio::Runtime`, contexto/mundo/entidad y consumidores C11/C++11; R03 añade instalación/package CMake y callbacks de juego. G03 incorpora draw de modelo al consumidor. No someter fuentes de consumidor C11/C++ a la función CMake interna que fuerza flags C23 y avisos sólo válidos para C.
+F01 fija Windows x64 como primera ABI, C calling convention por defecto, `VG_API_VERSION=0.1`, `VgResult`, `VgContext` opaco, handles de 64 bits, descriptores con `struct_size/api_version`, target `Vestigio::Headers` y `#include <vestigio/vestigio.h>` (archivo `engines/vestigio/include/vestigio/vestigio.h`). R01 materializa `Vestigio::Runtime`, contexto/mundo/entidad y consumidores C11/C++11; R03 añade instalación/package CMake y callbacks de juego. G03 incorpora draw de modelo al consumidor. No someter fuentes de consumidor C11/C++ a la función CMake interna que fuerza flags C23 y avisos sólo válidos para C.
 
 ## C02 — Identidad, Transform y memoria
 
@@ -20,9 +20,9 @@ Mundo diestro Z-up, metros, radianes, segundos; quaternion `[x,y,z,w]`. F01 fija
 
 Un dueño de ventana/contexto y un hilo gráfico inicial. El contrato interno de superficie es distinto de captura CPU. Debe informar lifecycle, tamaño físico/DPI, resize/minimize/focus, presentación y quién destruye cada objeto. La API de juego no expone HWND; el adaptador de host nativo sí puede conocerlo sin contaminar SDK.
 
-G01 implementa GPU en ventana propia. G02 fija Windows/WPF en un `HwndHost`: raylib crea una única ventana/contexto OpenGL en el hilo UI, el adaptador Win32 la convierte en hija con `SetParent` y mantiene tamaño físico, foco y destrucción. `GetWindowHandle` sólo identifica la ventana creada; no se adopta un HWND ajeno. WPF conserva la propiedad exclusiva de la cola de mensajes: la presentación embebida vacía el batch y hace `SwapScreenBuffer` sin `PollInputEvents`. La superficie vive mientras el `HwndHost` está conectado y `Dispose` cierra renderer/contexto antes de permitir otro host; se rechazan llamadas desde otro hilo y un segundo contexto simultáneo. E01 añade una ventana 3D autónoma: carga el documento nativo en EditWorld, crea otro PlayWorld para probar y restaura edición al detener. La ruta anterior de Studio conserva su superficie diagnóstica; no se migran proyectos previos. Frames normales conservan color/depth/postprocess en GPU; readback se etiqueta sólo como captura/thumbnail. Sin GPU apta, el control muestra un HWND de diagnóstico y Studio continúa utilizable.
+G01 implementa GPU en ventana propia. G02 fija Windows/WPF en un `HwndHost`: raylib crea una única ventana/contexto OpenGL en el hilo UI, el adaptador Win32 la convierte en hija con `SetParent` y mantiene tamaño físico, foco y destrucción. `GetWindowHandle` sólo identifica la ventana creada; no se adopta un HWND ajeno. WPF conserva la propiedad exclusiva de la cola de mensajes: la presentación embebida vacía el batch y hace `SwapScreenBuffer` sin `PollInputEvents`. La superficie vive mientras el `HwndHost` está conectado y `Dispose` cierra renderer/contexto antes de permitir otro host; se rechazan llamadas desde otro hilo y un segundo contexto simultáneo. E01 añade una ventana 3D autónoma: carga el documento nativo en EditWorld, crea otro PlayWorld para probar y restaura edición al detener. Esta ventana pertenece a `engines/vestigio/studio/`; el Studio de RetroForge está en `engines/retroforge/studio/`. Frames normales conservan color/depth/postprocess en GPU; readback se etiqueta sólo como captura/thumbnail. Sin GPU apta, el control muestra un HWND de diagnóstico y Studio continúa utilizable.
 
-F01 fija `VgSurfaceInfo`, `VgDrawPacket`, `VgFrameStats` y `VgRenderContract` como contrato **interno** inicial en `src/render/render_contract.h`; no es API instalada. G01/G02 pueden proponer una revisión si su prueba demuestra límites. R03 no promete ABI de embedding definitiva antes de ese resultado.
+F01 fija `VgSurfaceInfo`, `VgDrawPacket`, `VgFrameStats` y `VgRenderContract` como contrato **interno** inicial en `engines/vestigio/src/render/render_contract.h`; no es API instalada. G01/G02 pueden proponer una revisión si su prueba demuestra límites. R03 no promete ABI de embedding definitiva antes de ese resultado.
 
 ## C04 — Assets e importación
 
@@ -58,8 +58,8 @@ Registro que debe completar F01:
 
 | Frontera | Decisión/archivo definitivo | Owner | Versión | Consumidores verificados |
 |---|---|---|---|---|
-| SDK/context/world | `include/vestigio/vestigio.h`, `Vestigio::Headers`, `Vestigio::Runtime` | integrator/runtime | v0.1 | Context/world/entity/TRS y enlace C11/C++11 verificados; instalación/callbacks pendientes R03 |
-| Surface/backend/draw packets | `src/render/render_contract.h`, `src/platform/gpu_host.*` privados | integrator/gpu | v0.1 interno | G01/G02 verificados en OpenGL 3.3 y WPF/HwndHost; conexión a World pendiente G03 |
+| SDK/context/world | `engines/vestigio/include/vestigio/vestigio.h`, `Vestigio::Headers`, `Vestigio::Runtime` | integrator/runtime | v0.1 | Context/world/entity/TRS y enlace C11/C++11 verificados; instalación/callbacks pendientes R03 |
+| Surface/backend/draw packets | `engines/vestigio/src/render/render_contract.h`, `engines/vestigio/src/platform/gpu_host.*` privados | integrator/gpu | v0.1 interno | G01/G02 verificados en OpenGL 3.3 y WPF/HwndHost; conexión a World pendiente G03 |
 | Asset/IR/retenciones | `VgAsset` público + C04 | runtime/content/gpu | v0.1 vocabulario | Implementación pendiente R02/M01/G03 |
 | Documento/schema/Tool API | C05; sin declaraciones públicas prematuras | integrator/content/editor | v0.1 semántico | Implementación pendiente D01/D02 |
 | Input/callbacks/eventos | C06; sin tabla incompleta en header | runtime | v0.1 semántico | Implementación pendiente R03/I01 |
