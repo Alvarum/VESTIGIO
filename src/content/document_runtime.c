@@ -20,6 +20,7 @@ typedef struct VgDocumentAssetBinding {
 struct VgDocumentInstance {
     VgContext *context;
     VgWorld world;
+    VgSpatialScene *spatial;
     VgDocumentEntityBinding *entities;
     size_t entity_count;
     VgDocumentAssetBinding *assets;
@@ -117,15 +118,17 @@ static bool vg_document_find_binding(const VgDocumentInstance *instance, const u
 static VgResult vg_document_resolve_mesh(VgDocumentInstance *instance,
                                          const VgDocumentInstanceDesc *description,
                                          const VgJsonNode *component, const char *entity_id,
-                                         VgDocumentDiagnostic *diagnostic) {
+                                         VgDocumentDiagnostic *diagnostic, VgAsset *out_asset) {
     const char *asset_text = vg_document_node_string(vg_json_object_get(component, "asset"));
     VgAssetId asset_id = {{0}};
     if (!vg_document_parse_uuid(asset_text, asset_id.bytes))
         return vg_document_runtime_invalid(diagnostic, "$.entities[].components.engine.mesh.asset",
                                            entity_id, "mesh asset UUID is invalid");
     for (size_t index = 0u; index < instance->asset_count; ++index) {
-        if (vg_document_uuid_equal(instance->assets[index].id.bytes, asset_id.bytes))
+        if (vg_document_uuid_equal(instance->assets[index].id.bytes, asset_id.bytes)) {
+            *out_asset = instance->assets[index].asset;
             return VG_OK;
+        }
     }
     if (description == NULL || description->resolve_asset == NULL)
         return vg_document_runtime_invalid(diagnostic, "$.entities[].components.engine.mesh.asset",
@@ -140,6 +143,43 @@ static VgResult vg_document_resolve_mesh(VgDocumentInstance *instance,
                                         result, "$.entities[].components.engine.mesh.asset",
                                         entity_id, "mesh asset resolution");
     instance->assets[instance->asset_count++] = (VgDocumentAssetBinding){asset_id, asset};
+    *out_asset = asset;
+    return VG_OK;
+}
+
+static VgResult vg_document_apply_mesh(VgDocumentInstance *instance,
+                                       const VgDocumentInstanceDesc *description,
+                                       const VgJsonNode *component, VgEntity entity,
+                                       const char *entity_id, VgDocumentDiagnostic *diagnostic) {
+    VgAsset asset = {VG_INVALID_HANDLE_VALUE};
+    VgResult result = vg_document_resolve_mesh(instance, description, component, entity_id,
+                                               diagnostic, &asset);
+    if (result != VG_OK)
+        return result;
+    uint32_t node_index = 0u;
+    const VgJsonNode *node = vg_json_object_get(component, "node_index");
+    if (node != NULL) {
+        if (node->type != VG_JSON_NUMBER || node->as.number.value < 0.0 ||
+            node->as.number.value > (double)UINT32_MAX ||
+            (double)(uint32_t)node->as.number.value != node->as.number.value)
+            return vg_document_runtime_invalid(diagnostic,
+                                               "$.entities[].components.engine.mesh.node_index",
+                                               entity_id, "node_index must be a uint32 integer");
+        node_index = (uint32_t)node->as.number.value;
+    }
+    VgMeshRendererDesc mesh = {0};
+    mesh.struct_size = sizeof(mesh);
+    mesh.api_version = VG_API_VERSION;
+    mesh.asset = asset;
+    mesh.node_index = node_index;
+    mesh.mesh_index = VG_RENDER_DEFAULT_INDEX;
+    mesh.material_override = VG_RENDER_DEFAULT_INDEX;
+    mesh.bounds_extent = (VgVec3){0.5f, 0.5f, 0.5f};
+    result = vg_mesh_renderer_set(instance->context, entity, &mesh);
+    if (result != VG_OK)
+        return vg_document_runtime_fail(diagnostic, VG_DOCUMENT_VALIDATION, result,
+                                        "$.entities[].components.engine.mesh", entity_id,
+                                        "mesh renderer creation");
     return VG_OK;
 }
 
@@ -174,13 +214,78 @@ static VgResult vg_document_apply_components(VgDocumentInstance *instance,
     }
     const VgJsonNode *mesh = vg_json_object_get(components, "engine.mesh");
     if (mesh != NULL)
-        return vg_document_resolve_mesh(instance, description, mesh, entity_id, diagnostic);
+        return vg_document_apply_mesh(instance, description, mesh, runtime_entity, entity_id,
+                                      diagnostic);
+    return VG_OK;
+}
+
+static VgResult vg_document_apply_colliders(VgDocumentInstance *instance,
+                                            const VgJsonNode *entities,
+                                            VgDocumentDiagnostic *diagnostic) {
+    uint32_t count = 0u;
+    for (size_t index = 0u; index < instance->entity_count; ++index) {
+        const VgJsonNode *components =
+            vg_json_object_get(entities->as.array.items[index], "components");
+        if (vg_json_object_get(components, "engine.collider") != NULL)
+            ++count;
+    }
+    if (count == 0u)
+        return VG_OK;
+    VgSpatialSceneConfig config = {0};
+    config.max_colliders = count;
+    VgResult result = vg_spatial_scene_create(&config, &instance->spatial);
+    if (result != VG_OK)
+        return vg_document_runtime_fail(diagnostic,
+                                        result == VG_ERROR_OUT_OF_MEMORY ? VG_DOCUMENT_OUT_OF_MEMORY
+                                                                         : VG_DOCUMENT_VALIDATION,
+                                        result, "$.entities", NULL, "spatial scene creation");
+    for (size_t index = 0u; index < instance->entity_count; ++index) {
+        const VgJsonNode *entity = entities->as.array.items[index];
+        const VgJsonNode *components = vg_json_object_get(entity, "components");
+        const VgJsonNode *component = vg_json_object_get(components, "engine.collider");
+        if (component == NULL)
+            continue;
+        const char *id = vg_document_node_string(vg_json_object_get(entity, "id"));
+        const char *motion = vg_document_node_string(vg_json_object_get(component, "motion"));
+        if (motion == NULL || strcmp(motion, "static") != 0)
+            return vg_document_runtime_invalid(diagnostic,
+                                               "$.entities[].components.engine.collider.motion",
+                                               id, "document runtime currently supports static colliders");
+        VgSpatialColliderDesc collider = {0};
+        collider.entity = instance->entities[index].entity;
+        collider.layer_mask = UINT64_C(1);
+        collider.shape_type = VG_SPATIAL_SHAPE_BOX;
+        collider.enabled = true;
+        if (!vg_document_read_vector(vg_json_object_get(component, "center"),
+                                     &collider.shape.box.center.x, 3u) ||
+            !vg_document_read_vector(vg_json_object_get(component, "half_extents"),
+                                     &collider.shape.box.half_extents.x, 3u))
+            return vg_document_runtime_invalid(diagnostic,
+                                               "$.entities[].components.engine.collider", id,
+                                               "collider box fields are invalid");
+        result = vg_entity_get_world_transform(instance->context, collider.entity,
+                                               &collider.transform);
+        if (result != VG_OK)
+            return vg_document_runtime_fail(diagnostic, VG_DOCUMENT_VALIDATION, result,
+                                            "$.entities[].components.engine.collider", id,
+                                            "collider world transform");
+        VgSpatialCollider handle = {0};
+        result = vg_spatial_collider_create(instance->spatial, &collider, &handle);
+        if (result != VG_OK)
+            return vg_document_runtime_fail(diagnostic,
+                                            result == VG_ERROR_OUT_OF_MEMORY
+                                                ? VG_DOCUMENT_OUT_OF_MEMORY
+                                                : VG_DOCUMENT_VALIDATION,
+                                            result, "$.entities[].components.engine.collider", id,
+                                            "collider creation");
+    }
     return VG_OK;
 }
 
 static void vg_document_instance_cleanup(VgDocumentInstance *instance) {
     if (instance == NULL)
         return;
+    vg_spatial_scene_destroy(instance->spatial);
     for (size_t index = instance->asset_count; index > 0u; --index)
         (void)vg_asset_release(instance->context, instance->assets[index - 1u].asset);
     if (instance->world.value != VG_INVALID_HANDLE_VALUE)
@@ -333,6 +438,10 @@ VgResult vg_document_instantiate(VgContext *context, const VgDocument *document,
         }
     }
 
+    result = vg_document_apply_colliders(candidate, entities, out_diagnostic);
+    if (result != VG_OK)
+        goto fail;
+
     *out_instance = candidate;
     if (out_diagnostic != NULL)
         memset(out_diagnostic, 0, sizeof(*out_diagnostic));
@@ -351,8 +460,22 @@ VgWorld vg_document_instance_world(const VgDocumentInstance *instance) {
     return instance == NULL ? (VgWorld){VG_INVALID_HANDLE_VALUE} : instance->world;
 }
 
+VgSpatialScene *vg_document_instance_spatial(VgDocumentInstance *instance) {
+    return instance == NULL ? NULL : instance->spatial;
+}
+
 size_t vg_document_instance_entity_count(const VgDocumentInstance *instance) {
     return instance == NULL ? 0u : instance->entity_count;
+}
+
+bool vg_document_instance_entity_at(const VgDocumentInstance *instance, size_t index,
+                                    VgUuid *out_id, VgEntity *out_entity) {
+    if (instance == NULL || index >= instance->entity_count || out_id == NULL ||
+        out_entity == NULL)
+        return false;
+    *out_id = instance->entities[index].id;
+    *out_entity = instance->entities[index].entity;
+    return true;
 }
 
 bool vg_document_instance_find_entity(const VgDocumentInstance *instance, VgUuid id,

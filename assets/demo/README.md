@@ -7,12 +7,27 @@ Desde la raíz del repositorio, después de preparar las herramientas con
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/run-3d-demo.ps1
 ```
 
+Para abrir el mismo Atrium como documento 3D en VESTIGIO Studio:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/run-studio-3d.ps1
+```
+
+Studio abre `atrium.level.json` mediante el validador/instanciador nativo, con
+una vista GPU en Editar. Clic izquierdo selecciona por UUID, botón derecho
+gira la cámara y WASD la desplaza; Espacio/Ctrl suben/bajan en cámara libre.
+El selector permite cámara libre, órbita y ortográfica; «Encuadrar selección»
+centra el objeto elegido. «Probar» crea otro mundo desde el documento y activa
+colisiones y salto; «Detener» lo descarta y restaura la vista de edición. La
+prueba no guarda cambios en el nivel.
+
 La opción de ejecución afecta sólo a ese proceso de PowerShell.
 
 WASD mueve la cámara; el ratón gira la vista; Espacio salta y Escape o cerrar la
 ventana termina la demo. F3 alterna los colliders reales. El jugador tiene un
 volumen con colisión de suelo, objetos, techo y escalón. Es una escena de prueba
-**sin armas ni editor**.
+**sin armas ni edición de objetos**. Studio permite inspeccionarla y probarla;
+colocar, transformar y guardar objetos corresponde a una entrega posterior.
 El suelo, monumento, escalón y pilares usan instancias del modelo glTF
 `atrium.gltf`, creado para este ejemplo y cargado mediante el SDK C. El frame
 final se dibuja en GPU. El archivo glTF contiene geometría y materiales

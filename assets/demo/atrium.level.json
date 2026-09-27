@@ -1,0 +1,138 @@
+{
+  "format": "vestigio.level",
+  "version": 1,
+  "id": "60000000-0000-0000-0000-000000000000",
+  "name": "Atrium 3D",
+  "coordinates": "right-handed-z-up-meters",
+  "required": ["core", "transform", "environment", "component.engine.camera.v1", "component.engine.mesh.v1", "component.engine.collider.v1"],
+  "environment": {
+    "ambient_linear": [0.08, 0.09, 0.12],
+    "clear_linear": [0.01, 0.02, 0.03]
+  },
+  "entities": [
+    {
+      "id": "60000000-0000-0000-0000-000000000001",
+      "parent": null,
+      "transform": {"position": [0, -7, 1.7], "rotation": [-0.059964006, 0, 0, 0.99820054], "scale": [1, 1, 1]},
+      "required_components": ["engine.camera"],
+      "components": {"engine.camera": {"version": 1, "fov_y_radians": 1.0471976, "near": 0.05, "far": 80}}
+    },
+    {
+      "id": "60000000-0000-0000-0000-000000000002",
+      "parent": null,
+      "transform": {"position": [0, 1.5, -0.1], "rotation": [0, 0, 0, 1], "scale": [16, 20, 0.2]},
+      "components": {
+        "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 0},
+        "engine.collider": {"version": 1, "shape": "box", "motion": "static", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-000000000003",
+      "parent": null,
+      "transform": {"position": [0, 3.5, 1.35], "rotation": [0, 0, 0, 1], "scale": [1.4, 1.4, 2.7]},
+      "components": {
+        "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 1},
+        "engine.collider": {"version": 1, "shape": "box", "motion": "static", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-000000000004",
+      "parent": null,
+      "transform": {"position": [-3.8, -2, 0.95], "rotation": [0, 0, 0, 1], "scale": [0.65, 0.65, 1.9]},
+      "components": {
+        "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 2},
+        "engine.collider": {"version": 1, "shape": "box", "motion": "static", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-000000000005",
+      "parent": null,
+      "transform": {"position": [-3.8, 2.2, 0.95], "rotation": [0, 0, 0, 1], "scale": [0.65, 0.65, 1.9]},
+      "components": {
+        "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 2},
+        "engine.collider": {"version": 1, "shape": "box", "motion": "static", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-000000000006",
+      "parent": null,
+      "transform": {"position": [-3.8, 6.4, 0.95], "rotation": [0, 0, 0, 1], "scale": [0.65, 0.65, 1.9]},
+      "components": {
+        "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 2},
+        "engine.collider": {"version": 1, "shape": "box", "motion": "static", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-000000000007",
+      "parent": null,
+      "transform": {"position": [3.8, -2, 0.95], "rotation": [0, 0, 0, 1], "scale": [0.65, 0.65, 1.9]},
+      "components": {
+        "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 2},
+        "engine.collider": {"version": 1, "shape": "box", "motion": "static", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-000000000008",
+      "parent": null,
+      "transform": {"position": [3.8, 2.2, 0.95], "rotation": [0, 0, 0, 1], "scale": [0.65, 0.65, 1.9]},
+      "components": {
+        "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 2},
+        "engine.collider": {"version": 1, "shape": "box", "motion": "static", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-000000000009",
+      "parent": null,
+      "transform": {"position": [3.8, 6.4, 0.95], "rotation": [0, 0, 0, 1], "scale": [0.65, 0.65, 1.9]},
+      "components": {
+        "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 2},
+        "engine.collider": {"version": 1, "shape": "box", "motion": "static", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-00000000000a",
+      "parent": null,
+      "transform": {"position": [-1.8, 3.5, 0.22], "rotation": [0, 0, 0, 1], "scale": [0.35, 2.5, 0.3]},
+      "components": {
+        "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 1},
+        "engine.collider": {"version": 1, "shape": "box", "motion": "static", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-00000000000b",
+      "parent": null,
+      "transform": {"position": [1.8, 3.5, 0.22], "rotation": [0, 0, 0, 1], "scale": [0.35, 2.5, 0.3]},
+      "components": {
+        "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 1},
+        "engine.collider": {"version": 1, "shape": "box", "motion": "static", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-00000000000c",
+      "parent": null,
+      "transform": {"position": [0, -1, 0.12], "rotation": [0, 0, 0, 1], "scale": [2, 0.65, 0.24]},
+      "components": {
+        "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 1},
+        "engine.collider": {"version": 1, "shape": "box", "motion": "static", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-00000000000d",
+      "parent": null,
+      "transform": {"position": [-1, 1.3, 0.95], "rotation": [0, 0, 0, 1], "scale": [0.65, 1, 1.9]},
+      "components": {
+        "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 2},
+        "engine.collider": {"version": 1, "shape": "box", "motion": "static", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-00000000000e",
+      "parent": null,
+      "transform": {"position": [1, 1.3, 0.95], "rotation": [0, 0, 0, 1], "scale": [0.65, 1, 1.9]},
+      "components": {
+        "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 2},
+        "engine.collider": {"version": 1, "shape": "box", "motion": "static", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]}
+      }
+    }
+  ]
+}

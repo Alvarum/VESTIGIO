@@ -19,6 +19,45 @@ internal static class GpuHostNative
     internal static extern int vg_gpu_host_render(nint host);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_open_level(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string levelPath,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string modelPath,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_set_mode(nint host, int play);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_mode(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_frame(nint host, double elapsed, float moveX,
+        float moveY, float lookX, float lookY, int jump, int focused);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_pick(nint host, float u, float v,
+        [Out] byte[] uuid, nuint uuidCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_set_pick_mask(nint host, uint mask);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern ulong vg_gpu_host_document_revision(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern ulong vg_gpu_host_readbacks(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_camera_position(nint host,
+        out float x, out float y, out float z);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_set_camera_mode(nint host, int mode);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_frame_selection(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int vg_gpu_host_resize(nint host, uint width, uint height);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
@@ -36,6 +75,24 @@ internal static class GpuHostNative
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int vg_gpu_host_destroy(nint host);
+
+    [DllImport("user32")]
+    internal static extern short GetAsyncKeyState(int virtualKey);
+
+    [DllImport("user32", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetCursorPos(out NativePoint point);
+
+    [DllImport("user32", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool ScreenToClient(nint window, ref NativePoint point);
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct NativePoint
+    {
+        public int X;
+        public int Y;
+    }
 
     [DllImport("user32", EntryPoint = "CreateWindowExW", CharSet = CharSet.Unicode,
         SetLastError = true)]

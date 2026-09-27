@@ -2,6 +2,7 @@
 #define VESTIGIO_CONTENT_DOCUMENT_RUNTIME_H
 
 #include "content/document.h"
+#include "vestigio/spatial.h"
 #include "vestigio/vestigio.h"
 
 #include <stddef.h>
@@ -19,7 +20,7 @@ typedef struct VgDocumentInstanceDesc {
 } VgDocumentInstanceDesc;
 
 /* Builds a complete candidate and assigns out_instance only after every entity,
- * transform, hierarchy, camera and asset reference succeeds. */
+ * transform, hierarchy, component and asset reference succeeds. */
 VgResult vg_document_instantiate(VgContext *context, const VgDocument *document,
                                  const VgDocumentInstanceDesc *description,
                                  VgDocumentInstance **out_instance,
@@ -27,7 +28,11 @@ VgResult vg_document_instantiate(VgContext *context, const VgDocument *document,
 void vg_document_instance_destroy(VgDocumentInstance *instance);
 
 VgWorld vg_document_instance_world(const VgDocumentInstance *instance);
+/* Owned by the instance; NULL when the document has no colliders. */
+VgSpatialScene *vg_document_instance_spatial(VgDocumentInstance *instance);
 size_t vg_document_instance_entity_count(const VgDocumentInstance *instance);
+bool vg_document_instance_entity_at(const VgDocumentInstance *instance, size_t index,
+                                    VgUuid *out_id, VgEntity *out_entity);
 bool vg_document_instance_find_entity(const VgDocumentInstance *instance, VgUuid id,
                                       VgEntity *out_entity);
 size_t vg_document_instance_asset_count(const VgDocumentInstance *instance);

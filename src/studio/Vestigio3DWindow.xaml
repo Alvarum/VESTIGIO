@@ -1,0 +1,55 @@
+<Window x:Class="RetroForge.Studio.Vestigio3DWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:RetroForge.Studio"
+        Title="VESTIGIO Studio — Atrium 3D" Width="1280" Height="800"
+        MinWidth="800" MinHeight="520" WindowStartupLocation="CenterScreen">
+  <Grid Background="{StaticResource WindowBrush}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <Grid Background="{StaticResource PanelBrush}" Margin="0,0,0,1">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <StackPanel Margin="18,12" Orientation="Vertical">
+        <TextBlock Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold"
+                   Text="VESTIGIO / ESCENA 3D" />
+        <TextBlock x:Name="LevelTitle" FontSize="18" FontWeight="SemiBold" Text="Atrium 3D" />
+      </StackPanel>
+      <TextBlock Grid.Column="1" Margin="16" Foreground="{StaticResource MutedBrush}"
+                 Text="Viewport GPU · documento vestigio.level" />
+    </Grid>
+
+    <WrapPanel Grid.Row="1" Margin="12,10,12,8">
+      <Button x:Name="PlayButton" Content="▶ Probar" Click="Play_Click" />
+      <Button x:Name="StopButton" Content="■ Detener" Margin="6,0,0,0"
+              IsEnabled="False" Click="Stop_Click" />
+      <Border Width="1" Margin="12,3" Background="{StaticResource BorderBrush}" />
+      <ComboBox x:Name="CameraMode" Width="132" SelectedIndex="0"
+                SelectionChanged="CameraMode_SelectionChanged">
+        <ComboBoxItem Content="Cámara libre" />
+        <ComboBoxItem Content="Órbita" />
+        <ComboBoxItem Content="Ortográfica" />
+      </ComboBox>
+      <Button x:Name="FrameButton" Content="Encuadrar selección" Margin="6,0,0,0"
+              Click="FrameSelection_Click" />
+      <TextBlock Margin="16,0,0,0" Foreground="{StaticResource MutedBrush}"
+                 Text="Clic: seleccionar/enfocar · WASD: mover · derecho: mirar · Editar: Espacio/Ctrl izq altura · Probar: Espacio saltar" />
+    </WrapPanel>
+
+    <Border Grid.Row="2" Margin="12,0,12,8" Background="#FF0A1118"
+            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+      <local:GpuViewportHost x:Name="Viewport" OpenAtrium="True" />
+    </Border>
+
+    <DockPanel Grid.Row="3" Background="{StaticResource PanelBrush}" LastChildFill="True">
+      <TextBlock DockPanel.Dock="Right" Margin="12,6" Foreground="{StaticResource MutedBrush}"
+                 Text="{Binding SelectedUuid, ElementName=Viewport, StringFormat=Selección: {0}}" />
+      <TextBlock x:Name="StatusText" Margin="14,6" Foreground="{StaticResource AccentBrush}"
+                 Text="Editar · cámara libre" />
+    </DockPanel>
+  </Grid>
+</Window>
