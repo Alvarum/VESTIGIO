@@ -9,13 +9,14 @@ static int usage(void) {
     (void)fprintf(stderr,
                   "Uso: vestigio_player [--smoke frames] [--capture png] [--resolution WxH] "
                   "[--fullscreen|--windowed] [--vsync|--no-vsync] "
-                  "[--frame-cap hz] [--sensitivity valor]\n");
+                  "[--frame-cap hz] [--sensitivity valor] [--show-colliders]\n");
     return 2;
 }
 
 int main(int argc, char **argv) {
     int smoke_frames = 0;
     const char *capture = NULL;
+    bool show_colliders = false;
     VgSettingsLayer session = {0};
     session.struct_size = sizeof(session);
     session.api_version = VG_API_VERSION;
@@ -23,6 +24,8 @@ int main(int argc, char **argv) {
         const char *argument = argv[index];
         if (strcmp(argument, "--capture") == 0 && index + 1 < argc) {
             capture = argv[++index];
+        } else if (strcmp(argument, "--show-colliders") == 0) {
+            show_colliders = true;
         } else if (strcmp(argument, "--smoke") == 0 && index + 1 < argc) {
             char *end = NULL;
             errno = 0;
@@ -70,5 +73,6 @@ int main(int argc, char **argv) {
             return usage();
         }
     }
-    return vg_demo_3d_run(smoke_frames, capture, session.present != 0u ? &session : NULL);
+    return vg_demo_3d_run(smoke_frames, capture, show_colliders,
+                          session.present != 0u ? &session : NULL);
 }

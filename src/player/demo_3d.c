@@ -39,6 +39,8 @@ static VgInputSample demo_input_sample(bool focused, bool smoke, int frame) {
         sample.held |= VG_ACTION_MOVE_RIGHT;
     if (!smoke && IsKeyDown(KEY_A))
         sample.held |= VG_ACTION_MOVE_LEFT;
+    if (!smoke && IsKeyPressed(KEY_SPACE))
+        sample.pressed |= VG_ACTION_JUMP;
     if (smoke)
         sample.look_delta_x = frame == 0 ? 8.0f : 0.0f;
     else if (focused) {
@@ -50,7 +52,7 @@ static VgInputSample demo_input_sample(bool focused, bool smoke, int frame) {
     return sample;
 }
 
-int vg_demo_3d_run(int smoke_frames, const char *capture_path,
+int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_colliders,
                    const VgSettingsLayer *session_settings) {
     VgSettingsLayer settings = {0};
     settings.struct_size = sizeof(settings);
@@ -151,6 +153,8 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path,
         double now = GetTime();
         if (WindowShouldClose() || IsKeyPressed(KEY_ESCAPE))
             break;
+        if (smoke_frames == 0 && IsKeyPressed(KEY_F3))
+            show_colliders = !show_colliders;
         bool focused = smoke_frames > 0 || IsWindowFocused();
         if (smoke_frames > 0) {
             if (frames == smoke_frames / 2)
@@ -169,8 +173,10 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path,
         previous = now;
         if (result == VG_OK)
             result = vg_gpu_renderer_draw_world(renderer, context, vg_demo_scene_world(scene));
+        if (result == VG_OK && show_colliders)
+            result = vg_gpu_renderer_draw_spatial_debug(renderer, vg_demo_scene_spatial(scene));
         if (result != VG_OK) {
-            (void)fprintf(stderr, "Frame 3D fallido: %d\n", result);
+            (void)fprintf(stderr, "Frame 3D %d fallido: %d\n", frames, result);
             goto cleanup;
         }
         vg_gpu_renderer_present(renderer);
@@ -181,7 +187,10 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path,
     if (vg_demo_scene_camera_position(scene, &end_position) != VG_OK || frames == 0 ||
         stats.draw_calls == 0u || stats.asset_uploads == 0u || stats.readbacks != 0u ||
         (smoke_frames > 0 &&
-         hypotf(end_position.x - start_position.x, end_position.y - start_position.y) < 0.02f)) {
+         hypotf(end_position.x - start_position.x, end_position.y - start_position.y) < 0.02f) ||
+        (smoke_frames >= 240 &&
+         (end_position.y < 2.3f || end_position.y > 2.6f ||
+          fabsf(end_position.z - 1.7f) > 0.05f))) {
         (void)fprintf(stderr, "La demo no produjo movimiento y geometria GPU comprobables\n");
         goto cleanup;
     }

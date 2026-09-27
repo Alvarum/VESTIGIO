@@ -49,10 +49,13 @@ add_library(vestigio_runtime STATIC
     src/runtime/context.c
     src/runtime/camera.c
     src/runtime/game.c
+    src/gamekit/controller.c
     src/config/settings.c
     src/assets/asset_registry.c
     src/assets/static_model.c
+    src/physics/spatial.c
     src/world/world.c
+    src/world/spatial_world.c
     src/world/render_components.c
     src/world/transform.c)
 set_target_properties(vestigio_runtime PROPERTIES EXPORT_NAME Runtime)
@@ -292,6 +295,9 @@ if(RETRO_BUILD_APPS)
     if(BUILD_TESTING)
         add_test(NAME vestigio_player_demo COMMAND vestigio_player --smoke 8)
         set_tests_properties(vestigio_player_demo PROPERTIES LABELS "window;gpu;sdk;app")
+        add_test(NAME vestigio_player_collision COMMAND vestigio_player --smoke 240)
+        set_tests_properties(vestigio_player_collision PROPERTIES
+            LABELS "window;gpu;spatial;gamekit;app")
     endif()
     install(TARGETS retro_editor RUNTIME DESTINATION . COMPONENT Runtime)
     install(DIRECTORY assets DESTINATION . COMPONENT Runtime)
@@ -312,6 +318,11 @@ if(RETRO_BUILD_APPS)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(vestigio_spatial_test tests/spatial/spatial_test.c)
+    retro_target(vestigio_spatial_test)
+    target_link_libraries(vestigio_spatial_test PRIVATE vestigio_runtime)
+    add_test(NAME vestigio_spatial COMMAND vestigio_spatial_test)
+
     add_executable(vestigio_content_test tests/content/content_test.c)
     retro_target(vestigio_content_test)
     target_link_libraries(vestigio_content_test PRIVATE vestigio_content)
@@ -339,6 +350,12 @@ if(BUILD_TESTING)
     target_link_libraries(vestigio_runtime_test PRIVATE vestigio_runtime)
     target_include_directories(vestigio_runtime_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
     add_test(NAME vestigio_runtime COMMAND vestigio_runtime_test)
+
+    add_executable(vestigio_controller_test tests/gamekit/controller_test.c)
+    retro_target(vestigio_controller_test)
+    target_link_libraries(vestigio_controller_test PRIVATE vestigio_runtime)
+    add_test(NAME vestigio_controller COMMAND vestigio_controller_test)
+    set_tests_properties(vestigio_controller PROPERTIES LABELS "spatial;gamekit;sdk")
 
     add_executable(vestigio_runtime_cpp_test tests/runtime/runtime_link_cpp_test.cpp)
     target_link_libraries(vestigio_runtime_cpp_test PRIVATE vestigio_runtime)

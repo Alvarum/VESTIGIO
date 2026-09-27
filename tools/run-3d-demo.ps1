@@ -1,6 +1,7 @@
 param(
     [ValidateRange(0,100000)][int]$Smoke = 0,
-    [string]$Capture = ''
+    [string]$Capture = '',
+    [switch]$ShowColliders
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -22,6 +23,7 @@ try {
     $arguments = @()
     if ($Smoke -gt 0) { $arguments += @('--smoke', [string]$Smoke) }
     if ($Capture) { $arguments += @('--capture', $Capture) }
+    if ($ShowColliders) { $arguments += '--show-colliders' }
     & $player @arguments
     if ($LASTEXITCODE) { throw "Player termino con codigo $LASTEXITCODE" }
 } finally {

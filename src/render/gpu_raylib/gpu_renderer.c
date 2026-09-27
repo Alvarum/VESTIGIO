@@ -1280,6 +1280,7 @@ bool vg_gpu_renderer_draw_scene(VgGpuRenderer *renderer, const VgGpuCamera *came
     }
 
     Camera3D native_camera = camera_from_packet(camera);
+    renderer->camera = native_camera;
     int alpha_mode = VG_MODEL_ALPHA_OPAQUE;
     int error_material = 0;
     float alpha_cutoff = 0.5f;
@@ -1448,6 +1449,97 @@ VgResult vg_gpu_renderer_draw_world(VgGpuRenderer *renderer, VgContext *context,
     free(sprites);
     free(models);
     return drawn ? VG_OK : VG_ERROR_GPU;
+}
+
+static Vector3 spatial_transform_point(const VgSpatialColliderDesc *desc, VgVec3 point) {
+    Vector3 local = {point.x * desc->transform.scale.x, point.y * desc->transform.scale.y,
+                     point.z * desc->transform.scale.z};
+    Quaternion rotation = {desc->transform.rotation.x, desc->transform.rotation.y,
+                           desc->transform.rotation.z, desc->transform.rotation.w};
+    Vector3 rotated = Vector3RotateByQuaternion(local, rotation);
+    return Vector3Add(rotated, (Vector3){desc->transform.position.x,
+                                          desc->transform.position.y,
+                                          desc->transform.position.z});
+}
+
+static Vector3 spatial_box_corner(const VgSpatialColliderDesc *desc, unsigned int bits) {
+    VgSpatialBox box = desc->shape.box;
+    VgVec3 local = {
+        box.center.x + ((bits & 1u) != 0u ? box.half_extents.x : -box.half_extents.x),
+        box.center.y + ((bits & 2u) != 0u ? box.half_extents.y : -box.half_extents.y),
+        box.center.z + ((bits & 4u) != 0u ? box.half_extents.z : -box.half_extents.z)};
+    return spatial_transform_point(desc, local);
+}
+
+typedef struct SpatialDebugContext {
+    const VgSpatialScene *scene;
+    const VgSpatialColliderDesc *description;
+    Color color;
+    VgResult error;
+} SpatialDebugContext;
+
+static void spatial_debug_triangle(void *user, uint32_t triangle_index,
+                                   VgVec3 a, VgVec3 b, VgVec3 c) {
+    (void)triangle_index;
+    SpatialDebugContext *context = user;
+    Vector3 va = spatial_transform_point(context->description, a);
+    Vector3 vb = spatial_transform_point(context->description, b);
+    Vector3 vc = spatial_transform_point(context->description, c);
+    DrawLine3D(va, vb, context->color);
+    DrawLine3D(vb, vc, context->color);
+    DrawLine3D(vc, va, context->color);
+}
+
+static void spatial_debug_visit(void *user, VgSpatialCollider collider,
+                                const VgSpatialColliderDesc *desc,
+                                VgVec3 bounds_min, VgVec3 bounds_max) {
+    (void)collider;
+    (void)bounds_min;
+    (void)bounds_max;
+    SpatialDebugContext *context = user;
+    Color color = desc->enabled ? (Color){79, 255, 117, 255} :
+                                  (Color){146, 146, 146, 255};
+    if (desc->shape_type == VG_SPATIAL_SHAPE_BOX) {
+        for (unsigned int corner = 0u; corner < 8u; ++corner) {
+            for (unsigned int axis = 1u; axis <= 4u; axis <<= 1u) {
+                if ((corner & axis) == 0u)
+                    DrawLine3D(spatial_box_corner(desc, corner),
+                               spatial_box_corner(desc, corner | axis), color);
+            }
+        }
+    } else if (desc->shape_type == VG_SPATIAL_SHAPE_SPHERE) {
+        DrawSphereWires(spatial_transform_point(desc, desc->shape.sphere.center),
+                        desc->shape.sphere.radius * desc->transform.scale.x,
+                        12, 16, color);
+    } else if (desc->shape_type == VG_SPATIAL_SHAPE_CAPSULE) {
+        float radius = desc->shape.capsule.radius * desc->transform.scale.x;
+        Vector3 a = spatial_transform_point(desc, desc->shape.capsule.point_a);
+        Vector3 b = spatial_transform_point(desc, desc->shape.capsule.point_b);
+        DrawSphereWires(a, radius, 8, 12, color);
+        DrawSphereWires(b, radius, 8, 12, color);
+        DrawCylinderWiresEx(a, b, radius, radius, 12, color);
+    } else if (desc->shape_type == VG_SPATIAL_SHAPE_STATIC_MESH) {
+        context->description = desc;
+        context->color = color;
+        VgResult result = vg_spatial_mesh_visit_triangles(context->scene, desc->shape.mesh,
+                                                           spatial_debug_triangle, context);
+        if (result != VG_OK)
+            context->error = result;
+    }
+}
+
+VgResult vg_gpu_renderer_draw_spatial_debug(VgGpuRenderer *renderer,
+                                            const VgSpatialScene *spatial) {
+    if (renderer == NULL || spatial == NULL || !renderer_require_owner(renderer))
+        return VG_ERROR_INVALID_ARGUMENT;
+    BeginTextureMode(renderer->target);
+    BeginMode3D(renderer->camera);
+    rlEnableDepthTest();
+    SpatialDebugContext context = {spatial, NULL, {0}, VG_OK};
+    VgResult result = vg_spatial_scene_visit_debug(spatial, spatial_debug_visit, &context);
+    EndMode3D();
+    EndTextureMode();
+    return result == VG_OK ? context.error : result;
 }
 
 VgFrameStats vg_gpu_renderer_stats(const VgGpuRenderer *renderer) {

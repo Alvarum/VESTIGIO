@@ -3,6 +3,7 @@
 
 #include "assets/asset_registry.h"
 #include "render/render_contract.h"
+#include "vestigio/spatial.h"
 #include <stddef.h>
 
 typedef struct VgGpuRenderer VgGpuRenderer;
@@ -90,6 +91,10 @@ bool vg_gpu_renderer_draw_scene(VgGpuRenderer *renderer, const VgGpuCamera *came
                                 const VgGpuModelPacket *models, uint32_t model_count,
                                 const VgGpuSpritePacket *sprites, uint32_t sprite_count);
 VgResult vg_gpu_renderer_draw_world(VgGpuRenderer *renderer, VgContext *context, VgWorld world);
+/* Draw the scene's actual collider shapes over the current GPU target for
+ * spatial debugging. Call after draw_world and before present. */
+VgResult vg_gpu_renderer_draw_spatial_debug(VgGpuRenderer *renderer,
+                                            const VgSpatialScene *spatial);
 bool vg_gpu_renderer_gpu_token_alive(const VgGpuRenderer *renderer, uint64_t token);
 
 #endif /* VESTIGIO_GPU_RENDERER_H */

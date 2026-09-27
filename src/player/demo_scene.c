@@ -1,4 +1,5 @@
 #include "player/demo_scene.h"
+#include "vestigio/controller.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -9,6 +10,9 @@ struct VgDemoScene {
     VgEntity camera;
     VgAsset model;
     VgGame *game;
+    VgSpatialScene *spatial;
+    VgControllerConfig controller;
+    VgControllerState player;
     float yaw;
     float pitch;
     float look_sensitivity;
@@ -35,7 +39,20 @@ static VgResult demo_add_mesh(VgDemoScene *scene, uint32_t node, VgTransform tra
     mesh.mesh_index = VG_RENDER_DEFAULT_INDEX;
     mesh.material_override = VG_RENDER_DEFAULT_INDEX;
     mesh.bounds_extent = (VgVec3){0.5f, 0.5f, 0.5f};
-    return vg_mesh_renderer_set(scene->context, entity, &mesh);
+    result = vg_mesh_renderer_set(scene->context, entity, &mesh);
+    if (result != VG_OK)
+        return result;
+    VgSpatialColliderDesc collider = {0};
+    collider.entity = entity;
+    collider.layer_mask = UINT64_C(1);
+    collider.shape_type = VG_SPATIAL_SHAPE_BOX;
+    collider.enabled = true;
+    collider.shape.box.half_extents = (VgVec3){0.5f, 0.5f, 0.5f};
+    result = vg_entity_get_world_transform(scene->context, entity, &collider.transform);
+    if (result != VG_OK)
+        return result;
+    VgSpatialCollider handle = {0};
+    return vg_spatial_collider_create(scene->spatial, &collider, &handle);
 }
 
 static void demo_fixed_update(VgContext *context, VgWorld world, float dt_seconds, void *user) {
@@ -65,16 +82,24 @@ static void demo_fixed_update(VgContext *context, VgWorld world, float dt_second
         forward /= length;
         strafe /= length;
     }
+    float sine_yaw = sinf(scene->yaw), cosine_yaw = cosf(scene->yaw);
+    VgControllerInput movement = {0};
+    movement.move_world.x = -sine_yaw * forward + cosine_yaw * strafe;
+    movement.move_world.y = cosine_yaw * forward + sine_yaw * strafe;
+    movement.jump_pressed = (input.pressed & VG_ACTION_JUMP) != 0u ? 1u : 0u;
+    result = vg_controller_step(scene->spatial, &scene->controller, scene->camera, &movement,
+                                dt_seconds, &scene->player);
+    if (result != VG_OK) {
+        scene->update_error = result;
+        return;
+    }
     VgTransform camera;
     result = vg_entity_get_local_transform(context, scene->camera, &camera);
     if (result != VG_OK) {
         scene->update_error = result;
         return;
     }
-    float sine_yaw = sinf(scene->yaw), cosine_yaw = cosf(scene->yaw);
-    const float distance = 3.2f * dt_seconds;
-    camera.position.x += distance * (-sine_yaw * forward + cosine_yaw * strafe);
-    camera.position.y += distance * (cosine_yaw * forward + sine_yaw * strafe);
+    camera.position = vg_controller_eye_position(&scene->controller, &scene->player);
     float half_yaw = scene->yaw * 0.5f, half_pitch = scene->pitch * 0.5f;
     float sy = sinf(half_yaw), cy = cosf(half_yaw);
     float sp = sinf(half_pitch), cp = cosf(half_pitch);
@@ -94,7 +119,20 @@ VgResult vg_demo_scene_create(VgContext *context, const void *model_data, uint64
     scene->context = context;
     scene->pitch = -0.12f;
     scene->look_sensitivity = look_sensitivity;
-    VgResult result = vg_assets_enable_static_model_importer(context);
+    scene->controller = vg_controller_default_config();
+    scene->controller.height = 1.82f;
+    scene->controller.eye_height = 1.7f;
+    scene->controller.collision_mask = UINT64_C(1);
+    scene->player.feet = (VgVec3){0.0f, -7.0f, 0.0f};
+    scene->player.grounded = 1u;
+    VgSpatialSceneConfig spatial_config = {0};
+    spatial_config.max_meshes = 4u;
+    spatial_config.max_colliders = 32u;
+    spatial_config.max_triangles_per_mesh = 128u;
+    VgResult result = vg_spatial_scene_create(&spatial_config, &scene->spatial);
+    if (result != VG_OK)
+        goto fail;
+    result = vg_assets_enable_static_model_importer(context);
     if (result != VG_OK)
         goto fail;
 
@@ -142,7 +180,7 @@ VgResult vg_demo_scene_create(VgContext *context, const void *model_data, uint64
         goto fail;
 
     /* Three authored glTF nodes are instanced through public mesh components. */
-    result = demo_add_mesh(scene, 0u, demo_transform(0.0f, 1.5f, -0.18f, 16.0f, 20.0f, 0.2f));
+    result = demo_add_mesh(scene, 0u, demo_transform(0.0f, 1.5f, -0.1f, 16.0f, 20.0f, 0.2f));
     if (result != VG_OK)
         goto fail;
     result = demo_add_mesh(scene, 1u, demo_transform(0.0f, 3.5f, 1.35f, 1.4f, 1.4f, 2.7f));
@@ -163,6 +201,16 @@ VgResult vg_demo_scene_create(VgContext *context, const void *model_data, uint64
     result = demo_add_mesh(scene, 1u, demo_transform(1.8f, 3.5f, 0.22f, 0.35f, 2.5f, 0.3f));
     if (result != VG_OK)
         goto fail;
+    result = demo_add_mesh(scene, 1u, demo_transform(0.0f, -1.0f, 0.12f, 2.0f, 0.65f, 0.24f));
+    if (result != VG_OK)
+        goto fail;
+    for (int side = -1; side <= 1; side += 2) {
+        result = demo_add_mesh(scene, 2u,
+                               demo_transform((float)side * 1.0f, 1.3f, 0.95f,
+                                              0.65f, 1.0f, 1.9f));
+        if (result != VG_OK)
+            goto fail;
+    }
 
     VgGameCallbacks callbacks = {0};
     callbacks.struct_size = sizeof(callbacks);
@@ -189,6 +237,7 @@ void vg_demo_scene_destroy(VgDemoScene *scene) {
         (void)vg_game_destroy(scene->game);
     if (scene->world.value != 0u)
         (void)vg_world_destroy(scene->context, scene->world);
+    vg_spatial_scene_destroy(scene->spatial);
     if (scene->model.value != 0u)
         (void)vg_asset_release(scene->context, scene->model);
     free(scene);
@@ -220,4 +269,8 @@ VgResult vg_demo_scene_camera_position(const VgDemoScene *scene, VgVec3 *out_pos
     if (result == VG_OK)
         *out_position = transform.position;
     return result;
+}
+
+const VgSpatialScene *vg_demo_scene_spatial(const VgDemoScene *scene) {
+    return scene == NULL ? NULL : scene->spatial;
 }

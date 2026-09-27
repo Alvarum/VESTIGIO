@@ -1,10 +1,45 @@
 #include <vestigio/vestigio.h>
+#include <vestigio/spatial.h>
+#include <vestigio/controller.h>
 
 #include <stdint.h>
 
 typedef struct ExampleGame {
     uint32_t calls;
 } ExampleGame;
+
+static int test_spatial_controller(void) {
+    VgSpatialSceneConfig scene_config = {0};
+    scene_config.max_meshes = 1u;
+    scene_config.max_colliders = 2u;
+    scene_config.max_triangles_per_mesh = 3u;
+    VgSpatialScene *scene = 0;
+    if (vg_spatial_scene_create(&scene_config, &scene) != VG_OK)
+        return 30;
+    VgSpatialColliderDesc floor = {0};
+    floor.entity.value = 1u;
+    floor.layer_mask = 1u;
+    floor.enabled = true;
+    floor.shape_type = VG_SPATIAL_SHAPE_BOX;
+    floor.transform.rotation.w = 1.0f;
+    floor.transform.scale = (VgVec3){1.0f, 1.0f, 1.0f};
+    floor.shape.box.center = (VgVec3){0.0f, 0.0f, -0.1f};
+    floor.shape.box.half_extents = (VgVec3){5.0f, 5.0f, 0.1f};
+    VgSpatialCollider handle = {0};
+    if (vg_spatial_collider_create(scene, &floor, &handle) != VG_OK) {
+        vg_spatial_scene_destroy(scene);
+        return 31;
+    }
+    VgControllerConfig config = vg_controller_default_config();
+    VgControllerState state = {0};
+    state.grounded = 1u;
+    VgControllerInput input = {{0.0f, 1.0f, 0.0f}, 0u};
+    int result = vg_controller_step(scene, &config, (VgEntity){0}, &input,
+                                    1.0f / 60.0f, &state) == VG_OK &&
+                         state.feet.y > 0.0f && state.grounded != 0u ? 0 : 32;
+    vg_spatial_scene_destroy(scene);
+    return result;
+}
 
 static VgResult example_init(VgContext *context, void *user) {
     (void)context;
@@ -255,5 +290,6 @@ int main(void) {
     vg_context_destroy(context);
     if (state.calls != 31u)
         return 7;
-    return test_shared_model_components();
+    int result = test_shared_model_components();
+    return result == 0 ? test_spatial_controller() : result;
 }

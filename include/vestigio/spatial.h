@@ -1,15 +1,23 @@
-#ifndef VESTIGIO_PHYSICS_SPATIAL_H
-#define VESTIGIO_PHYSICS_SPATIAL_H
+#ifndef VESTIGIO_SPATIAL_H
+#define VESTIGIO_SPATIAL_H
 
 #include "vestigio/vestigio.h"
 
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Internal S01 contract. Queries are in world space. Distances are world units.
- * Mesh, sphere and capsule colliders require uniform positive scale; boxes allow
- * positive non-uniform scale. Query tolerance is VG_SPATIAL_EPSILON. */
+/* Public S01 contract. Right-handed Z-up world units. Coordinates/shape
+ * values are finite and bounded to +/-1e6; query distances/radii to 1e5.
+ * Mesh, sphere and capsule require uniform positive scale; boxes allow
+ * positive non-uniform scale. No rigid-body solver or shear is supported.
+ * Default capacity: 64 meshes, 1024 colliders, 8192 triangles per mesh;
+ * configured capacity cannot exceed 65535 of each. Tangencies are accepted
+ * within VG_SPATIAL_EPSILON world units. */
 #define VG_SPATIAL_EPSILON 1.0e-5f
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct VgSpatialScene VgSpatialScene;
 
@@ -108,6 +116,11 @@ typedef struct VgSpatialHit {
     float fraction;
 } VgSpatialHit;
 
+/* Overlap and initially-penetrating sweep: distance is negative depth,
+ * fraction is zero, position is closest collider surface, and normal points
+ * from collider toward query center. A tangent contact has distance zero.
+ * Sweep parallel to a tangent surface does not block lateral movement. */
+
 typedef struct VgSpatialStats {
     uint32_t meshes;
     uint32_t colliders;
@@ -119,6 +132,12 @@ typedef struct VgSpatialStats {
 typedef void (*VgSpatialDebugVisitFn)(void *user, VgSpatialCollider collider,
                                       const VgSpatialColliderDesc *description, VgVec3 bounds_min,
                                       VgVec3 bounds_max);
+/* Triangles are delivered in mesh-local coordinates. Apply the collider's
+ * authoritative transform from vg_spatial_scene_visit_debug for world-space
+ * overlays. The visitor sees the current replacement, never stale geometry.
+ * Do not mutate the scene from either debug visitor callback. */
+typedef void (*VgSpatialTriangleVisitFn)(void *user, uint32_t triangle_index,
+                                         VgVec3 a, VgVec3 b, VgVec3 c);
 
 VgResult vg_spatial_scene_create(const VgSpatialSceneConfig *config, VgSpatialScene **out_scene);
 void vg_spatial_scene_destroy(VgSpatialScene *scene);
@@ -146,5 +165,16 @@ VgResult vg_spatial_sweep_sphere(VgSpatialScene *scene, const VgSpatialSphereSwe
 VgSpatialStats vg_spatial_scene_stats(const VgSpatialScene *scene);
 VgResult vg_spatial_scene_visit_debug(const VgSpatialScene *scene, VgSpatialDebugVisitFn visit,
                                       void *user);
+VgResult vg_spatial_mesh_visit_triangles(const VgSpatialScene *scene, VgSpatialMesh mesh,
+                                         VgSpatialTriangleVisitFn visit, void *user);
 
+/* Copy the authoritative world transform, including parents, to an existing
+ * collider after entity/parent edits. The caller owns the collider lifecycle. */
+VgResult vg_spatial_world_refresh_entity(VgContext *context, VgSpatialScene *scene,
+                                         VgSpatialCollider collider,
+                                         const VgSpatialColliderDesc *description);
+
+#ifdef __cplusplus
+}
+#endif
 #endif

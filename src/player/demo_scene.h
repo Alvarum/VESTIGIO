@@ -2,6 +2,7 @@
 #define VESTIGIO_PLAYER_DEMO_SCENE_H
 
 #include "vestigio/vestigio.h"
+#include "vestigio/spatial.h"
 
 typedef struct VgDemoScene VgDemoScene;
 
@@ -13,5 +14,6 @@ VgResult vg_demo_scene_submit_input(VgDemoScene *scene, const VgInputSample *sam
 VgResult vg_demo_scene_step(VgDemoScene *scene, double elapsed_seconds);
 VgWorld vg_demo_scene_world(const VgDemoScene *scene);
 VgResult vg_demo_scene_camera_position(const VgDemoScene *scene, VgVec3 *out_position);
+const VgSpatialScene *vg_demo_scene_spatial(const VgDemoScene *scene);
 
 #endif
