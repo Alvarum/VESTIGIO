@@ -30,6 +30,10 @@ struct VgDemoScene {
     VgResult update_error;
 };
 
+const VgDocumentInstance *vg_demo_scene_document_instance(const VgDemoScene *scene) {
+    return scene != NULL ? scene->instance : NULL;
+}
+
 static const VgAssetId kAtriumAsset = {{0x4a, 0x30, 0x31, 0x2d, 0x61, 0x74, 0x72, 0x69,
                                         0x75, 0x6d, 0x2d, 0x6d, 0x6f, 0x64, 0x65, 0x6c}};
 

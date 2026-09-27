@@ -1,4 +1,4 @@
-param([switch]$NoLaunch)
+param([switch]$NoLaunch, [string]$Settings = '')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $toolBin = Join-Path $projectRoot '.tools/msys64/ucrt64/bin'
@@ -26,7 +26,9 @@ try {
         -p:RestorePackagesPath=.nuget/packages -p:RestoreLockedMode=true -o $bin
     if ($LASTEXITCODE) { throw 'Fallo compilando la aplicación WPF' }
     if (!$NoLaunch) {
-        & (Join-Path $bin 'retro_studio.exe') --atrium
+        $arguments = @('--atrium')
+        if ($Settings) { $arguments += @('--settings', $Settings) }
+        & (Join-Path $bin 'retro_studio.exe') @arguments
         if ($LASTEXITCODE) { throw "Studio terminó con código $LASTEXITCODE" }
     }
 } finally {

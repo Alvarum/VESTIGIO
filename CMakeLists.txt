@@ -266,6 +266,13 @@ if(RETRO_BUILD_APPS)
                 "${PROJECT_SOURCE_DIR}/assets/demo/atrium.gltf")
             set_tests_properties(vestigio_studio_door PROPERTIES
                 LABELS "window;gpu;studio;document;gamekit;app")
+            add_test(NAME vestigio_studio_visual COMMAND dotnet
+                "${CMAKE_BINARY_DIR}/bin/RetroForge.Studio.Tests.dll"
+                --e06 "${CMAKE_BINARY_DIR}/studio-visual-evidence"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json")
+            set_tests_properties(vestigio_studio_visual PROPERTIES
+                FIXTURES_SETUP vestigio_visual_settings
+                LABELS "window;gpu;studio;document;visual;app")
         endif()
         add_executable(retro_platform_test tests/platform_test.c)
         retro_target(retro_platform_test)
@@ -303,6 +310,9 @@ if(RETRO_BUILD_APPS)
     target_include_directories(vestigio_player PRIVATE "${PROJECT_SOURCE_DIR}/src")
     target_include_directories(vestigio_player SYSTEM PRIVATE "${raylib_SOURCE_DIR}/src")
     target_link_libraries(vestigio_player PRIVATE vestigio_gpu_raylib vestigio_tool)
+    if(WIN32)
+        target_link_libraries(vestigio_player PRIVATE shell32)
+    endif()
     foreach(app retro_fps retro_lab retro_player vestigio_player)
         set_target_properties(${app} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
         install(TARGETS ${app} RUNTIME DESTINATION . COMPONENT Runtime)
@@ -322,6 +332,19 @@ if(RETRO_BUILD_APPS)
         add_test(NAME vestigio_player_door COMMAND vestigio_player --smoke 180 --smoke-door)
         set_tests_properties(vestigio_player_door PROPERTIES
             LABELS "window;gpu;spatial;gamekit;document;app")
+        add_test(NAME vestigio_player_visual COMMAND vestigio_player
+            --smoke 8 --visual retro --settings "${CMAKE_BINARY_DIR}/w06-player.settings")
+        set_tests_properties(vestigio_player_visual PROPERTIES
+            LABELS "window;gpu;document;visual;app")
+        if(WIN32)
+            add_test(NAME vestigio_player_visual_persisted COMMAND vestigio_player
+                --smoke 8 --settings
+                "${CMAKE_BINARY_DIR}/studio-visual-evidence/preferencias-área/e06-visual.settings")
+            set_tests_properties(vestigio_player_visual_persisted PROPERTIES
+                FIXTURES_REQUIRED vestigio_visual_settings
+                PASS_REGULAR_EXPRESSION "visual=retro lights=2 fog=linear"
+                LABELS "window;gpu;document;visual;settings;app")
+        endif()
     endif()
     install(TARGETS retro_editor RUNTIME DESTINATION . COMPONENT Runtime)
     install(DIRECTORY assets DESTINATION . COMPONENT Runtime)

@@ -4,10 +4,11 @@
   "id": "60000000-0000-0000-0000-000000000000",
   "name": "Atrium 3D",
   "coordinates": "right-handed-z-up-meters",
-  "required": ["core", "transform", "environment", "component.engine.camera.v1", "component.engine.mesh.v1", "component.engine.collider.v1", "component.engine.door.v1"],
+  "required": ["core", "transform", "environment", "component.engine.camera.v1", "component.engine.mesh.v1", "component.engine.collider.v1", "component.engine.door.v1", "component.engine.light.v1"],
   "environment": {
-    "ambient_linear": [0.08, 0.09, 0.12],
-    "clear_linear": [0.01, 0.02, 0.03]
+    "ambient_linear": [0.55, 0.58, 0.64],
+    "clear_linear": [0.01, 0.02, 0.03],
+    "fog": {"mode": "linear", "color_linear": [0.12, 0.16, 0.21], "start": 8, "end": 24}
   },
   "entities": [
     {
@@ -149,6 +150,24 @@
         "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 2},
         "engine.collider": {"version": 1, "shape": "box", "motion": "kinematic", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]},
         "engine.door": {"version": 1, "open_angle_radians": 1.5707963, "speed_radians_per_second": 1.4}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-000000000011",
+      "parent": null,
+      "transform": {"position": [2.5, -3.5, 2.2], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1]},
+      "required_components": ["engine.light"],
+      "components": {
+        "engine.light": {"version": 1, "type": "point", "color_linear": [1, 0.58, 0.28], "intensity": 2, "range": 5}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-000000000012",
+      "parent": null,
+      "transform": {"position": [0, 3.4, 3.2], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1]},
+      "required_components": ["engine.light"],
+      "components": {
+        "engine.light": {"version": 1, "type": "point", "color_linear": [0.25, 0.8, 1], "intensity": 2, "range": 6}
       }
     }
   ]

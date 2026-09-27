@@ -58,6 +58,7 @@ public sealed class GpuViewportHost : HwndHost
     // Deben asignarse antes de que WPF cree el HWND.
     public string? LevelPath { get; set; }
     public string? ModelPath { get; set; }
+    public string? VisualSettingsPath { get; set; }
 
     internal bool IsNativeReady => _nativeHost != 0;
     internal bool IsFallback => _fallbackWindow != 0;
@@ -176,6 +177,44 @@ public sealed class GpuViewportHost : HwndHost
         ? GpuHostNative.vg_gpu_host_mode(_nativeHost) : -1;
 
     internal nint NativeHandleForTest => _nativeHost;
+
+    internal int VisualMode => _nativeHost != 0
+        ? GpuHostNative.vg_gpu_host_visual_mode(_nativeHost) : -1;
+
+    internal string VisualSummary => !_levelOpen || _nativeHost == 0 ? string.Empty :
+        $"{GpuHostNative.vg_gpu_host_visual_light_count(_nativeHost)} luces · niebla " +
+        (GpuHostNative.vg_gpu_host_visual_fog_enabled(_nativeHost) != 0 ? "lineal" : "apagada");
+
+    internal bool TrySetVisualMode(int mode)
+    {
+        if (_nativeHost == 0) return false;
+        byte[] error = new byte[512];
+        int oldMode = VisualMode;
+        if (GpuHostNative.vg_gpu_host_set_visual_mode(_nativeHost, mode, error,
+                (nuint)error.Length) == 0)
+        {
+            LastError = GpuHostNative.Error(error);
+            return false;
+        }
+        try
+        {
+            string path = ResolveVisualSettingsPath();
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            if (GpuHostNative.vg_gpu_host_save_visual_profile(_nativeHost, path,
+                    error, (nuint)error.Length) != 0)
+                return true;
+            LastError = GpuHostNative.Error(error);
+        }
+        catch (IOException exception) { LastError = exception.Message; }
+        catch (UnauthorizedAccessException exception) { LastError = exception.Message; }
+        _ = GpuHostNative.vg_gpu_host_set_visual_mode(_nativeHost, oldMode, error,
+            (nuint)error.Length);
+        return false;
+    }
+
+    private string ResolveVisualSettingsPath() => VisualSettingsPath ?? Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "VESTIGIO", "visual.settings");
 
     internal bool TrySetPlaying(bool play)
     {
@@ -384,6 +423,12 @@ public sealed class GpuViewportHost : HwndHost
                 return false;
             }
             _levelOpen = true;
+            if (GpuHostNative.vg_gpu_host_load_visual_profile(_nativeHost,
+                    ResolveVisualSettingsPath(), error, (nuint)error.Length) == 0)
+            {
+                LastError = GpuHostNative.Error(error);
+                return false;
+            }
             return true;
         }
         catch (Exception exception) when (exception is IOException or DllNotFoundException or

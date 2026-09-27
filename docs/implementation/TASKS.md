@@ -592,7 +592,7 @@ Desbloquea: Interacción física de horror/exploración.
 
 ## V01 — Materiales, shaders editables, luces y fog GPU
 
-Fase: **P7** · Rol: **gpu** · Estado: **PLANNED**.
+Fase: **P7** · Rol: **gpu** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: G03, I01, D02.
 

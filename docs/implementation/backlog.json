@@ -149,7 +149,7 @@
       "validation": ["V-CORE", "V-DATA", "V-SPATIAL"], "unlocks": "Interacción física de horror/exploración."
     },
     {
-      "id": "V01", "phase": "P7", "title": "Materiales, shaders editables, luces y fog GPU", "role": "gpu", "dependencies": ["G03", "I01", "D02"], "locks": ["gpu-backend", "shader-schema"], "status": "PLANNED",
+      "id": "V01", "phase": "P7", "title": "Materiales, shaders editables, luces y fog GPU", "role": "gpu", "dependencies": ["G03", "I01", "D02"], "locks": ["gpu-backend", "shader-schema"], "status": "IN_PROGRESS",
       "paths": ["src/render/", "src/assets/", "src/content/", "assets/shaders/", "tests/gpu/"],
       "steps": ["Implementar ShaderAsset/material params tipados y metadata de inspector; reload candidato con dependencias y log de compilación.", "Añadir forward simple, luces por draw limitadas/priorizadas y fog lineal/exp con distancia definida, alpha y sky coherentes.", "Registrar light/material/environment schemas para documento/SDK sin escribir UI paralela; budgets/overlays muestran límites excedidos."],
       "acceptance": ["Shader inválido conserva el anterior; primer fallo tiene error material/diagnóstico explícito y no mata sesión.", "Luces/fog se ejecutan en GPU y sus parámetros sobreviven save/load; no se atribuyen sombras geométricas inexistentes.", "Entradas/espacio de color/unidades y límites son probados; no se incorpora PBR/volumétricos como dependencia del hito."],

@@ -20,6 +20,16 @@ VG_GPU_HOST_API VgGpuHost *vg_gpu_host_create(void *parent_window, unsigned int 
                                               size_t error_capacity);
 VG_GPU_HOST_API void *vg_gpu_host_window(const VgGpuHost *host);
 VG_GPU_HOST_API int32_t vg_gpu_host_render(VgGpuHost *host);
+/* Profile is a user preference; environment and lights come from the level. */
+VG_GPU_HOST_API int32_t vg_gpu_host_visual_mode(const VgGpuHost *host);
+VG_GPU_HOST_API int32_t vg_gpu_host_set_visual_mode(VgGpuHost *host, int32_t mode,
+                                                   char *error, size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_load_visual_profile(VgGpuHost *host, const char *path,
+                                                       char *error, size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_save_visual_profile(VgGpuHost *host, const char *path,
+                                                       char *error, size_t error_capacity);
+VG_GPU_HOST_API size_t vg_gpu_host_visual_light_count(const VgGpuHost *host);
+VG_GPU_HOST_API int32_t vg_gpu_host_visual_fog_enabled(const VgGpuHost *host);
 /* E01: load a native level and its referenced Atrium model. Edit owns the
  * document; Play instantiates a separate world and Stop discards it. */
 VG_GPU_HOST_API int32_t vg_gpu_host_open_level(VgGpuHost *host, const char *level_path,

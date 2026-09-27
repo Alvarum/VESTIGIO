@@ -361,6 +361,78 @@ static void test_door_component_validation(void) {
           strstr(diagnostic.message, "already used by panel") != NULL);
 }
 
+static void test_light_and_fog_validation(void) {
+    static const char format[] =
+        "{\"format\":\"vestigio.level\",\"version\":1,"
+        "\"id\":\"20000000-0000-0000-0000-000000000001\",\"name\":\"lit\","
+        "\"coordinates\":\"right-handed-z-up-meters\","
+        "\"required\":[\"component.engine.light.v1\"],"
+        "\"environment\":{\"fog\":{\"mode\":\"%s\","
+        "\"color_linear\":[0.1,0.2,0.3],\"start\":8,\"end\":24}},"
+        "\"entities\":[{\"id\":\"20000000-0000-0000-0000-000000000002\","
+        "\"parent\":null,\"transform\":{\"position\":[0,0,2],"
+        "\"rotation\":[0,0,0,1],\"scale\":[1,1,1]},"
+        "\"required_components\":[\"engine.light\"],"
+        "\"components\":{\"engine.light\":{\"version\":1,\"type\":\"%s\","
+        "\"color_linear\":[0.4,0.6,1],\"intensity\":%s,\"range\":%s}}}]}";
+    const struct {
+        const char *fog;
+        const char *light;
+        const char *intensity;
+        const char *range;
+        bool valid;
+    } cases[] = {
+        {"linear", "point", "2", "6", true},
+        {"exponential", "point", "2", "6", false},
+        {"linear", "directional", "2", "6", false},
+        {"linear", "point", "9", "6", false},
+        {"linear", "point", "2", "51", false},
+    };
+    for (size_t index = 0u; index < sizeof(cases) / sizeof(cases[0]); ++index) {
+        char json[2048];
+        int length = snprintf(json, sizeof(json), format, cases[index].fog,
+                              cases[index].light, cases[index].intensity,
+                              cases[index].range);
+        CHECK(length > 0 && (size_t)length < sizeof(json));
+        VgContentDocument *document = NULL;
+        VgContentDiagnostic diagnostic;
+        bool parsed = vg_content_parse_memory("lit.level.json", json, (size_t)length,
+                                              &document, &diagnostic);
+        CHECK(parsed == cases[index].valid);
+        if (!parsed)
+            CHECK(strstr(diagnostic.path, "fog") != NULL ||
+                  strstr(diagnostic.path, "engine.light") != NULL);
+        vg_content_document_destroy(document);
+    }
+    char many[4096];
+    int used = snprintf(many, sizeof(many),
+                        "{\"format\":\"vestigio.level\",\"version\":1,"
+                        "\"id\":\"20000000-0000-0000-0000-000000000001\","
+                        "\"name\":\"many lights\","
+                        "\"coordinates\":\"right-handed-z-up-meters\",\"entities\":[");
+    CHECK(used > 0 && (size_t)used < sizeof(many));
+    for (unsigned int index = 0u; index < 5u && used > 0; ++index) {
+        int added = snprintf(many + used, sizeof(many) - (size_t)used,
+                             "%s{\"id\":\"20000000-0000-0000-0000-%012u\","
+                             "\"parent\":null,\"transform\":{\"position\":[0,0,2],"
+                             "\"rotation\":[0,0,0,1],\"scale\":[1,1,1]},"
+                             "\"components\":{\"engine.light\":{\"version\":1,"
+                             "\"type\":\"point\",\"color_linear\":[1,1,1],"
+                             "\"intensity\":1,\"range\":5}}}",
+                             index == 0u ? "" : ",", index + 2u);
+        CHECK(added > 0 && (size_t)added < sizeof(many) - (size_t)used);
+        used += added;
+    }
+    CHECK((size_t)used + 2u < sizeof(many));
+    memcpy(many + used, "]}", 3u);
+    VgContentDocument *many_document = NULL;
+    VgContentDiagnostic diagnostic;
+    CHECK(!vg_content_parse_memory("many-lights.level.json", many, (size_t)used + 2u,
+                                   &many_document, &diagnostic));
+    CHECK(many_document == NULL && diagnostic.code == VG_CONTENT_DIAGNOSTIC_CAPACITY &&
+          strstr(diagnostic.message, "at most four point lights") != NULL);
+}
+
 int main(void) {
     test_valid_documents();
     test_invalid_corpus_and_transaction();
@@ -368,6 +440,7 @@ int main(void) {
     test_many_object_keys();
     test_locale_precision_and_limits();
     test_door_component_validation();
+    test_light_and_fog_validation();
     if (failures != 0)
         (void)fprintf(stderr, "%d content checks failed\n", failures);
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

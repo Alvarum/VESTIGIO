@@ -19,6 +19,29 @@ internal static class GpuHostNative
     internal static extern int vg_gpu_host_render(nint host);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_visual_mode(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_set_visual_mode(nint host, int mode,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_load_visual_profile(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_save_visual_profile(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nuint vg_gpu_host_visual_light_count(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_visual_fog_enabled(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int vg_gpu_host_open_level(nint host,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string levelPath,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string modelPath,

@@ -7,6 +7,7 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
+#include <math.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,6 +91,17 @@ struct VgGpuRenderer {
     int alpha_cutoff_location;
     int emissive_location;
     int error_material_location;
+    int visual_mode_location;
+    int ambient_location;
+    int camera_position_location;
+    int point_light_count_location;
+    int light_position_radius_location;
+    int light_color_intensity_location;
+    int fog_enabled_location;
+    int fog_color_location;
+    int fog_range_location;
+    int unlit_location;
+    VgGpuVisualSettings visual;
     uint64_t next_resource_token;
     _Atomic uint32_t wrong_thread_calls;
 };
@@ -108,35 +120,220 @@ static bool renderer_require_owner(const VgGpuRenderer *renderer) {
 }
 static const char *vertex_shader = "#version 330\n"
                                    "in vec3 vertexPosition;\n"
+                                   "in vec3 vertexNormal;\n"
                                    "in vec2 vertexTexCoord;\n"
                                    "in vec4 vertexColor;\n"
                                    "uniform mat4 mvp;\n"
+                                   "uniform mat4 matModel;\n"
+                                   "uniform mat4 matNormal;\n"
                                    "out vec2 fragTexCoord;\n"
                                    "out vec4 fragColor;\n"
+                                   "out vec3 fragWorldPosition;\n"
+                                   "out vec3 fragWorldNormal;\n"
                                    "void main(){fragTexCoord=vertexTexCoord;fragColor=vertexColor;"
+                                   "fragWorldPosition=(matModel*vec4(vertexPosition,1.0)).xyz;"
+                                   "fragWorldNormal=(matNormal*vec4(vertexNormal,0.0)).xyz;"
                                    "gl_Position=mvp*vec4(vertexPosition,1.0);}\n";
 
 static const char *fragment_shader =
     "#version 330\n"
     "in vec2 fragTexCoord;\n"
     "in vec4 fragColor;\n"
+    "in vec3 fragWorldPosition;\n"
+    "in vec3 fragWorldNormal;\n"
     "uniform sampler2D texture0;\n"
     "uniform vec4 colDiffuse;\n"
     "uniform int alphaMode;\n"
     "uniform float alphaCutoff;\n"
     "uniform vec3 emissiveColor;\n"
     "uniform int errorMaterial;\n"
+    "uniform int visualMode;\n"
+    "uniform int unlit;\n"
+    "uniform vec3 ambientColor;\n"
+    "uniform vec3 cameraPosition;\n"
+    "uniform int pointLightCount;\n"
+    "uniform vec4 lightPositionRadius[4];\n"
+    "uniform vec4 lightColorIntensity[4];\n"
+    "uniform int fogEnabled;\n"
+    "uniform vec3 fogColor;\n"
+    "uniform vec2 fogRange;\n"
     "out vec4 finalColor;\n"
     "void main(){vec4 texel=texture(texture0,fragTexCoord);"
     "vec4 color=texel*colDiffuse*fragColor;"
     "if(alphaMode==1 && color.a<alphaCutoff) discard;"
     "if(errorMaterial!=0){float p=mod(floor(gl_FragCoord.x/8.0)+floor(gl_FragCoord.y/8.0),2.0);"
-    "color=vec4(mix(vec3(0.05),vec3(1.0,0.0,1.0),p),1.0);}"
-    "color.rgb+=emissiveColor;finalColor=color;}\n";
+    "finalColor=vec4(mix(vec3(0.05),vec3(1.0,0.0,1.0),p),1.0);return;}"
+    "vec3 lighting=ambientColor;"
+    "if(unlit==0){"
+    "vec3 normal=normalize(fragWorldNormal);"
+    "if(length(fragWorldNormal)<0.0001) normal=vec3(0.0,0.0,1.0);"
+    "for(int i=0;i<4;i++){if(i>=pointLightCount) break;"
+    "vec3 toLight=lightPositionRadius[i].xyz-fragWorldPosition;"
+    "float dist=length(toLight);float radius=lightPositionRadius[i].w;"
+    "float falloff=clamp(1.0-dist/radius,0.0,1.0);"
+    "float lambert=max(dot(normal,toLight/max(dist,0.0001)),0.0);"
+    "lighting+=lightColorIntensity[i].rgb*lightColorIntensity[i].w*"
+    "lambert*falloff*falloff;}}"
+    "color.rgb=color.rgb*lighting+emissiveColor;"
+    "if(fogEnabled!=0 && unlit==0){"
+    "float distanceToEye=distance(fragWorldPosition,cameraPosition);"
+    "float amount=clamp((distanceToEye-fogRange.x)/(fogRange.y-fogRange.x),0.0,1.0);"
+    "color.rgb=mix(color.rgb,fogColor,amount);}"
+    "if(visualMode==1){"
+    "int x=int(mod(floor(gl_FragCoord.x),4.0));"
+    "int y=int(mod(floor(gl_FragCoord.y),4.0));"
+    "const float bayer[16]=float[16](0.0,8.0,2.0,10.0,12.0,4.0,14.0,6.0,"
+    "3.0,11.0,1.0,9.0,15.0,7.0,13.0,5.0);"
+    "float threshold=(bayer[y*4+x]+0.5)/16.0-0.5;"
+    "color.rgb=floor(clamp(color.rgb,0.0,1.0)*5.0+threshold*0.7+0.5)/5.0;}"
+    "finalColor=color;}\n";
 
 static void message(char *out, size_t capacity, const char *value) {
     if (out && capacity)
         (void)snprintf(out, capacity, "%s", value);
+}
+
+VgGpuVisualSettings vg_gpu_renderer_default_visual_settings(void) {
+    VgGpuVisualSettings settings = {0};
+    settings.mode = VG_GPU_VISUAL_CLEAN;
+    settings.ambient[0] = settings.ambient[1] = settings.ambient[2] = 1.0f;
+    settings.clear_color[0] = 12.0f / 255.0f;
+    settings.clear_color[1] = 18.0f / 255.0f;
+    settings.clear_color[2] = 26.0f / 255.0f;
+    settings.fog_color[0] = settings.clear_color[0];
+    settings.fog_color[1] = settings.clear_color[1];
+    settings.fog_color[2] = settings.clear_color[2];
+    settings.fog_start = 0.0f;
+    settings.fog_end = 1.0f;
+    return settings;
+}
+
+static bool visual_color_valid(const float color[3], float ceiling) {
+    for (unsigned int i = 0u; i < 3u; ++i)
+        if (!isfinite(color[i]) || color[i] < 0.0f || color[i] > ceiling)
+            return false;
+    return true;
+}
+
+static bool visual_settings_valid(const VgGpuVisualSettings *settings) {
+    if (settings == NULL ||
+        (settings->mode != VG_GPU_VISUAL_CLEAN &&
+         settings->mode != VG_GPU_VISUAL_RETRO) ||
+        settings->point_light_count > VG_GPU_MAX_POINT_LIGHTS ||
+        settings->fog_enabled > 1u ||
+        !visual_color_valid(settings->ambient, 4.0f) ||
+        !visual_color_valid(settings->clear_color, 1.0f) ||
+        !visual_color_valid(settings->fog_color, 1.0f) ||
+        !isfinite(settings->fog_start) || !isfinite(settings->fog_end) ||
+        settings->fog_start < 0.0f ||
+        settings->fog_end <= settings->fog_start ||
+        settings->fog_end > 1000.0f)
+        return false;
+    for (uint32_t i = 0u; i < settings->point_light_count; ++i) {
+        const VgGpuPointLight *light = &settings->lights[i];
+        if (!isfinite(light->position.x) || !isfinite(light->position.y) ||
+            !isfinite(light->position.z) || !isfinite(light->radius) ||
+            light->radius <= 0.0f || light->radius > 100.0f ||
+            !visual_color_valid(light->color, 1.0f) ||
+            !isfinite(light->intensity) || light->intensity < 0.0f ||
+            light->intensity > 16.0f)
+            return false;
+    }
+    return true;
+}
+
+bool vg_gpu_renderer_set_visual_settings(VgGpuRenderer *renderer,
+                                         const VgGpuVisualSettings *settings,
+                                         char *error, size_t error_capacity) {
+    if (!renderer_require_owner(renderer)) {
+        message(error, error_capacity, "Renderer GPU: hilo propietario requerido");
+        return false;
+    }
+    if (!visual_settings_valid(settings)) {
+        message(error, error_capacity, "Perfil GPU: luz, niebla o color fuera de rango");
+        return false;
+    }
+    renderer->visual = *settings;
+    message(error, error_capacity, "");
+    return true;
+}
+
+bool vg_gpu_renderer_resize_internal(VgGpuRenderer *renderer, uint32_t width,
+                                     uint32_t height, char *error,
+                                     size_t error_capacity) {
+    if (!renderer_require_owner(renderer)) {
+        message(error, error_capacity, "Renderer GPU: hilo propietario requerido");
+        return false;
+    }
+    if (width == 0u || height == 0u || width > 4096u || height > 4096u) {
+        message(error, error_capacity, "Resolucion interna GPU invalida");
+        return false;
+    }
+    if (width == renderer->width && height == renderer->height) {
+        message(error, error_capacity, "");
+        return true;
+    }
+    RenderTexture2D candidate = LoadRenderTexture((int)width, (int)height);
+    if (candidate.id == 0u || candidate.texture.id == 0u) {
+        if (candidate.id != 0u)
+            UnloadRenderTexture(candidate);
+        message(error, error_capacity, "No se pudo crear el nuevo render target GPU");
+        return false;
+    }
+    SetTextureFilter(candidate.texture, TEXTURE_FILTER_POINT);
+    RenderTexture2D old = renderer->target;
+    renderer->target = candidate;
+    renderer->stats.estimated_gpu_bytes -=
+        (uint64_t)renderer->width * (uint64_t)renderer->height * 8u;
+    renderer->stats.estimated_gpu_bytes += (uint64_t)width * (uint64_t)height * 8u;
+    renderer->width = width;
+    renderer->height = height;
+    ++renderer->stats.uploads;
+    UnloadRenderTexture(old);
+    message(error, error_capacity, "");
+    return true;
+}
+
+static void renderer_apply_visual_uniforms(VgGpuRenderer *renderer,
+                                            VgVec3 camera_position) {
+    Shader shader = renderer->material.shader;
+    const VgGpuVisualSettings *visual = &renderer->visual;
+    int mode = (int)visual->mode;
+    int light_count = (int)visual->point_light_count;
+    int fog_enabled = (int)visual->fog_enabled;
+    int unlit = 0;
+    float eye[3] = {camera_position.x, camera_position.y, camera_position.z};
+    float fog_range[2] = {visual->fog_start, visual->fog_end};
+    float positions[VG_GPU_MAX_POINT_LIGHTS * 4u] = {0};
+    float colors[VG_GPU_MAX_POINT_LIGHTS * 4u] = {0};
+    for (uint32_t i = 0u; i < visual->point_light_count; ++i) {
+        const VgGpuPointLight *light = &visual->lights[i];
+        positions[i * 4u + 0u] = light->position.x;
+        positions[i * 4u + 1u] = light->position.y;
+        positions[i * 4u + 2u] = light->position.z;
+        positions[i * 4u + 3u] = light->radius;
+        colors[i * 4u + 0u] = light->color[0];
+        colors[i * 4u + 1u] = light->color[1];
+        colors[i * 4u + 2u] = light->color[2];
+        colors[i * 4u + 3u] = light->intensity;
+    }
+    SetShaderValue(shader, renderer->visual_mode_location, &mode, SHADER_UNIFORM_INT);
+    SetShaderValue(shader, renderer->ambient_location, visual->ambient,
+                   SHADER_UNIFORM_VEC3);
+    SetShaderValue(shader, renderer->camera_position_location, eye, SHADER_UNIFORM_VEC3);
+    SetShaderValue(shader, renderer->point_light_count_location, &light_count,
+                   SHADER_UNIFORM_INT);
+    SetShaderValueV(shader, renderer->light_position_radius_location, positions,
+                    SHADER_UNIFORM_VEC4, (int)VG_GPU_MAX_POINT_LIGHTS);
+    SetShaderValueV(shader, renderer->light_color_intensity_location, colors,
+                    SHADER_UNIFORM_VEC4, (int)VG_GPU_MAX_POINT_LIGHTS);
+    SetShaderValue(shader, renderer->fog_enabled_location, &fog_enabled,
+                   SHADER_UNIFORM_INT);
+    SetShaderValue(shader, renderer->fog_color_location, visual->fog_color,
+                   SHADER_UNIFORM_VEC3);
+    SetShaderValue(shader, renderer->fog_range_location, fog_range,
+                   SHADER_UNIFORM_VEC2);
+    SetShaderValue(shader, renderer->unlit_location, &unlit, SHADER_UNIFORM_INT);
 }
 
 static unsigned char color_byte(float value) {
@@ -634,6 +831,7 @@ VgGpuRenderer *vg_gpu_renderer_create(VgGpuRendererConfig config, char *error,
     }
     renderer->width = config.internal_width;
     renderer->height = config.internal_height;
+    renderer->visual = vg_gpu_renderer_default_visual_settings();
     renderer->owner_thread = gpu_thread_current();
     renderer->target = LoadRenderTexture((int)config.internal_width, (int)config.internal_height);
     if (renderer->target.id == 0u) {
@@ -667,6 +865,27 @@ VgGpuRenderer *vg_gpu_renderer_create(VgGpuRendererConfig config, char *error,
     renderer->alpha_cutoff_location = GetShaderLocation(shader, "alphaCutoff");
     renderer->emissive_location = GetShaderLocation(shader, "emissiveColor");
     renderer->error_material_location = GetShaderLocation(shader, "errorMaterial");
+    renderer->visual_mode_location = GetShaderLocation(shader, "visualMode");
+    renderer->ambient_location = GetShaderLocation(shader, "ambientColor");
+    renderer->camera_position_location = GetShaderLocation(shader, "cameraPosition");
+    renderer->point_light_count_location = GetShaderLocation(shader, "pointLightCount");
+    renderer->light_position_radius_location =
+        GetShaderLocation(shader, "lightPositionRadius[0]");
+    renderer->light_color_intensity_location =
+        GetShaderLocation(shader, "lightColorIntensity[0]");
+    renderer->fog_enabled_location = GetShaderLocation(shader, "fogEnabled");
+    renderer->fog_color_location = GetShaderLocation(shader, "fogColor");
+    renderer->fog_range_location = GetShaderLocation(shader, "fogRange");
+    renderer->unlit_location = GetShaderLocation(shader, "unlit");
+    if (shader.locs[SHADER_LOC_MATRIX_MODEL] < 0 ||
+        shader.locs[SHADER_LOC_MATRIX_NORMAL] < 0 ||
+        renderer->light_position_radius_location < 0 ||
+        renderer->light_color_intensity_location < 0 ||
+        renderer->fog_range_location < 0) {
+        message(error, error_capacity, "Shader GPU incompleto: faltan uniforms de luz/niebla");
+        vg_gpu_renderer_destroy(renderer);
+        return NULL;
+    }
 
     Image image = GenImageColor(4, 4, (Color){32, 132, 244, 255});
     ImageDrawRectangle(&image, 1, 1, 2, 2, BLANK);
@@ -718,6 +937,10 @@ bool vg_gpu_renderer_draw_demo(VgGpuRenderer *renderer) {
     int error_material = 0;
     float alpha_cutoff = 0.5f;
     float emissive[3] = {0.0f, 0.0f, 0.0f};
+    renderer_apply_visual_uniforms(renderer,
+                                   (VgVec3){renderer->camera.position.x,
+                                            renderer->camera.position.y,
+                                            renderer->camera.position.z});
     SetShaderValue(renderer->material.shader, renderer->alpha_mode_location, &alpha_mode,
                    SHADER_UNIFORM_INT);
     SetShaderValue(renderer->material.shader, renderer->alpha_cutoff_location, &alpha_cutoff,
@@ -727,7 +950,9 @@ bool vg_gpu_renderer_draw_demo(VgGpuRenderer *renderer) {
     SetShaderValue(renderer->material.shader, renderer->error_material_location, &error_material,
                    SHADER_UNIFORM_INT);
     BeginTextureMode(renderer->target);
-    ClearBackground((Color){12, 18, 26, 255});
+    ClearBackground((Color){color_byte(renderer->visual.clear_color[0]),
+                            color_byte(renderer->visual.clear_color[1]),
+                            color_byte(renderer->visual.clear_color[2]), 255});
     BeginMode3D(renderer->camera);
     renderer->material.maps[MATERIAL_MAP_DIFFUSE].color = (Color){225, 62, 54, 255};
     DrawMesh(renderer->cube, renderer->material, MatrixTranslate(0.0f, 0.0f, 0.75f));
@@ -1016,6 +1241,9 @@ static void set_scene_material(VgGpuRenderer *renderer, Material *material,
     SetShaderValue(material->shader, renderer->emissive_location, emissive, SHADER_UNIFORM_VEC3);
     SetShaderValue(material->shader, renderer->error_material_location, &error_value,
                    SHADER_UNIFORM_INT);
+    int unlit = 0;
+    SetShaderValue(material->shader, renderer->unlit_location, &unlit,
+                   SHADER_UNIFORM_INT);
 }
 
 static uint32_t primitive_material(const VgGpuModelPacket *packet,
@@ -1127,6 +1355,9 @@ static void draw_sprite_pass(VgGpuRenderer *renderer, Camera3D camera,
         MaterialMap maps[VG_MATERIAL_MAP_COUNT];
         Material material = material_with_stack_maps(renderer, maps);
         set_scene_material(renderer, &material, NULL, VG_MODEL_NO_INDEX, error);
+        int unlit = 1;
+        SetShaderValue(material.shader, renderer->unlit_location, &unlit,
+                       SHADER_UNIFORM_INT);
         float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
         if (material.shader.locs[SHADER_LOC_COLOR_DIFFUSE] >= 0)
             SetShaderValue(material.shader, material.shader.locs[SHADER_LOC_COLOR_DIFFUSE], white,
@@ -1296,6 +1527,7 @@ bool vg_gpu_renderer_draw_scene(VgGpuRenderer *renderer, const VgGpuCamera *came
 
     Camera3D native_camera = camera_from_packet(camera);
     renderer->camera = native_camera;
+    renderer_apply_visual_uniforms(renderer, camera->position);
     int alpha_mode = VG_MODEL_ALPHA_OPAQUE;
     int error_material = 0;
     float alpha_cutoff = 0.5f;
@@ -1309,7 +1541,9 @@ bool vg_gpu_renderer_draw_scene(VgGpuRenderer *renderer, const VgGpuCamera *came
     SetShaderValue(renderer->material.shader, renderer->error_material_location, &error_material,
                    SHADER_UNIFORM_INT);
     BeginTextureMode(renderer->target);
-    ClearBackground((Color){12, 18, 26, 255});
+    ClearBackground((Color){color_byte(renderer->visual.clear_color[0]),
+                            color_byte(renderer->visual.clear_color[1]),
+                            color_byte(renderer->visual.clear_color[2]), 255});
     BeginMode3D(native_camera);
     rlEnableDepthTest();
     rlEnableDepthMask();

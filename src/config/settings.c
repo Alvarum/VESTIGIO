@@ -54,6 +54,9 @@ static VgSettingMask vg_settings_mask_for_capacity(uint32_t capacity, uint32_t b
     if (vg_settings_field_present(capacity, offsetof(VgSettingsLayer, bindings),
                                   sizeof(((VgSettingsLayer *)0)->bindings[0]) * binding_count))
         mask |= VG_SETTING_BINDINGS;
+    if (vg_settings_field_present(capacity, offsetof(VgSettingsLayer, visual_profile),
+                                  sizeof(((VgSettingsLayer *)0)->visual_profile)))
+        mask |= VG_SETTING_VISUAL_PROFILE;
     return mask;
 }
 
@@ -152,6 +155,7 @@ static VgSettingsLayer vg_settings_default_value(void) {
     value.vsync = 1u;
     value.frame_cap = 120u;
     value.look_sensitivity = 0.0025f;
+    value.visual_profile = VG_VISUAL_PROFILE_CLEAN;
     value.binding_count = (uint32_t)(sizeof(vg_default_bindings) / sizeof(vg_default_bindings[0]));
     memcpy(value.bindings, vg_default_bindings, sizeof(vg_default_bindings));
     return value;
@@ -203,6 +207,7 @@ VgResult vg_settings_validate(const VgSettingsLayer *settings,
     VG_REQUIRE_SETTING(VG_SETTING_FRAME_CAP, frame_cap);
     VG_REQUIRE_SETTING(VG_SETTING_LOOK_SENSITIVITY, look_sensitivity);
     VG_REQUIRE_SETTING(VG_SETTING_BINDINGS, binding_count);
+    VG_REQUIRE_SETTING(VG_SETTING_VISUAL_PROFILE, visual_profile);
 #undef VG_REQUIRE_SETTING
     if ((settings->present & VG_SETTING_INTERNAL_RESOLUTION) != 0u &&
         (settings->internal_width < 160u || settings->internal_width > 8192u ||
@@ -228,6 +233,12 @@ VgResult vg_settings_validate(const VgSettingsLayer *settings,
          settings->look_sensitivity > 0.1f)) {
         vg_diagnostic_set(out_diagnostic, VG_ERROR_INVALID_ARGUMENT, 0u,
                           "look sensitivity must be finite and between 0.0001 and 0.1");
+        return VG_ERROR_INVALID_ARGUMENT;
+    }
+    if ((settings->present & VG_SETTING_VISUAL_PROFILE) != 0u &&
+        settings->visual_profile > VG_VISUAL_PROFILE_RETRO) {
+        vg_diagnostic_set(out_diagnostic, VG_ERROR_INVALID_ARGUMENT, 0u,
+                          "visual profile must be clean (0) or retro (1)");
         return VG_ERROR_INVALID_ARGUMENT;
     }
     bool binding_count_present =
@@ -287,6 +298,8 @@ static void vg_settings_overlay(VgSettingsLayer *resolved, const VgSettingsLayer
         resolved->frame_cap = layer->frame_cap;
     if ((layer->present & VG_SETTING_LOOK_SENSITIVITY) != 0u)
         resolved->look_sensitivity = layer->look_sensitivity;
+    if ((layer->present & VG_SETTING_VISUAL_PROFILE) != 0u)
+        resolved->visual_profile = layer->visual_profile;
     if ((layer->present & VG_SETTING_BINDINGS) != 0u) {
         resolved->binding_count = layer->binding_count;
         memset(resolved->bindings, 0, sizeof(resolved->bindings));
@@ -347,6 +360,8 @@ VgResult vg_settings_diff(const VgSettingsLayer *before, const VgSettingsLayer *
         changed |= VG_SETTING_FRAME_CAP;
     if (first.look_sensitivity != second.look_sensitivity)
         changed |= VG_SETTING_LOOK_SENSITIVITY;
+    if (first.visual_profile != second.visual_profile)
+        changed |= VG_SETTING_VISUAL_PROFILE;
     if (first.binding_count != second.binding_count ||
         memcmp(first.bindings, second.bindings, sizeof(first.bindings[0]) * first.binding_count) !=
             0)
@@ -437,6 +452,8 @@ VgResult vg_settings_save_file(const char *utf8_path, const VgSettingsLayer *set
         ok = fprintf(file, "frame_cap %u\n", settings->frame_cap) > 0;
     if (ok && (settings->present & VG_SETTING_LOOK_SENSITIVITY) != 0u)
         ok = fprintf(file, "look_sensitivity %.9g\n", (double)settings->look_sensitivity) > 0;
+    if (ok && (settings->present & VG_SETTING_VISUAL_PROFILE) != 0u)
+        ok = fprintf(file, "visual_profile %u\n", settings->visual_profile) > 0;
     if (ok && (settings->present & VG_SETTING_BINDINGS) != 0u) {
         ok = fprintf(file, "binding_count %u\n", settings->binding_count) > 0;
         for (uint32_t index = 0u; ok && index < settings->binding_count; ++index)
@@ -520,6 +537,12 @@ static VgResult vg_settings_parse_line(VgSettingsLayer *candidate, uint32_t *see
         vg_no_extra_text(line, consumed)) {
         VG_PARSE_UNIQUE(VG_SETTING_LOOK_SENSITIVITY, "duplicate look_sensitivity line");
         candidate->look_sensitivity = decimal;
+        return VG_OK;
+    }
+    if (sscanf(line, "visual_profile %u %n", &first, &consumed) == 1 &&
+        vg_no_extra_text(line, consumed)) {
+        VG_PARSE_UNIQUE(VG_SETTING_VISUAL_PROFILE, "duplicate visual_profile line");
+        candidate->visual_profile = first;
         return VG_OK;
     }
     if (sscanf(line, "binding_count %u %n", &first, &consumed) == 1 &&

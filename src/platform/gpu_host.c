@@ -8,12 +8,23 @@
 #include "tooling/tool_api.h"
 #include "vestigio/controller.h"
 #include "vestigio/door.h"
+#include <errno.h>
 #include <limits.h>
 #include <math.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define CloseWindow Win32CloseWindow
+#define ShowCursor Win32ShowCursor
+#define Rectangle Win32Rectangle
+#include <windows.h>
+#undef Rectangle
+#undef ShowCursor
+#undef CloseWindow
+#endif
 
 struct VgGpuHost {
     VgGpuRenderer *renderer;
@@ -51,6 +62,7 @@ struct VgGpuHost {
     uint64_t saved_revision;
     char *saved_json;
     size_t saved_length;
+    int32_t visual_mode;
 };
 
 static _Atomic(VgGpuHost *) active_host;
@@ -63,6 +75,66 @@ static bool host_is_current(const VgGpuHost *host) {
 static void host_error(char *out, size_t capacity, const char *message) {
     if (out && capacity)
         (void)snprintf(out, capacity, "%s", message);
+}
+
+/* 1 exists, 0 missing, -1 invalid/inaccessible. Settings paths are UTF-8. */
+static int host_settings_file_state(const char *path) {
+#ifdef _WIN32
+    wchar_t wide[4096];
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1,
+                            wide, (int)(sizeof(wide) / sizeof(wide[0]))) == 0)
+        return -1;
+    DWORD attributes = GetFileAttributesW(wide);
+    if (attributes != INVALID_FILE_ATTRIBUTES)
+        return (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0 ? 1 : -1;
+    DWORD failure = GetLastError();
+    return failure == ERROR_FILE_NOT_FOUND || failure == ERROR_PATH_NOT_FOUND ? 0 : -1;
+#else
+    FILE *file = fopen(path, "rb");
+    if (file != NULL) { (void)fclose(file); return 1; }
+    return errno == ENOENT ? 0 : -1;
+#endif
+}
+
+static bool host_apply_visual(VgGpuHost *host, const VgDocumentInstance *instance,
+                              int32_t mode, char *error, size_t error_capacity) {
+    VgGpuVisualSettings visual = vg_gpu_renderer_default_visual_settings();
+    visual.mode = (VgGpuVisualMode)mode;
+    if (instance != NULL) {
+        VgDocumentEnvironment environment;
+        if (!vg_document_instance_environment(instance, &environment)) {
+            host_error(error, error_capacity, "No se pudo leer ambiente del nivel");
+            return false;
+        }
+        memcpy(visual.ambient, environment.ambient_linear, sizeof(visual.ambient));
+        memcpy(visual.clear_color, environment.clear_linear, sizeof(visual.clear_color));
+        memcpy(visual.fog_color, environment.fog_color_linear, sizeof(visual.fog_color));
+        visual.fog_enabled = environment.fog_enabled ? 1u : 0u;
+        visual.fog_start = environment.fog_start;
+        visual.fog_end = environment.fog_end;
+        size_t count = vg_document_instance_light_count(instance);
+        if (count > VG_GPU_MAX_POINT_LIGHTS) {
+            host_error(error, error_capacity, "Demasiadas luces en el nivel");
+            return false;
+        }
+        visual.point_light_count = (uint32_t)count;
+        for (size_t i = 0u; i < count; ++i) {
+            VgDocumentLightBinding binding;
+            VgTransform world;
+            if (!vg_document_instance_light_at(instance, i, &binding) ||
+                vg_entity_get_world_transform(host->context, binding.entity, &world) != VG_OK) {
+                host_error(error, error_capacity, "No se pudo leer pose de la luz");
+                return false;
+            }
+            visual.lights[i].position = world.position;
+            visual.lights[i].radius = binding.range;
+            visual.lights[i].intensity = binding.intensity;
+            memcpy(visual.lights[i].color, binding.color_linear,
+                   sizeof(visual.lights[i].color));
+        }
+    }
+    return vg_gpu_renderer_set_visual_settings(host->renderer, &visual, error,
+                                                error_capacity);
 }
 
 static void host_release_play(VgGpuHost *host) {
@@ -263,6 +335,10 @@ int32_t vg_gpu_host_render(VgGpuHost *host) {
     if (!host_is_current(host) || !host->renderer)
         return false;
     VgDocumentInstance *instance = host->play != NULL ? host->play : host->edit;
+    char visual_error[192] = {0};
+    if (!host_apply_visual(host, instance, host->visual_mode,
+                           visual_error, sizeof(visual_error)))
+        return false;
     if (instance != NULL) {
         if (vg_gpu_renderer_draw_world(host->renderer, host->context,
                                        vg_document_instance_world(instance)) != VG_OK)
@@ -272,6 +348,106 @@ int32_t vg_gpu_host_render(VgGpuHost *host) {
     }
     vg_gpu_renderer_present_embedded(host->renderer);
     return true;
+}
+
+int32_t vg_gpu_host_visual_mode(const VgGpuHost *host) {
+    return host_is_current(host) && host->renderer != NULL ? host->visual_mode : -1;
+}
+
+int32_t vg_gpu_host_set_visual_mode(VgGpuHost *host, int32_t mode,
+                                    char *error, size_t error_capacity) {
+    if (!host_is_current(host) || host->renderer == NULL ||
+        (mode != VG_GPU_VISUAL_CLEAN && mode != VG_GPU_VISUAL_RETRO)) {
+        host_error(error, error_capacity, "Perfil visual invalido");
+        return false;
+    }
+    VgDocumentInstance *instance = host->play != NULL ? host->play : host->edit;
+    if (!host_apply_visual(host, instance, mode, error, error_capacity))
+        return false;
+    host->visual_mode = mode;
+    host_error(error, error_capacity, "");
+    return true;
+}
+
+int32_t vg_gpu_host_load_visual_profile(VgGpuHost *host, const char *path,
+                                        char *error, size_t error_capacity) {
+    if (!host_is_current(host) || path == NULL || path[0] == '\0') {
+        host_error(error, error_capacity, "Ruta de settings invalida");
+        return false;
+    }
+    int file_state = host_settings_file_state(path);
+    if (file_state == 0)
+        return vg_gpu_host_set_visual_mode(host, VG_VISUAL_PROFILE_CLEAN,
+                                            error, error_capacity);
+    if (file_state < 0) {
+        host_error(error, error_capacity, "No se pudo leer settings visuales");
+        return false;
+    }
+    VgSettingsLayer layer = {0};
+    layer.struct_size = sizeof(layer);
+    layer.api_version = VG_API_VERSION;
+    VgSettingsDiagnostic diagnostic = {0};
+    diagnostic.struct_size = sizeof(diagnostic);
+    diagnostic.api_version = VG_API_VERSION;
+    if (vg_settings_load_file(path, &layer, &diagnostic) != VG_OK) {
+        host_error(error, error_capacity, diagnostic.message);
+        return false;
+    }
+    return vg_gpu_host_set_visual_mode(host,
+        (layer.present & VG_SETTING_VISUAL_PROFILE) != 0u
+            ? (int32_t)layer.visual_profile : VG_VISUAL_PROFILE_CLEAN,
+        error, error_capacity);
+}
+
+int32_t vg_gpu_host_save_visual_profile(VgGpuHost *host, const char *path,
+                                        char *error, size_t error_capacity) {
+    if (!host_is_current(host) || path == NULL || path[0] == '\0') {
+        host_error(error, error_capacity, "Ruta de settings invalida");
+        return false;
+    }
+    VgSettingsLayer layer = {0};
+    layer.struct_size = sizeof(layer);
+    layer.api_version = VG_API_VERSION;
+    int file_state = host_settings_file_state(path);
+    if (file_state == 1) {
+        VgSettingsDiagnostic diagnostic = {0};
+        diagnostic.struct_size = sizeof(diagnostic);
+        diagnostic.api_version = VG_API_VERSION;
+        if (vg_settings_load_file(path, &layer, &diagnostic) != VG_OK) {
+            host_error(error, error_capacity, diagnostic.message);
+            return false;
+        }
+    } else if (file_state < 0) {
+        host_error(error, error_capacity, "No se pudo leer settings visuales");
+        return false;
+    }
+    layer.present |= VG_SETTING_VISUAL_PROFILE;
+    layer.visual_profile = (uint32_t)host->visual_mode;
+    VgSettingsDiagnostic diagnostic = {0};
+    diagnostic.struct_size = sizeof(diagnostic);
+    diagnostic.api_version = VG_API_VERSION;
+    if (vg_settings_save_file(path, &layer, &diagnostic) != VG_OK) {
+        host_error(error, error_capacity, diagnostic.message);
+        return false;
+    }
+    host_error(error, error_capacity, "");
+    return true;
+}
+
+size_t vg_gpu_host_visual_light_count(const VgGpuHost *host) {
+    if (!host_is_current(host))
+        return 0u;
+    const VgDocumentInstance *instance = host->play != NULL ? host->play : host->edit;
+    return vg_document_instance_light_count(instance);
+}
+
+int32_t vg_gpu_host_visual_fog_enabled(const VgGpuHost *host) {
+    if (!host_is_current(host))
+        return false;
+    const VgDocumentInstance *instance = host->play != NULL ? host->play : host->edit;
+    VgDocumentEnvironment environment;
+    return vg_document_instance_environment(instance, &environment) &&
+           environment.fog_enabled;
 }
 
 int32_t vg_gpu_host_open_level(VgGpuHost *host, const char *level_path,

@@ -5,7 +5,9 @@ param(
     [string]$Capture = '',
     [switch]$ShowColliders,
     [string]$Level = '',
-    [switch]$SmokeDoor
+    [switch]$SmokeDoor,
+    [ValidateSet('clean', 'retro')][string]$Visual = '',
+    [string]$Settings = ''
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -30,6 +32,8 @@ try {
     if ($ShowColliders) { $arguments += '--show-colliders' }
     if ($Level) { $arguments += @('--level', $Level) }
     if ($SmokeDoor) { $arguments += '--smoke-door' }
+    if ($Visual) { $arguments += @('--visual', $Visual) }
+    if ($Settings) { $arguments += @('--settings', $Settings) }
     & $player @arguments
     if ($LASTEXITCODE) { throw "Player termino con codigo $LASTEXITCODE" }
 } finally {

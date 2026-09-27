@@ -6,6 +6,6 @@
 
 int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_colliders,
                    const char *level_path, bool smoke_door,
-                   const VgSettingsLayer *session_settings);
+                   const char *settings_path, const VgSettingsLayer *session_settings);
 
 #endif

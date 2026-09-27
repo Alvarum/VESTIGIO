@@ -28,6 +28,9 @@ struct VgDocumentInstance {
     size_t entity_count;
     VgDocumentDoorBinding *doors;
     size_t door_count;
+    VgDocumentEnvironment environment;
+    VgDocumentLightBinding lights[4];
+    size_t light_count;
     VgDocumentAssetBinding *assets;
     size_t asset_count;
 };
@@ -323,6 +326,56 @@ static VgResult vg_document_apply_doors(VgDocumentInstance *instance,
     return VG_OK;
 }
 
+static void vg_document_apply_environment(VgDocumentInstance *instance,
+                                          const VgJsonNode *root) {
+    VgDocumentEnvironment *output = &instance->environment;
+    *output = (VgDocumentEnvironment){
+        .ambient_linear = {0.2f, 0.2f, 0.2f},
+        .clear_linear = {0.01f, 0.02f, 0.03f},
+        .fog_color_linear = {0.01f, 0.02f, 0.03f},
+        .fog_start = 0.0f,
+        .fog_end = 80.0f,
+        .fog_enabled = false};
+    const VgJsonNode *environment = vg_json_object_get(root, "environment");
+    if (environment == NULL)
+        return;
+    const VgJsonNode *ambient = vg_json_object_get(environment, "ambient_linear");
+    const VgJsonNode *clear = vg_json_object_get(environment, "clear_linear");
+    if (ambient != NULL)
+        (void)vg_document_read_vector(ambient, output->ambient_linear, 3u);
+    if (clear != NULL)
+        (void)vg_document_read_vector(clear, output->clear_linear, 3u);
+    const VgJsonNode *fog = vg_json_object_get(environment, "fog");
+    if (fog == NULL)
+        return;
+    const char *mode = vg_document_node_string(vg_json_object_get(fog, "mode"));
+    if (mode == NULL || strcmp(mode, "linear") != 0)
+        return;
+    output->fog_enabled = true;
+    (void)vg_document_read_vector(vg_json_object_get(fog, "color_linear"),
+                                  output->fog_color_linear, 3u);
+    output->fog_start = (float)vg_json_object_get(fog, "start")->as.number.value;
+    output->fog_end = (float)vg_json_object_get(fog, "end")->as.number.value;
+}
+
+static void vg_document_apply_lights(VgDocumentInstance *instance,
+                                     const VgJsonNode *entities) {
+    for (size_t index = 0u; index < instance->entity_count; ++index) {
+        const VgJsonNode *entity = entities->as.array.items[index];
+        const VgJsonNode *components = vg_json_object_get(entity, "components");
+        const VgJsonNode *light = vg_json_object_get(components, "engine.light");
+        if (light == NULL)
+            continue;
+        VgDocumentLightBinding *binding = &instance->lights[instance->light_count++];
+        binding->id = instance->entities[index].id;
+        binding->entity = instance->entities[index].entity;
+        (void)vg_document_read_vector(vg_json_object_get(light, "color_linear"),
+                                      binding->color_linear, 3u);
+        binding->intensity = (float)vg_json_object_get(light, "intensity")->as.number.value;
+        binding->range = (float)vg_json_object_get(light, "range")->as.number.value;
+    }
+}
+
 static void vg_document_instance_cleanup(VgDocumentInstance *instance) {
     if (instance == NULL)
         return;
@@ -395,6 +448,7 @@ VgResult vg_document_instantiate(VgContext *context, const VgDocument *document,
                                         VG_ERROR_OUT_OF_MEMORY, "$", NULL, "instance allocation");
     candidate->context = context;
     candidate->entity_count = entities->as.array.count;
+    vg_document_apply_environment(candidate, root);
     if (candidate->entity_count != 0u) {
         candidate->entities = calloc(candidate->entity_count, sizeof(*candidate->entities));
         candidate->assets = calloc(candidate->entity_count, sizeof(*candidate->assets));
@@ -487,6 +541,7 @@ VgResult vg_document_instantiate(VgContext *context, const VgDocument *document,
     result = vg_document_apply_doors(candidate, entities, out_diagnostic);
     if (result != VG_OK)
         goto fail;
+    vg_document_apply_lights(candidate, entities);
 
     *out_instance = candidate;
     if (out_diagnostic != NULL)
@@ -555,6 +610,26 @@ bool vg_document_instance_door_at(const VgDocumentInstance *instance, size_t ind
     if (instance == NULL || index >= instance->door_count || out_door == NULL)
         return false;
     *out_door = instance->doors[index];
+    return true;
+}
+
+bool vg_document_instance_environment(const VgDocumentInstance *instance,
+                                      VgDocumentEnvironment *out_environment) {
+    if (instance == NULL || out_environment == NULL)
+        return false;
+    *out_environment = instance->environment;
+    return true;
+}
+
+size_t vg_document_instance_light_count(const VgDocumentInstance *instance) {
+    return instance == NULL ? 0u : instance->light_count;
+}
+
+bool vg_document_instance_light_at(const VgDocumentInstance *instance, size_t index,
+                                   VgDocumentLightBinding *out_light) {
+    if (instance == NULL || index >= instance->light_count || out_light == NULL)
+        return false;
+    *out_light = instance->lights[index];
     return true;
 }
 

@@ -4,9 +4,102 @@
 #include "render/gpu_raylib/gpu_renderer.h"
 #include "raylib.h"
 
+#include <errno.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define CloseWindow Win32CloseWindow
+#define ShowCursor Win32ShowCursor
+#define Rectangle Win32Rectangle
+#include <windows.h>
+#undef Rectangle
+#undef ShowCursor
+#undef CloseWindow
+#endif
+
+static const char *demo_settings_path(const char *requested, char path[2048]) {
+    if (requested != NULL)
+        return requested;
+#ifdef _WIN32
+    wchar_t wide[2048];
+    DWORD length = GetEnvironmentVariableW(L"LOCALAPPDATA", wide, 1800);
+    if (length == 0 || length >= 1800)
+        return NULL;
+    const wchar_t suffix[] = L"\\VESTIGIO";
+    memcpy(wide + length, suffix, sizeof(suffix));
+    if (!CreateDirectoryW(wide, NULL) && GetLastError() != ERROR_ALREADY_EXISTS)
+        return NULL;
+    const wchar_t file[] = L"\\visual.settings";
+    memcpy(wide + length + (sizeof(suffix) / sizeof(suffix[0]) - 1u),
+           file, sizeof(file));
+    return WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide, -1,
+                               path, 2048, NULL, NULL) != 0 ? path : NULL;
+#else
+    const char *base = getenv("LOCALAPPDATA");
+    if (base == NULL || base[0] == '\0')
+        return NULL;
+    int length = snprintf(path, 2048, "%s/VESTIGIO", base);
+    if (length < 0 || length >= 2048)
+        return NULL;
+    length = snprintf(path, 2048, "%s/VESTIGIO/visual.settings", base);
+    return length >= 0 && length < 2048 ? path : NULL;
+#endif
+}
+
+static int demo_settings_file_state(const char *path) {
+#ifdef _WIN32
+    wchar_t wide[4096];
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1,
+                            wide, (int)(sizeof(wide) / sizeof(wide[0]))) == 0)
+        return -1;
+    DWORD attributes = GetFileAttributesW(wide);
+    if (attributes != INVALID_FILE_ATTRIBUTES)
+        return (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0 ? 1 : -1;
+    DWORD failure = GetLastError();
+    return failure == ERROR_FILE_NOT_FOUND || failure == ERROR_PATH_NOT_FOUND ? 0 : -1;
+#else
+    FILE *file = fopen(path, "rb");
+    if (file != NULL) { (void)fclose(file); return 1; }
+    return errno == ENOENT ? 0 : -1;
+#endif
+}
+
+static bool demo_apply_visual(VgGpuRenderer *renderer, VgContext *context,
+                              const VgDocumentInstance *instance, uint32_t profile,
+                              char *error, size_t error_capacity) {
+    VgGpuVisualSettings visual = vg_gpu_renderer_default_visual_settings();
+    visual.mode = profile == VG_VISUAL_PROFILE_RETRO ? VG_GPU_VISUAL_RETRO
+                                                     : VG_GPU_VISUAL_CLEAN;
+    VgDocumentEnvironment environment;
+    if (!vg_document_instance_environment(instance, &environment))
+        return false;
+    memcpy(visual.ambient, environment.ambient_linear, sizeof(visual.ambient));
+    memcpy(visual.clear_color, environment.clear_linear, sizeof(visual.clear_color));
+    memcpy(visual.fog_color, environment.fog_color_linear, sizeof(visual.fog_color));
+    visual.fog_enabled = environment.fog_enabled ? 1u : 0u;
+    visual.fog_start = environment.fog_start;
+    visual.fog_end = environment.fog_end;
+    size_t count = vg_document_instance_light_count(instance);
+    if (count > VG_GPU_MAX_POINT_LIGHTS)
+        return false;
+    visual.point_light_count = (uint32_t)count;
+    for (size_t i = 0u; i < count; ++i) {
+        VgDocumentLightBinding binding;
+        VgTransform world;
+        if (!vg_document_instance_light_at(instance, i, &binding) ||
+            vg_entity_get_world_transform(context, binding.entity, &world) != VG_OK)
+            return false;
+        visual.lights[i].position = world.position;
+        visual.lights[i].radius = binding.range;
+        visual.lights[i].intensity = binding.intensity;
+        memcpy(visual.lights[i].color, binding.color_linear,
+               sizeof(visual.lights[i].color));
+    }
+    return vg_gpu_renderer_set_visual_settings(renderer, &visual, error, error_capacity);
+}
 
 static bool demo_read_model(const char *path, void **out_data, uint64_t *out_size) {
     FILE *file = fopen(path, "rb");
@@ -62,6 +155,7 @@ static VgInputSample demo_input_sample(bool focused, bool smoke, bool smoke_door
 
 int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_colliders,
                    const char *level_path, bool smoke_door,
+                   const char *requested_settings_path,
                    const VgSettingsLayer *session_settings) {
     if (smoke_door && smoke_frames == 0)
         smoke_frames = 180;
@@ -69,13 +163,42 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
         (void)fprintf(stderr, "--smoke-door requiere al menos 180 frames\n");
         return 2;
     }
+    char default_settings_path[2048] = {0};
+    const char *settings_path = smoke_frames > 0 && requested_settings_path == NULL
+        ? NULL : demo_settings_path(requested_settings_path, default_settings_path);
+    if (requested_settings_path != NULL && requested_settings_path[0] == '\0') {
+        (void)fprintf(stderr, "Ruta de settings vacia\n");
+        return 2;
+    }
+    VgSettingsLayer user_settings = {0};
+    user_settings.struct_size = sizeof(user_settings);
+    user_settings.api_version = VG_API_VERSION;
+    const VgSettingsLayer *user = NULL;
+    if (settings_path != NULL) {
+        int file_state = demo_settings_file_state(settings_path);
+        if (file_state == 1) {
+            VgSettingsDiagnostic diagnostic = {0};
+            diagnostic.struct_size = sizeof(diagnostic);
+            diagnostic.api_version = VG_API_VERSION;
+            if (vg_settings_load_file(settings_path, &user_settings, &diagnostic) != VG_OK) {
+                (void)fprintf(stderr, "Settings de usuario invalidos: %s\n",
+                              diagnostic.message);
+                return 2;
+            }
+            user = &user_settings;
+        } else if (file_state < 0) {
+            (void)fprintf(stderr, "No se pudo leer settings de usuario: %s\n",
+                          settings_path);
+            return 2;
+        }
+    }
     VgSettingsLayer settings = {0};
     settings.struct_size = sizeof(settings);
     settings.api_version = VG_API_VERSION;
     VgSettingsDiagnostic settings_error = {0};
     settings_error.struct_size = sizeof(settings_error);
     settings_error.api_version = VG_API_VERSION;
-    if (vg_settings_resolve(NULL, NULL, session_settings, &settings, &settings_error) != VG_OK ||
+    if (vg_settings_resolve(NULL, user, session_settings, &settings, &settings_error) != VG_OK ||
         settings.internal_width > 1280u || settings.internal_height > 720u) {
         (void)fprintf(stderr, "Configuracion 3D invalida: %s (maximo 1280x720)\n",
                       settings_error.message);
@@ -166,6 +289,18 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
                       level_path, result);
         goto cleanup;
     }
+    if (!demo_apply_visual(renderer, context, vg_demo_scene_document_instance(scene),
+                           settings.visual_profile, gpu_error, sizeof(gpu_error))) {
+        (void)fprintf(stderr, "Perfil visual GPU: %s\n", gpu_error);
+        goto cleanup;
+    }
+    VgDocumentEnvironment visual_environment;
+    (void)vg_document_instance_environment(vg_demo_scene_document_instance(scene),
+                                            &visual_environment);
+    (void)printf("visual=%s lights=%zu fog=%s\n",
+                 settings.visual_profile == VG_VISUAL_PROFILE_RETRO ? "retro" : "clean",
+                 vg_document_instance_light_count(vg_demo_scene_document_instance(scene)),
+                 visual_environment.fog_enabled ? "linear" : "off");
 
     VgVec3 start_position = {0};
     if (vg_demo_scene_camera_position(scene, &start_position) != VG_OK)
@@ -194,6 +329,25 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
             break;
         if (smoke_frames == 0 && IsKeyPressed(KEY_F3))
             show_colliders = !show_colliders;
+        if (smoke_frames == 0 && IsKeyPressed(KEY_F6)) {
+            uint32_t previous_profile = settings.visual_profile;
+            settings.visual_profile = previous_profile == VG_VISUAL_PROFILE_CLEAN
+                ? VG_VISUAL_PROFILE_RETRO : VG_VISUAL_PROFILE_CLEAN;
+            if (!demo_apply_visual(renderer, context, vg_demo_scene_document_instance(scene),
+                                   settings.visual_profile, gpu_error, sizeof(gpu_error))) {
+                settings.visual_profile = previous_profile;
+                (void)fprintf(stderr, "Perfil visual GPU: %s\n", gpu_error);
+            } else if (settings_path != NULL) {
+                user_settings.present |= VG_SETTING_VISUAL_PROFILE;
+                user_settings.visual_profile = settings.visual_profile;
+                if (vg_settings_save_file(settings_path, &user_settings,
+                                          &settings_error) != VG_OK)
+                    (void)fprintf(stderr, "No se guardo perfil visual: %s\n",
+                                  settings_error.message);
+            } else {
+                (void)fprintf(stderr, "No hay ruta de settings para guardar perfil\n");
+            }
+        }
         bool focused = smoke_frames > 0 || IsWindowFocused();
         if (smoke_frames > 0) {
             if (frames == smoke_frames / 2)
@@ -239,6 +393,12 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
         if (result == VG_OK)
             result = vg_demo_scene_step(scene, smoke_frames > 0 ? 1.0 / 60.0 : now - previous);
         previous = now;
+        if (result == VG_OK && !demo_apply_visual(renderer, context,
+                              vg_demo_scene_document_instance(scene),
+                              settings.visual_profile, gpu_error, sizeof(gpu_error))) {
+            (void)fprintf(stderr, "Perfil visual GPU: %s\n", gpu_error);
+            goto cleanup;
+        }
         if (result == VG_OK)
             result = vg_gpu_renderer_draw_world(renderer, context, vg_demo_scene_world(scene));
         if (result == VG_OK && show_colliders)

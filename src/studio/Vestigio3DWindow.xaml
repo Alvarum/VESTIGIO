@@ -44,6 +44,13 @@
       <Border Width="1" Margin="12,3" Background="{StaticResource BorderBrush}"/>
       <Button x:Name="SaveButton" Content="Guardar como…" Click="Save_Click"/>
       <Button x:Name="ReopenButton" Content="Reabrir" Margin="6,0,0,0" Click="Reopen_Click"/>
+      <Border Width="1" Margin="12,3" Background="{StaticResource BorderBrush}"/>
+      <TextBlock Text="Imagen" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
+      <ComboBox x:Name="VisualProfile" Width="112" Margin="6,0,0,0"
+                SelectedIndex="0" SelectionChanged="VisualProfile_SelectionChanged">
+        <ComboBoxItem Content="Limpio"/>
+        <ComboBoxItem Content="Retro"/>
+      </ComboBox>
     </WrapPanel>
 
     <Grid Grid.Row="2" Margin="12,0,12,8">
@@ -62,6 +69,8 @@
           </ComboBox>
           <Button x:Name="FrameButton" Content="Encuadrar selección" Margin="6,0,0,0"
                   Click="FrameSelection_Click"/>
+          <TextBlock x:Name="VisualSummaryText" Margin="12,0,0,0"
+                     VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
           <TextBlock Margin="14,0,0,0" Foreground="{StaticResource MutedBrush}"
                      Text="Clic: seleccionar · WASD: mover · derecho: mirar · Probar: E puerta"/>
         </WrapPanel>

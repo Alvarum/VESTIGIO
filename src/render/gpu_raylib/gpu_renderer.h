@@ -20,6 +20,32 @@ typedef struct VgGpuInfo {
     int32_t rlgl_version;
 } VgGpuInfo;
 
+#define VG_GPU_MAX_POINT_LIGHTS 4u
+
+typedef enum VgGpuVisualMode {
+    VG_GPU_VISUAL_CLEAN = 0,
+    VG_GPU_VISUAL_RETRO = 1
+} VgGpuVisualMode;
+
+typedef struct VgGpuPointLight {
+    VgVec3 position;
+    float radius;
+    float color[3];
+    float intensity;
+} VgGpuPointLight;
+
+typedef struct VgGpuVisualSettings {
+    VgGpuVisualMode mode;
+    uint32_t point_light_count;
+    float ambient[3];
+    float clear_color[3];
+    uint32_t fog_enabled;
+    float fog_color[3];
+    float fog_start;
+    float fog_end;
+    VgGpuPointLight lights[VG_GPU_MAX_POINT_LIGHTS];
+} VgGpuVisualSettings;
+
 typedef enum VgGpuPacketFlags {
     VG_GPU_PACKET_NONE = 0u,
     VG_GPU_PACKET_WIREFRAME = 1u << 0u,
@@ -68,6 +94,15 @@ typedef struct VgGpuSpritePacket {
 VgGpuRenderer *vg_gpu_renderer_create(VgGpuRendererConfig config, char *error,
                                       size_t error_capacity);
 void vg_gpu_renderer_destroy(VgGpuRenderer *renderer);
+VgGpuVisualSettings vg_gpu_renderer_default_visual_settings(void);
+/* Validates the whole candidate before changing the active GPU profile. */
+bool vg_gpu_renderer_set_visual_settings(VgGpuRenderer *renderer,
+                                         const VgGpuVisualSettings *settings,
+                                         char *error, size_t error_capacity);
+/* Replaces the offscreen target only after a new GPU target was created. */
+bool vg_gpu_renderer_resize_internal(VgGpuRenderer *renderer, uint32_t width,
+                                     uint32_t height, char *error,
+                                     size_t error_capacity);
 
 /* G01 diagnostic scene: indexed by the backend as real mesh/billboard draws. */
 bool vg_gpu_renderer_draw_demo(VgGpuRenderer *renderer);

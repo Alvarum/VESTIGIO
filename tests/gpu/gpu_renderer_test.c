@@ -1,7 +1,25 @@
 #include "render/gpu_raylib/gpu_renderer.h"
 
 #include "retro/platform.h"
+#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+static size_t image_difference(const ReTexture *left, const ReTexture *right) {
+    if (left->pixels == NULL || right->pixels == NULL ||
+        left->width != right->width || left->height != right->height)
+        return 0u;
+    size_t changed = 0u;
+    for (size_t index = 0u; index < (size_t)left->width * (size_t)left->height;
+         ++index) {
+        RePixel a = left->pixels[index], b = right->pixels[index];
+        int delta = abs((int)a.r - (int)b.r) +
+                    abs((int)a.g - (int)b.g) + abs((int)a.b - (int)b.b);
+        if (delta > 24)
+            ++changed;
+    }
+    return changed;
+}
 
 static bool has_scene_pixels(const ReTexture *capture) {
     size_t red = 0u, blue = 0u;
@@ -81,6 +99,111 @@ int main(int argc, char **argv) {
         (void)fprintf(stderr, "FAIL explicit readback accounting\n");
         goto cleanup_renderer;
     }
+    const char *clean_path = argc > 2 ? argv[2] : "vestigio-clean-test.png";
+    const char *retro_path = argc > 3 ? argv[3] : "vestigio-retro-test.png";
+    VgGpuVisualSettings visual = vg_gpu_renderer_default_visual_settings();
+    visual.ambient[0] = 0.55f;
+    visual.ambient[1] = 0.57f;
+    visual.ambient[2] = 0.62f;
+    visual.clear_color[0] = 0.02f;
+    visual.clear_color[1] = 0.03f;
+    visual.clear_color[2] = 0.05f;
+    visual.fog_enabled = 1u;
+    visual.fog_color[0] = 0.05f;
+    visual.fog_color[1] = 0.08f;
+    visual.fog_color[2] = 0.12f;
+    visual.fog_start = 6.0f;
+    visual.fog_end = 16.0f;
+    visual.point_light_count = 1u;
+    visual.lights[0] = (VgGpuPointLight){
+        .position = {0.0f, -1.0f, 2.8f}, .radius = 7.0f,
+        .color = {1.0f, 0.68f, 0.36f}, .intensity = 3.5f};
+    if (!vg_gpu_renderer_set_visual_settings(renderer, &visual, gpu_error,
+                                             sizeof(gpu_error)) ||
+        !vg_gpu_renderer_draw_demo(renderer)) {
+        (void)fprintf(stderr, "FAIL clean light/fog GPU: %s\n", gpu_error);
+        goto cleanup_renderer;
+    }
+    vg_gpu_renderer_present(renderer);
+    if (vg_gpu_renderer_stats(renderer).readbacks != 1u ||
+        !vg_gpu_renderer_capture(renderer, clean_path))
+        goto cleanup_renderer;
+    ReTexture clean = {0}, retro = {0};
+    if (!re_platform_image_load(clean_path, &clean) ||
+        clean.width != 320 || clean.height != 180) {
+        (void)fprintf(stderr, "FAIL clean capture\n");
+        goto cleanup_renderer;
+    }
+    VgGpuVisualSettings invalid = visual;
+    invalid.ambient[0] = NAN;
+    if (vg_gpu_renderer_set_visual_settings(renderer, &invalid, gpu_error,
+                                             sizeof(gpu_error)) ||
+        gpu_error[0] == '\0') {
+        (void)fprintf(stderr, "FAIL invalid visual settings accepted\n");
+        re_texture_destroy(&clean);
+        goto cleanup_renderer;
+    }
+    if (vg_gpu_renderer_resize_internal(renderer, 0u, 360u, gpu_error,
+                                         sizeof(gpu_error)) ||
+        gpu_error[0] == '\0' || !vg_gpu_renderer_draw_demo(renderer) ||
+        !vg_gpu_renderer_capture(renderer, "vestigio-invalid-state-test.png")) {
+        (void)fprintf(stderr, "FAIL rejected settings/resize changed render target\n");
+        re_texture_destroy(&clean);
+        goto cleanup_renderer;
+    }
+    ReTexture unchanged = {0};
+    if (!re_platform_image_load("vestigio-invalid-state-test.png", &unchanged) ||
+        unchanged.width != 320 || unchanged.height != 180 ||
+        image_difference(&clean, &unchanged) != 0u) {
+        (void)fprintf(stderr, "FAIL rejected settings changed visual output\n");
+        re_texture_destroy(&unchanged);
+        re_texture_destroy(&clean);
+        goto cleanup_renderer;
+    }
+    re_texture_destroy(&unchanged);
+    (void)remove("vestigio-invalid-state-test.png");
+    visual.mode = VG_GPU_VISUAL_RETRO;
+    if (!vg_gpu_renderer_set_visual_settings(renderer, &visual, gpu_error,
+                                             sizeof(gpu_error)) ||
+        !vg_gpu_renderer_draw_demo(renderer)) {
+        re_texture_destroy(&clean);
+        goto cleanup_renderer;
+    }
+    vg_gpu_renderer_present(renderer);
+    if (vg_gpu_renderer_stats(renderer).readbacks != 3u ||
+        !vg_gpu_renderer_capture(renderer, retro_path) ||
+        !re_platform_image_load(retro_path, &retro)) {
+        re_texture_destroy(&clean);
+        goto cleanup_renderer;
+    }
+    size_t changed = image_difference(&clean, &retro);
+    re_texture_destroy(&clean);
+    re_texture_destroy(&retro);
+    if (changed < 200u || vg_gpu_renderer_stats(renderer).readbacks != 4u) {
+        (void)fprintf(stderr, "FAIL clean/retro A/B: %zu changed pixels\n", changed);
+        goto cleanup_renderer;
+    }
+    if (argc <= 2) (void)remove(clean_path);
+    if (argc <= 3) (void)remove(retro_path);
+    if (!vg_gpu_renderer_resize_internal(renderer, 640u, 360u, gpu_error,
+                                          sizeof(gpu_error)) ||
+        !vg_gpu_renderer_draw_demo(renderer)) {
+        (void)fprintf(stderr, "FAIL transactional GPU resize: %s\n", gpu_error);
+        goto cleanup_renderer;
+    }
+    vg_gpu_renderer_present(renderer);
+    if (vg_gpu_renderer_stats(renderer).readbacks != 4u ||
+        !vg_gpu_renderer_capture(renderer, "vestigio-gpu-resized-test.png"))
+        goto cleanup_renderer;
+    ReTexture resized = {0};
+    if (!re_platform_image_load("vestigio-gpu-resized-test.png", &resized) ||
+        resized.width != 640 || resized.height != 360) {
+        (void)fprintf(stderr, "FAIL resized target dimensions\n");
+        re_texture_destroy(&resized);
+        goto cleanup_renderer;
+    }
+    re_texture_destroy(&resized);
+    (void)remove("vestigio-gpu-resized-test.png");
     vg_gpu_renderer_destroy(renderer);
     renderer =
         vg_gpu_renderer_create((VgGpuRendererConfig){640u, 360u}, gpu_error, sizeof(gpu_error));

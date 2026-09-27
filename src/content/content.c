@@ -190,7 +190,8 @@ static bool vg_content_validate_capabilities(VgContentValidation *validation,
                         strcmp(capability, "component.engine.camera.v1") == 0 ||
                         strcmp(capability, "component.engine.mesh.v1") == 0 ||
                         strcmp(capability, "component.engine.collider.v1") == 0 ||
-                        strcmp(capability, "component.engine.door.v1") == 0;
+                        strcmp(capability, "component.engine.door.v1") == 0 ||
+                        strcmp(capability, "component.engine.light.v1") == 0;
             if (!known) {
                 char path[96];
                 (void)snprintf(path, sizeof(path), "$.required[%zu]", index);
@@ -319,7 +320,8 @@ static bool vg_content_validate_transform(VgContentValidation *validation,
 
 static bool vg_content_component_known(const char *name) {
     return strcmp(name, "engine.camera") == 0 || strcmp(name, "engine.mesh") == 0 ||
-           strcmp(name, "engine.collider") == 0 || strcmp(name, "engine.door") == 0;
+           strcmp(name, "engine.collider") == 0 || strcmp(name, "engine.door") == 0 ||
+           strcmp(name, "engine.light") == 0;
 }
 
 static bool vg_content_component_version(VgContentValidation *validation, const VgJsonNode *node,
@@ -362,6 +364,20 @@ static bool vg_content_validate_component(VgContentValidation *validation, const
         if (!vg_content_validate_uuid_node(validation, vg_json_object_get(node, "asset"),
                                            asset_path, id, NULL))
             return false;
+    } else if (strcmp(name, "engine.light") == 0) {
+        const char *type = NULL;
+        double color[3], intensity = 0.0, range = 0.0;
+        if (!vg_content_string(vg_json_object_get(node, "type"), &type) ||
+            strcmp(type, "point") != 0 ||
+            !vg_content_validate_vec(validation, vg_json_object_get(node, "color_linear"),
+                                     3u, path, id, color) ||
+            !vg_content_number(vg_json_object_get(node, "intensity"), &intensity) ||
+            !vg_content_number(vg_json_object_get(node, "range"), &range) ||
+            intensity < 0.0 || intensity > 8.0 || range < 0.1 || range > 50.0 ||
+            color[0] < 0.0 || color[0] > 1.0 || color[1] < 0.0 || color[1] > 1.0 ||
+            color[2] < 0.0 || color[2] > 1.0)
+            return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT, path, id,
+                                   "light v1 requires point type, linear RGB in [0,1], intensity in [0,8] and range in [0.1,50] metres");
     } else if (strcmp(name, "engine.door") == 0) {
         double angle = 0.0, speed = 0.0;
         if (!vg_content_number(vg_json_object_get(node, "open_angle_radians"), &angle) ||
@@ -492,19 +508,13 @@ static bool vg_content_validate_environment(VgContentValidation *validation,
             double start = 0.0, end = 0.0;
             if (!vg_content_number(vg_json_object_get(fog, "start"), &start) ||
                 !vg_content_number(vg_json_object_get(fog, "end"), &end) || start < 0.0 ||
-                end <= start)
+                end <= start || end > 500.0)
                 return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT,
-                                       "$.environment.fog", id, "linear fog requires 0<=start<end");
-        } else if (strcmp(mode, "exponential") == 0) {
-            double density = 0.0;
-            if (!vg_content_number(vg_json_object_get(fog, "density"), &density) || density <= 0.0)
-                return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT,
-                                       "$.environment.fog.density", id,
-                                       "exponential fog density must be positive");
+                                       "$.environment.fog", id, "linear fog requires 0<=start<end<=500 metres");
         } else if (strcmp(mode, "none") != 0) {
             return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT,
                                    "$.environment.fog.mode", id,
-                                   "fog mode must be none, linear or exponential");
+                                   "fog mode must be none or linear in this renderer");
         }
     }
     return true;
@@ -650,6 +660,7 @@ static bool vg_content_validate_level(VgContentValidation *validation, const VgJ
                                "entity count exceeds %u", VG_CONTENT_MAX_ENTITIES);
     const char *ids[VG_CONTENT_MAX_ENTITIES];
     const char *parents[VG_CONTENT_MAX_ENTITIES] = {0};
+    size_t light_count = 0u;
     for (size_t index = 0u; index < entities->as.array.count; ++index) {
         const VgJsonNode *entity = entities->as.array.items[index];
         char path[128];
@@ -696,6 +707,9 @@ static bool vg_content_validate_level(VgContentValidation *validation, const VgJ
         if (!vg_content_validate_components(validation, entity, member_path, ids[index]))
             return false;
         const VgJsonNode *components = vg_json_object_get(entity, "components");
+        if (vg_json_object_get(components, "engine.light") != NULL && ++light_count > 4u)
+            return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_CAPACITY, member_path,
+                                   ids[index], "this renderer supports at most four point lights");
         if (vg_json_object_get(components, "engine.door") != NULL) {
             for (size_t prior = 0u; prior < index; ++prior) {
                 const VgJsonNode *prior_components = vg_json_object_get(

@@ -22,7 +22,8 @@ public partial class Vestigio3DWindow : Window
     private Vector3 _displayedEuler;
     private readonly string[] _displayedTexts = new string[9];
 
-    internal Vestigio3DWindow(string levelPath, string modelPath)
+    internal Vestigio3DWindow(string levelPath, string modelPath,
+        string? visualSettingsPath = null)
     {
         if (!File.Exists(levelPath))
             throw new FileNotFoundException("No se encontró el nivel 3D.", levelPath);
@@ -33,6 +34,7 @@ public partial class Vestigio3DWindow : Window
         LoadEntityLabels(_sourceLevelPath);
         Viewport.LevelPath = _sourceLevelPath;
         Viewport.ModelPath = modelPath;
+        Viewport.VisualSettingsPath = visualSettingsPath;
         Viewport.SelectionChanged += (_, _) => RefreshSelection();
         LevelTitle.Text = DocumentName(levelPath);
         LevelPathText.Text = _sourceLevelPath;
@@ -51,6 +53,9 @@ public partial class Vestigio3DWindow : Window
     internal GpuViewportHost GpuViewport => Viewport;
     internal string ActiveLevelPath => Viewport.LevelPath ?? _sourceLevelPath;
     internal void RefreshForTest() => RefreshDocument();
+    internal int VisualProfileForTest => VisualProfile.SelectedIndex;
+    internal string VisualSummaryForTest => VisualSummaryText.Text;
+    internal void SelectVisualProfileForTest(int mode) => VisualProfile.SelectedIndex = mode;
 
     private void LoadEntityLabels(string levelPath)
     {
@@ -131,6 +136,24 @@ public partial class Vestigio3DWindow : Window
         }
         RefreshSelectionFields();
         RefreshDirty();
+        VisualSummaryText.Text = Viewport.VisualSummary;
+        if (Viewport.VisualMode >= 0 && VisualProfile.SelectedIndex != Viewport.VisualMode)
+            VisualProfile.SelectedIndex = Viewport.VisualMode;
+    }
+
+    private void VisualProfile_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (Viewport is null || !Viewport.IsNativeReady || VisualProfile.SelectedIndex < 0 ||
+            VisualProfile.SelectedIndex == Viewport.VisualMode)
+            return;
+        if (!Viewport.TrySetVisualMode(VisualProfile.SelectedIndex))
+        {
+            VisualProfile.SelectedIndex = Viewport.VisualMode;
+            StatusText.Text = $"No se pudo guardar perfil visual: {Viewport.LastError}";
+            return;
+        }
+        StatusText.Text = VisualProfile.SelectedIndex == 0
+            ? "Perfil limpio guardado" : "Perfil retro guardado";
     }
 
     private void RefreshSelection()

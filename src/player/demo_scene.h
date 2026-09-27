@@ -3,6 +3,7 @@
 
 #include "vestigio/vestigio.h"
 #include "vestigio/spatial.h"
+#include "content/document_runtime.h"
 
 typedef struct VgDemoScene VgDemoScene;
 
@@ -16,6 +17,7 @@ VgResult vg_demo_scene_step(VgDemoScene *scene, double elapsed_seconds);
 VgWorld vg_demo_scene_world(const VgDemoScene *scene);
 VgResult vg_demo_scene_camera_position(const VgDemoScene *scene, VgVec3 *out_position);
 const VgSpatialScene *vg_demo_scene_spatial(const VgDemoScene *scene);
+const VgDocumentInstance *vg_demo_scene_document_instance(const VgDemoScene *scene);
 /* NULL when the centered interaction ray does not hit an authored door. */
 const char *vg_demo_scene_door_hint(const VgDemoScene *scene);
 size_t vg_demo_scene_door_count(const VgDemoScene *scene);

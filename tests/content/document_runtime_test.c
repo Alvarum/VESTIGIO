@@ -296,10 +296,26 @@ static void test_atrium_document(void) {
     CHECK(vg_document_instantiate(context, document, &description, &instance, &diagnostic) ==
           VG_OK);
     if (instance != NULL) {
-        CHECK(vg_document_instance_entity_count(instance) == 16u);
+        CHECK(vg_document_instance_entity_count(instance) == 18u);
         CHECK(vg_document_instance_asset_count(instance) == 1u);
         CHECK(resolver.calls == 1u);
         CHECK(vg_spatial_scene_stats(vg_document_instance_spatial(instance)).colliders == 14u);
+        VgDocumentEnvironment environment = {0};
+        CHECK(vg_document_instance_environment(instance, &environment));
+        CHECK(environment.fog_enabled && environment.fog_start == 8.0f &&
+              environment.fog_end == 24.0f &&
+              environment.ambient_linear[0] == 0.55f &&
+              environment.clear_linear[2] == 0.03f);
+        CHECK(vg_document_instance_light_count(instance) == 2u);
+        VgDocumentLightBinding light = {0};
+        CHECK(vg_document_instance_light_at(instance, 0u, &light));
+        CHECK(light.intensity == 2.0f && light.range == 5.0f);
+        VgTransform light_transform = {0};
+        CHECK(vg_entity_get_world_transform(context, light.entity,
+                                             &light_transform) == VG_OK);
+        CHECK(light_transform.position.x == 2.5f &&
+              light_transform.position.z == 2.2f);
+        CHECK(!vg_document_instance_light_at(instance, 2u, &light));
         CHECK(vg_document_instance_door_count(instance) == 1u);
         VgDocumentDoorBinding door = {0};
         CHECK(vg_document_instance_door_at(instance, 0u, &door));

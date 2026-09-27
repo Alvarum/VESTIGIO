@@ -659,6 +659,80 @@ internal static class Program
         Console.WriteLine("PASS E05 Studio Play E door, isolated Stop/replay");
     }
 
+    private static void VerifyWave6Visual(string output, string level)
+    {
+        Directory.CreateDirectory(output);
+        string settings = Path.Combine(output, "preferencias-área", "e06-visual.settings");
+        if (File.Exists(settings)) File.Delete(settings);
+        byte[] sourceHash = SHA256.HashData(File.ReadAllBytes(level));
+        var app = new Application();
+        app.Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("pack://application:,,,/retro_studio;component/Themes/Graphite.xaml")
+        });
+        void OpenAndCheck(bool shouldPersist)
+        {
+            var window = App.CreateAtriumWindow(["--atrium", "--level", level,
+                "--settings", settings]);
+            var content = (FrameworkElement)window.Content;
+            window.Content = null;
+            using var source = new HwndSource(new HwndSourceParameters("VESTIGIO W06 visual")
+            {
+                Width = 1320, Height = 820, WindowStyle = unchecked((int)0x80000000)
+            });
+            try
+            {
+                source.RootVisual = content;
+                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                content.Measure(new Size(1320, 820));
+                content.Arrange(new Rect(0, 0, 1320, 820));
+                content.UpdateLayout();
+                window.RefreshForTest();
+                var viewport = window.GpuViewport;
+                nint host = viewport.NativeHandleForTest;
+                Check(viewport.IsNativeReady && viewport.RenderForTest(),
+                    $"W06 Studio GPU no abrió: {viewport.LastError}");
+                Check(window.VisualSummaryForTest.Contains("2 luces") &&
+                      window.VisualSummaryForTest.Contains("niebla lineal"),
+                    "Studio no resume luces y niebla del nivel.");
+                Check(viewport.VisualMode == (shouldPersist ? 1 : 0) &&
+                      window.VisualProfileForTest == (shouldPersist ? 1 : 0),
+                    "Studio no cargó preferencia visual persistida.");
+                if (shouldPersist) return;
+                ulong revision = GpuHostNative.vg_gpu_host_document_revision(host);
+                Check(GpuHostNative.vg_gpu_host_readbacks(host) == 0,
+                    "Frame normal no debe leer GPU hacia CPU.");
+                string clean = Path.Combine(output, "e06-studio-clean.png");
+                string retro = Path.Combine(output, "e06-studio-retro.png");
+                Check(viewport.CaptureForTest(clean), "No se capturó perfil limpio.");
+                window.SelectVisualProfileForTest(1);
+                Check(viewport.VisualMode == 1 && File.Exists(settings) &&
+                      File.ReadAllText(settings).Contains("visual_profile 1"),
+                    $"Selector retro no persistió: {viewport.LastError}");
+                Check(viewport.RenderForTest() && viewport.CaptureForTest(retro) &&
+                      !SHA256.HashData(File.ReadAllBytes(clean)).AsSpan().SequenceEqual(
+                          SHA256.HashData(File.ReadAllBytes(retro))),
+                    "Limpio y retro produjeron la misma imagen GPU.");
+                Check(GpuHostNative.vg_gpu_host_resize(host, 840, 460) != 0 &&
+                      viewport.RenderForTest() &&
+                      GpuHostNative.vg_gpu_host_readbacks(host) == 2 &&
+                      GpuHostNative.vg_gpu_host_document_revision(host) == revision &&
+                      !viewport.IsDocumentDirty,
+                    "Resize/perfil alteró documento o leyó GPU sin captura.");
+            }
+            finally
+            {
+                source.RootVisual = null;
+                window.GpuViewport.Dispose();
+            }
+        }
+        OpenAndCheck(false);
+        OpenAndCheck(true);
+        Check(SHA256.HashData(File.ReadAllBytes(level)).AsSpan().SequenceEqual(sourceHash),
+            "Cambiar perfil visual modificó el nivel fuente.");
+        Console.WriteLine("PASS W06 Studio clean/retro GPU, fog/lights, persisted reopen, resize/readbacks");
+    }
+
     [STAThread]
     private static int Main(string[] args)
     {
@@ -680,6 +754,11 @@ internal static class Program
             {
                 VerifyStudioDoor(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]),
                     Path.GetFullPath(args[3]));
+                return 0;
+            }
+            if (args.Length == 3 && args[0] == "--e06")
+            {
+                VerifyWave6Visual(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
                 return 0;
             }
             string output = Path.GetFullPath(args[0]);

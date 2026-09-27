@@ -570,7 +570,9 @@ static void test_atrium_door_definition_roundtrip(void) {
     size_t length = 0u;
     char *json = canonical(document, &length);
     CHECK(json != NULL && strstr(json, "\"engine.door\"") != NULL &&
-          strstr(json, "\"kinematic\"") != NULL);
+          strstr(json, "\"kinematic\"") != NULL &&
+          strstr(json, "\"engine.light\"") != NULL &&
+          strstr(json, "\"fog\"") != NULL);
     CHECK(vg_document_save_atomic(document, target, 1u, &diagnostic));
     VgDocument *reopened = NULL;
     CHECK(vg_document_open_file(target, &reopened, &diagnostic));

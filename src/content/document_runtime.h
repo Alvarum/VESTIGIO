@@ -31,6 +31,25 @@ typedef struct VgDocumentDoorBinding {
     float speed_radians_per_second;
 } VgDocumentDoorBinding;
 
+/* Scene values are authored in the level, independent from the user's visual
+ * profile preference. Colors are linear RGB in [0,1], distances in metres. */
+typedef struct VgDocumentEnvironment {
+    float ambient_linear[3];
+    float clear_linear[3];
+    float fog_color_linear[3];
+    float fog_start;
+    float fog_end;
+    bool fog_enabled;
+} VgDocumentEnvironment;
+
+typedef struct VgDocumentLightBinding {
+    VgUuid id;
+    VgEntity entity;
+    float color_linear[3];
+    float intensity;
+    float range;
+} VgDocumentLightBinding;
+
 /* Builds a complete candidate and assigns out_instance only after every entity,
  * transform, hierarchy, component and asset reference succeeds. */
 VgResult vg_document_instantiate(VgContext *context, const VgDocument *document,
@@ -53,6 +72,11 @@ bool vg_document_instance_find_collider(const VgDocumentInstance *instance, VgUu
 size_t vg_document_instance_door_count(const VgDocumentInstance *instance);
 bool vg_document_instance_door_at(const VgDocumentInstance *instance, size_t index,
                                   VgDocumentDoorBinding *out_door);
+bool vg_document_instance_environment(const VgDocumentInstance *instance,
+                                      VgDocumentEnvironment *out_environment);
+size_t vg_document_instance_light_count(const VgDocumentInstance *instance);
+bool vg_document_instance_light_at(const VgDocumentInstance *instance, size_t index,
+                                   VgDocumentLightBinding *out_light);
 size_t vg_document_instance_asset_count(const VgDocumentInstance *instance);
 bool vg_document_instance_asset_at(const VgDocumentInstance *instance, size_t index,
                                    VgAssetId *out_id, VgAsset *out_asset);

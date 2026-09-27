@@ -324,7 +324,8 @@ static int test_settings_layers_validation_and_persistence(void) {
     CHECK(vg_settings_defaults(&defaults) == VG_OK);
     CHECK(defaults.present == VG_SETTINGS_ALL && defaults.internal_width == 480u &&
           defaults.internal_height == 270u && defaults.vsync == 1u && defaults.frame_cap == 120u &&
-          defaults.binding_count != 0u);
+          defaults.binding_count != 0u &&
+          defaults.visual_profile == VG_VISUAL_PROFILE_CLEAN);
     struct {
         uint32_t struct_size;
         uint32_t api_version;
@@ -343,10 +344,12 @@ static int test_settings_layers_validation_and_persistence(void) {
     project.internal_height = 360u;
     project.frame_cap = 90u;
     VgSettingsLayer user =
-        settings_layer(VG_SETTING_FULLSCREEN | VG_SETTING_VSYNC | VG_SETTING_LOOK_SENSITIVITY);
+        settings_layer(VG_SETTING_FULLSCREEN | VG_SETTING_VSYNC | VG_SETTING_LOOK_SENSITIVITY |
+                       VG_SETTING_VISUAL_PROFILE);
     user.fullscreen = 1u;
     user.vsync = 0u;
     user.look_sensitivity = 0.004f;
+    user.visual_profile = VG_VISUAL_PROFILE_RETRO;
     VgSettingsLayer session = settings_layer(VG_SETTING_FRAME_CAP);
     session.frame_cap = 144u;
     VgSettingsLayer project_before = project;
@@ -357,7 +360,8 @@ static int test_settings_layers_validation_and_persistence(void) {
     CHECK(vg_settings_resolve(&project, &user, &session, &resolved, &diagnostic) == VG_OK);
     CHECK(resolved.internal_width == 640u && resolved.internal_height == 360u &&
           resolved.fullscreen == 1u && resolved.vsync == 0u && resolved.frame_cap == 144u &&
-          fabsf(resolved.look_sensitivity - 0.004f) < 0.0001f);
+          fabsf(resolved.look_sensitivity - 0.004f) < 0.0001f &&
+          resolved.visual_profile == VG_VISUAL_PROFILE_RETRO);
     CHECK(memcmp(&project, &project_before, sizeof(project)) == 0 &&
           memcmp(&user, &user_before, sizeof(user)) == 0 &&
           memcmp(&session, &session_before, sizeof(session)) == 0);
@@ -365,7 +369,8 @@ static int test_settings_layers_validation_and_persistence(void) {
     VgSettingsChanges changes = {sizeof(changes), VG_API_VERSION, 0u, 0u, 0u};
     CHECK(vg_settings_diff(&defaults, &resolved, &changes) == VG_OK);
     CHECK((changes.immediate & VG_SETTING_FRAME_CAP) != 0u &&
-          (changes.immediate & VG_SETTING_LOOK_SENSITIVITY) != 0u);
+          (changes.immediate & VG_SETTING_LOOK_SENSITIVITY) != 0u &&
+          (changes.immediate & VG_SETTING_VISUAL_PROFILE) != 0u);
     CHECK(changes.recreate_targets == VG_SETTING_INTERNAL_RESOLUTION);
     CHECK((changes.recreate_surface & VG_SETTING_FULLSCREEN) != 0u &&
           (changes.recreate_surface & VG_SETTING_VSYNC) != 0u);
@@ -393,7 +398,11 @@ static int test_settings_layers_validation_and_persistence(void) {
     VgSettingsLayer loaded = settings_layer(0u);
     CHECK(vg_settings_load_file(path, &loaded, &diagnostic) == VG_OK);
     CHECK(loaded.present == user.present && loaded.fullscreen == user.fullscreen &&
-          loaded.vsync == user.vsync && loaded.look_sensitivity == user.look_sensitivity);
+          loaded.vsync == user.vsync && loaded.look_sensitivity == user.look_sensitivity &&
+          loaded.visual_profile == VG_VISUAL_PROFILE_RETRO);
+    VgSettingsLayer invalid_profile = settings_layer(VG_SETTING_VISUAL_PROFILE);
+    invalid_profile.visual_profile = 2u;
+    CHECK(vg_settings_validate(&invalid_profile, &diagnostic) == VG_ERROR_INVALID_ARGUMENT);
     conflict.bindings[1].code = 0u;
     CHECK(vg_settings_save_file(path, &conflict, &diagnostic) == VG_ERROR_INVALID_ARGUMENT);
     loaded = settings_layer(0u);

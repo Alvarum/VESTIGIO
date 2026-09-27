@@ -169,12 +169,19 @@ enum {
     VG_SETTING_FRAME_CAP = 1u << 3u,
     VG_SETTING_LOOK_SENSITIVITY = 1u << 4u,
     VG_SETTING_BINDINGS = 1u << 5u,
-    VG_SETTINGS_ALL = (1u << 6u) - 1u,
+    VG_SETTING_VISUAL_PROFILE = 1u << 6u,
+    VG_SETTINGS_ALL = (1u << 7u) - 1u,
     VG_SETTINGS_APPLY_IMMEDIATE =
-        VG_SETTING_FRAME_CAP | VG_SETTING_LOOK_SENSITIVITY | VG_SETTING_BINDINGS,
+        VG_SETTING_FRAME_CAP | VG_SETTING_LOOK_SENSITIVITY | VG_SETTING_BINDINGS |
+        VG_SETTING_VISUAL_PROFILE,
     VG_SETTINGS_RECREATE_TARGETS = VG_SETTING_INTERNAL_RESOLUTION,
     VG_SETTINGS_RECREATE_SURFACE = VG_SETTING_FULLSCREEN | VG_SETTING_VSYNC
 };
+
+typedef enum VgVisualProfile {
+    VG_VISUAL_PROFILE_CLEAN = 0u,
+    VG_VISUAL_PROFILE_RETRO = 1u
+} VgVisualProfile;
 
 typedef struct VgInputBinding {
     VgActionSet action;
@@ -195,6 +202,7 @@ typedef struct VgSettingsLayer {
     uint32_t binding_count;
     uint32_t reserved;
     VgInputBinding bindings[VG_SETTINGS_MAX_BINDINGS];
+    uint32_t visual_profile;
 } VgSettingsLayer;
 
 typedef struct VgSettingsChanges {

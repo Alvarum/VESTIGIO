@@ -47,8 +47,17 @@ public partial class App : Application
     internal static Vestigio3DWindow CreateAtriumWindow(IReadOnlyList<string> arguments)
     {
         string? level = null;
+        string? settings = null;
         for (int index = 0; index < arguments.Count; ++index)
         {
+            if (string.Equals(arguments[index], "--settings", StringComparison.OrdinalIgnoreCase))
+            {
+                if (index + 1 >= arguments.Count || arguments[index + 1].StartsWith("--",
+                        StringComparison.Ordinal))
+                    throw new ArgumentException("Indica la ruta del archivo tras --settings.");
+                settings = Path.GetFullPath(arguments[++index]);
+                continue;
+            }
             if (!string.Equals(arguments[index], "--level", StringComparison.OrdinalIgnoreCase))
                 continue;
             if (index + 1 >= arguments.Count || arguments[index + 1].StartsWith("--",
@@ -58,7 +67,7 @@ public partial class App : Application
         }
         level ??= GpuViewportHost.ResolveDemoAsset("atrium.level.json");
         string model = GpuViewportHost.ResolveDemoAsset("atrium.gltf");
-        return new Vestigio3DWindow(level, model);
+        return new Vestigio3DWindow(level, model, settings);
     }
 
     protected override void OnExit(ExitEventArgs e)
