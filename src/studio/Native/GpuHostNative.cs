@@ -42,6 +42,38 @@ internal static class GpuHostNative
     internal static extern int vg_gpu_host_visual_fog_enabled(nint host);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_set_audio_enabled(nint host, int enabled);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_audio_device_state(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern ulong vg_gpu_host_audio_voice_starts(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern uint vg_gpu_host_audio_active_voices(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern uint vg_gpu_host_audio_music_streams(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern ulong vg_gpu_host_audio_stream_updates(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_audio_focus_paused(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern float vg_gpu_host_audio_gain(nint host, uint bus);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_set_audio_gain(nint host, uint bus, float gain);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_save_audio_gains(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int vg_gpu_host_open_level(nint host,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string levelPath,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string modelPath,

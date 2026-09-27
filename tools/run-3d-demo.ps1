@@ -7,7 +7,14 @@ param(
     [string]$Level = '',
     [switch]$SmokeDoor,
     [ValidateSet('clean', 'retro')][string]$Visual = '',
-    [string]$Settings = ''
+    [string]$Settings = '',
+    [switch]$NoAudio,
+    [switch]$SmokeAudio,
+    [switch]$SaveAudio,
+    [ValidateRange(0, 1)][double]$VolumeMaster,
+    [ValidateRange(0, 1)][double]$VolumeMusic,
+    [ValidateRange(0, 1)][double]$VolumeSfx,
+    [ValidateRange(0, 1)][double]$VolumeAmbience
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -34,6 +41,21 @@ try {
     if ($SmokeDoor) { $arguments += '--smoke-door' }
     if ($Visual) { $arguments += @('--visual', $Visual) }
     if ($Settings) { $arguments += @('--settings', $Settings) }
+    if ($NoAudio) { $arguments += '--no-audio' }
+    if ($SmokeAudio) { $arguments += '--smoke-audio' }
+    if ($SaveAudio) { $arguments += '--save-audio' }
+    if ($PSBoundParameters.ContainsKey('VolumeMaster')) {
+        $arguments += @('--volume-master', $VolumeMaster.ToString([Globalization.CultureInfo]::InvariantCulture))
+    }
+    if ($PSBoundParameters.ContainsKey('VolumeMusic')) {
+        $arguments += @('--volume-music', $VolumeMusic.ToString([Globalization.CultureInfo]::InvariantCulture))
+    }
+    if ($PSBoundParameters.ContainsKey('VolumeSfx')) {
+        $arguments += @('--volume-sfx', $VolumeSfx.ToString([Globalization.CultureInfo]::InvariantCulture))
+    }
+    if ($PSBoundParameters.ContainsKey('VolumeAmbience')) {
+        $arguments += @('--volume-ambience', $VolumeAmbience.ToString([Globalization.CultureInfo]::InvariantCulture))
+    }
     & $player @arguments
     if ($LASTEXITCODE) { throw "Player termino con codigo $LASTEXITCODE" }
 } finally {

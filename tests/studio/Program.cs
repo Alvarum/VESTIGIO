@@ -733,6 +733,149 @@ internal static class Program
         Console.WriteLine("PASS W06 Studio clean/retro GPU, fog/lights, persisted reopen, resize/readbacks");
     }
 
+    private static void VerifyWave7Audio(string output, string level)
+    {
+        Directory.CreateDirectory(output);
+        string settings = Path.Combine(output, "audio-área", "e07.settings");
+        if (File.Exists(settings)) File.Delete(settings);
+        byte[] sourceHash = SHA256.HashData(File.ReadAllBytes(level));
+        var app = new Application();
+        app.Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("pack://application:,,,/retro_studio;component/Themes/Graphite.xaml")
+        });
+        void RunWindow(bool noAudio)
+        {
+            var args = noAudio
+                ? new[] { "--atrium", "--level", level, "--settings", settings, "--no-audio" }
+                : new[] { "--atrium", "--level", level, "--settings", settings };
+            var window = App.CreateAtriumWindow(args);
+            var content = (FrameworkElement)window.Content;
+            window.Content = null;
+            using var source = new HwndSource(new HwndSourceParameters("VESTIGIO W07 audio")
+            {
+                Width = 1320, Height = 820, WindowStyle = unchecked((int)0x80000000)
+            });
+            try
+            {
+                source.RootVisual = content;
+                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                content.Measure(new Size(1320, 820));
+                content.Arrange(new Rect(0, 0, 1320, 820));
+                content.UpdateLayout();
+                window.RefreshForTest();
+                var viewport = window.GpuViewport;
+                nint host = viewport.NativeHandleForTest;
+                Check(viewport.IsNativeReady && viewport.RenderForTest() &&
+                      GpuHostNative.vg_gpu_host_audio_device_state(host) == 0 &&
+                      GpuHostNative.vg_gpu_host_audio_voice_starts(host) == 0,
+                    "Editar debe permanecer sin dispositivo/voz de audio.");
+                if (!noAudio)
+                {
+                    window.SelectAudioGainForTest(0, 55);
+                    window.SelectAudioGainForTest(1, 40);
+                    window.SelectAudioGainForTest(2, 70);
+                    window.SelectAudioGainForTest(3, 20);
+                    Check(File.Exists(settings) &&
+                          File.ReadAllText(settings).Contains("audio_master_gain 0.55") &&
+                          File.ReadAllText(settings).Contains("audio_ambience_gain 0.2") &&
+                          Math.Abs(viewport.AudioGain(2) - 0.7f) < 0.001f,
+                        $"Sliders no persistieron ganancias: {viewport.LastError}");
+                }
+                else
+                {
+                    Check(Math.Abs(viewport.AudioGain(0) - 0.55f) < 0.001f &&
+                          Math.Abs(viewport.AudioGain(3) - 0.2f) < 0.001f,
+                        "Studio no restauró volumen persistido desde ruta Unicode.");
+                }
+                ((Button)window.FindName("PlayButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(viewport.IsPlaying, "Play falló con audio habilitado/deshabilitado.");
+                if (!noAudio && viewport.AudioDeviceState == 1)
+                {
+                    Check(GpuHostNative.vg_gpu_host_audio_music_streams(host) == 1 &&
+                          GpuHostNative.vg_gpu_host_audio_focus_paused(host) != 0,
+                        "Ambiente streaming no inició pausado hasta enfocar Play.");
+                    Check(GpuHostNative.vg_gpu_host_frame(host, 1.0 / 60, 0, 1, 280, 0, 0, 1) != 0,
+                        "Audio Play no orientó cámara.");
+                    for (int frame = 0; frame < 35; ++frame)
+                        Check(GpuHostNative.vg_gpu_host_frame(host, 1.0 / 60, 0, 1, 0, 0, 0, 1) != 0,
+                            "Audio Play no acercó cámara a puerta.");
+                    Check(GpuHostNative.vg_gpu_host_audio_focus_paused(host) == 0 &&
+                          GpuHostNative.vg_gpu_host_audio_stream_updates(host) > 0 &&
+                          GpuHostNative.vg_gpu_host_audio_voice_starts(host) == 0,
+                        "Ambiente no siguió cámara o puerta sonó sin E.");
+                    Check(viewport.InteractForTest() && viewport.InteractForTest(),
+                        "E no se encoló en Play.");
+                    for (int frame = 0; frame < 80; ++frame)
+                        Check(GpuHostNative.vg_gpu_host_frame(host, 1.0 / 60, 0, 0, 0, 0, 0, 1) != 0,
+                            "Play audio falló al animar puerta.");
+                    Check(GpuHostNative.vg_gpu_host_audio_voice_starts(host) == 1 &&
+                          GpuHostNative.vg_gpu_host_door_angle(host, 0, out float angle) != 0 &&
+                          angle > 1.4f,
+                        "Un E efectivo debe producir un solo SFX espacial.");
+                    Check(GpuHostNative.vg_gpu_host_frame(host, 1.0 / 60, 0, 0, 0, 0, 0, 0) != 0 &&
+                          GpuHostNative.vg_gpu_host_audio_focus_paused(host) != 0,
+                        "Perder foco no pausó audio de Play.");
+                    Console.WriteLine("READY W07 Studio hardware: ambience stream + one door SFX + focus pause");
+                }
+                else if (!noAudio)
+                    Console.WriteLine("SKIP W07 Studio hardware: dispositivo no disponible; Play continuó");
+                else
+                    Console.WriteLine("PASS W07 Studio --no-audio: Play continuó sin dispositivo");
+                ((Button)window.FindName("StopButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(!viewport.IsPlaying &&
+                      GpuHostNative.vg_gpu_host_audio_device_state(host) == 0 &&
+                      GpuHostNative.vg_gpu_host_audio_music_streams(host) == 0,
+                    "Stop no limpió audio ni volvió a Editar silencioso.");
+            }
+            finally
+            {
+                source.RootVisual = null;
+                window.GpuViewport.Dispose();
+            }
+        }
+        RunWindow(false);
+        RunWindow(true);
+        string emptyAssetDir = Path.Combine(output, "missing-wav");
+        Directory.CreateDirectory(emptyAssetDir);
+        string bareModel = Path.Combine(emptyAssetDir, "atrium.gltf");
+        File.Copy(GpuViewportHost.ResolveDemoAsset("atrium.gltf"), bareModel, true);
+        using (var source = new HwndSource(new HwndSourceParameters("W07 missing WAV")
+        {
+            Width = 640, Height = 360, WindowStyle = unchecked((int)0x80000000)
+        }))
+        {
+            var viewport = new GpuViewportHost
+            {
+                Width = 640, Height = 360, OpenAtrium = true,
+                LevelPath = level, ModelPath = bareModel, VisualSettingsPath = settings
+            };
+            try
+            {
+                source.RootVisual = viewport;
+                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                viewport.Measure(new Size(640, 360));
+                viewport.Arrange(new Rect(0, 0, 640, 360));
+                viewport.UpdateLayout();
+                Check(viewport.IsNativeReady && viewport.TrySetPlaying(true) &&
+                      viewport.AudioDeviceState == 2 && viewport.RenderForTest() &&
+                      viewport.TrySetPlaying(false),
+                    "WAV faltante debe informar audio no disponible y permitir Play/Stop.");
+            }
+            finally
+            {
+                source.RootVisual = null;
+                viewport.Dispose();
+            }
+        }
+        Console.WriteLine("PASS W07 missing WAV: audio unavailable, Play/Stop usable");
+        Check(SHA256.HashData(File.ReadAllBytes(level)).AsSpan().SequenceEqual(sourceHash),
+            "Audio o volumen modificaron el nivel fuente.");
+        Console.WriteLine("PASS W07 Studio volumes Unicode, Play/Stop audio, no-audio fallback");
+    }
+
     [STAThread]
     private static int Main(string[] args)
     {
@@ -759,6 +902,11 @@ internal static class Program
             if (args.Length == 3 && args[0] == "--e06")
             {
                 VerifyWave6Visual(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
+                return 0;
+            }
+            if (args.Length == 3 && args[0] == "--e07")
+            {
+                VerifyWave7Audio(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
                 return 0;
             }
             string output = Path.GetFullPath(args[0]);

@@ -90,6 +90,8 @@ typedef struct VgAudioListener {
 typedef struct VgAudioMusicDesc {
     uint64_t world_id;
     uint64_t source_token;
+    /* Zero selects MUSIC. AMBIENCE can be used for streamed world ambience. */
+    VgAudioBus bus;
     float gain;
     bool loop;
 } VgAudioMusicDesc;

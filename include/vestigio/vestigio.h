@@ -170,10 +170,16 @@ enum {
     VG_SETTING_LOOK_SENSITIVITY = 1u << 4u,
     VG_SETTING_BINDINGS = 1u << 5u,
     VG_SETTING_VISUAL_PROFILE = 1u << 6u,
-    VG_SETTINGS_ALL = (1u << 7u) - 1u,
+    VG_SETTING_AUDIO_MASTER_GAIN = 1u << 7u,
+    VG_SETTING_AUDIO_MUSIC_GAIN = 1u << 8u,
+    VG_SETTING_AUDIO_SFX_GAIN = 1u << 9u,
+    VG_SETTING_AUDIO_AMBIENCE_GAIN = 1u << 10u,
+    VG_SETTINGS_ALL = (1u << 11u) - 1u,
     VG_SETTINGS_APPLY_IMMEDIATE =
         VG_SETTING_FRAME_CAP | VG_SETTING_LOOK_SENSITIVITY | VG_SETTING_BINDINGS |
-        VG_SETTING_VISUAL_PROFILE,
+        VG_SETTING_VISUAL_PROFILE | VG_SETTING_AUDIO_MASTER_GAIN |
+        VG_SETTING_AUDIO_MUSIC_GAIN | VG_SETTING_AUDIO_SFX_GAIN |
+        VG_SETTING_AUDIO_AMBIENCE_GAIN,
     VG_SETTINGS_RECREATE_TARGETS = VG_SETTING_INTERNAL_RESOLUTION,
     VG_SETTINGS_RECREATE_SURFACE = VG_SETTING_FULLSCREEN | VG_SETTING_VSYNC
 };
@@ -203,6 +209,10 @@ typedef struct VgSettingsLayer {
     uint32_t reserved;
     VgInputBinding bindings[VG_SETTINGS_MAX_BINDINGS];
     uint32_t visual_profile;
+    float audio_master_gain;
+    float audio_music_gain;
+    float audio_sfx_gain;
+    float audio_ambience_gain;
 } VgSettingsLayer;
 
 typedef struct VgSettingsChanges {

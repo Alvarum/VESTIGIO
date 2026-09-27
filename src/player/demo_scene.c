@@ -28,6 +28,8 @@ struct VgDemoScene {
     float pitch;
     float look_sensitivity;
     VgResult update_error;
+    bool door_event_pending;
+    VgVec3 door_event_position;
 };
 
 const VgDocumentInstance *vg_demo_scene_document_instance(const VgDemoScene *scene) {
@@ -168,8 +170,17 @@ static void demo_fixed_update(VgContext *context, VgWorld world, float dt_second
     }
     result = demo_find_focused_door(scene);
     if (result == VG_OK && (input.pressed & VG_ACTION_INTERACT) != 0u &&
-        scene->focused_door != SIZE_MAX)
+        scene->focused_door != SIZE_MAX) {
         result = vg_door_toggle(scene->doors[scene->focused_door]);
+        if (result == VG_OK) {
+            VgTransform panel;
+            if (vg_entity_get_world_transform(context,
+                    scene->door_bindings[scene->focused_door].panel, &panel) == VG_OK) {
+                scene->door_event_position = panel.position;
+                scene->door_event_pending = true;
+            }
+        }
+    }
     scene->update_error = result;
 }
 
@@ -338,6 +349,21 @@ VgResult vg_demo_scene_camera_position(const VgDemoScene *scene, VgVec3 *out_pos
     if (result == VG_OK)
         *out_position = transform.position;
     return result;
+}
+
+VgResult vg_demo_scene_camera_transform(const VgDemoScene *scene,
+                                         VgTransform *out_transform) {
+    return scene != NULL && out_transform != NULL
+        ? vg_entity_get_world_transform(scene->context, scene->camera, out_transform)
+        : VG_ERROR_INVALID_ARGUMENT;
+}
+
+bool vg_demo_scene_take_door_event(VgDemoScene *scene, VgVec3 *out_position) {
+    if (scene == NULL || out_position == NULL || !scene->door_event_pending)
+        return false;
+    *out_position = scene->door_event_position;
+    scene->door_event_pending = false;
+    return true;
 }
 
 const VgSpatialScene *vg_demo_scene_spatial(const VgDemoScene *scene) {

@@ -59,6 +59,7 @@ public sealed class GpuViewportHost : HwndHost
     public string? LevelPath { get; set; }
     public string? ModelPath { get; set; }
     public string? VisualSettingsPath { get; set; }
+    public bool EnableAudio { get; set; } = true;
 
     internal bool IsNativeReady => _nativeHost != 0;
     internal bool IsFallback => _fallbackWindow != 0;
@@ -93,6 +94,8 @@ public sealed class GpuViewportHost : HwndHost
             LastError = GpuHostNative.Error(error);
             return BuildFallback(hwndParent);
         }
+        if (!EnableAudio)
+            _ = GpuHostNative.vg_gpu_host_set_audio_enabled(_nativeHost, 0);
         if (OpenAtrium && !OpenLevel())
         {
             _ = GpuHostNative.vg_gpu_host_destroy(_nativeHost);
@@ -184,6 +187,37 @@ public sealed class GpuViewportHost : HwndHost
     internal string VisualSummary => !_levelOpen || _nativeHost == 0 ? string.Empty :
         $"{GpuHostNative.vg_gpu_host_visual_light_count(_nativeHost)} luces · niebla " +
         (GpuHostNative.vg_gpu_host_visual_fog_enabled(_nativeHost) != 0 ? "lineal" : "apagada");
+
+    internal int AudioDeviceState => _nativeHost != 0
+        ? GpuHostNative.vg_gpu_host_audio_device_state(_nativeHost) : -1;
+
+    internal float AudioGain(uint bus) => _nativeHost != 0
+        ? GpuHostNative.vg_gpu_host_audio_gain(_nativeHost, bus) : -1;
+
+    internal bool TrySetAudioGain(uint bus, float gain)
+    {
+        if (_nativeHost == 0) return false;
+        float previous = AudioGain(bus);
+        if (GpuHostNative.vg_gpu_host_set_audio_gain(_nativeHost, bus, gain) == 0)
+        {
+            LastError = "Volumen de audio inválido.";
+            return false;
+        }
+        byte[] error = new byte[512];
+        try
+        {
+            string path = Path.GetFullPath(ResolveVisualSettingsPath());
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            if (GpuHostNative.vg_gpu_host_save_audio_gains(_nativeHost, path,
+                    error, (nuint)error.Length) != 0)
+                return true;
+            LastError = GpuHostNative.Error(error);
+        }
+        catch (IOException exception) { LastError = exception.Message; }
+        catch (UnauthorizedAccessException exception) { LastError = exception.Message; }
+        _ = GpuHostNative.vg_gpu_host_set_audio_gain(_nativeHost, bus, previous);
+        return false;
+    }
 
     internal bool TrySetVisualMode(int mode)
     {

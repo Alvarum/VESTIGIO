@@ -353,21 +353,36 @@ static int test_streaming_music_and_persistent_buses(void) {
     CHECK(vg_audio_core_create(&config, &core) == VG_OK);
     CHECK(vg_audio_core_set_bus_gain(core, VG_AUDIO_BUS_MASTER, 0.5f) == VG_OK);
     CHECK(vg_audio_core_set_bus_gain(core, VG_AUDIO_BUS_MUSIC, 0.4f) == VG_OK);
+    CHECK(vg_audio_core_set_bus_gain(core, VG_AUDIO_BUS_AMBIENCE, 0.2f) == VG_OK);
     VgAudioMusicDesc description = {
-        .world_id = 44u, .source_token = 900u, .gain = 0.5f, .loop = true};
+        .world_id = 44u, .source_token = 900u, .bus = VG_AUDIO_BUS_MUSIC,
+        .gain = 0.5f, .loop = true};
     VgAudioMusic music = {0};
     CHECK(vg_audio_core_music_start(core, &description, &music) == VG_OK);
     CHECK(music.value != 0u && mock.music_opens == 1u && mock.music[0].source == 900u);
     CHECK(fabsf(mock.music[0].gain - 0.1f) < 0.0001f);
+    VgAudioMusicDesc ambience = {
+        .world_id = 44u, .source_token = 901u, .bus = VG_AUDIO_BUS_AMBIENCE,
+        .gain = 0.5f, .loop = true};
+    VgAudioMusic ambient_stream = {0};
+    CHECK(vg_audio_core_music_start(core, &ambience, &ambient_stream) == VG_OK);
+    CHECK(mock.music_opens == 2u && fabsf(mock.music[1].gain - 0.05f) < 0.0001f);
+    CHECK(vg_audio_core_set_bus_gain(core, VG_AUDIO_BUS_MUSIC, 0.8f) == VG_OK);
+    CHECK(fabsf(mock.music[0].gain - 0.2f) < 0.0001f &&
+          fabsf(mock.music[1].gain - 0.05f) < 0.0001f);
+    CHECK(vg_audio_core_set_bus_gain(core, VG_AUDIO_BUS_AMBIENCE, 0.6f) == VG_OK);
+    CHECK(fabsf(mock.music[0].gain - 0.2f) < 0.0001f &&
+          fabsf(mock.music[1].gain - 0.15f) < 0.0001f);
     CHECK(vg_audio_core_update(core) == VG_OK);
     CHECK(vg_audio_core_update(core) == VG_OK);
-    CHECK(mock.music_updates == 2u && vg_audio_core_stats(core).stream_updates == 2u);
-    CHECK(vg_audio_core_set_paused(core, true, false) == VG_OK && mock.music[0].paused);
+    CHECK(mock.music_updates == 4u && vg_audio_core_stats(core).stream_updates == 4u);
+    CHECK(vg_audio_core_set_paused(core, true, false) == VG_OK &&
+          mock.music[0].paused && mock.music[1].paused);
     CHECK(vg_audio_core_world_unload(core, 44u) == VG_OK);
-    CHECK(mock.music_closes == 1u && vg_audio_core_stats(core).music_streams == 0u);
+    CHECK(mock.music_closes == 2u && vg_audio_core_stats(core).music_streams == 0u);
     float gain = 0.0f;
     CHECK(vg_audio_core_get_bus_gain(core, VG_AUDIO_BUS_MASTER, &gain) == VG_OK && gain == 0.5f);
-    CHECK(vg_audio_core_get_bus_gain(core, VG_AUDIO_BUS_MUSIC, &gain) == VG_OK && gain == 0.4f);
+    CHECK(vg_audio_core_get_bus_gain(core, VG_AUDIO_BUS_MUSIC, &gain) == VG_OK && gain == 0.8f);
     vg_audio_core_destroy(core);
     return 0;
 }

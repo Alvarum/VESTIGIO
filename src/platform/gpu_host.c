@@ -2,6 +2,7 @@
 
 #include "content/document_runtime.h"
 #include "content/document_internal.h"
+#include "audio/atrium_audio.h"
 #include "platform/win32_embed.h"
 #include "raylib.h"
 #include "render/gpu_raylib/gpu_renderer.h"
@@ -63,6 +64,11 @@ struct VgGpuHost {
     char *saved_json;
     size_t saved_length;
     int32_t visual_mode;
+    VgAtriumAudio *audio;
+    bool audio_enabled;
+    char audio_directory[2048];
+    float audio_gain[VG_AUDIO_BUS_COUNT];
+    bool audio_focus_paused;
 };
 
 static _Atomic(VgGpuHost *) active_host;
@@ -138,6 +144,8 @@ static bool host_apply_visual(VgGpuHost *host, const VgDocumentInstance *instanc
 }
 
 static void host_release_play(VgGpuHost *host) {
+    vg_atrium_audio_destroy(host->audio);
+    host->audio = NULL;
     for (size_t i = 0u; i < host->door_count; ++i)
         vg_door_destroy(host->doors[i]);
     free(host->doors);
@@ -170,6 +178,8 @@ static void host_release_level(VgGpuHost *host) {
     host->model_data = NULL;
     host->model_size = 0u;
     host->model_registered = false;
+    host->audio_directory[0] = '\0';
+    host->audio_focus_paused = false;
     host->accumulator = 0.0;
     host->jump_pending = false;
     host->has_selection = false;
@@ -286,6 +296,9 @@ VgGpuHost *vg_gpu_host_create(void *parent_window, unsigned int width, unsigned 
         return NULL;
     }
     host->owner_thread = vg_win32_thread_id();
+    host->audio_enabled = true;
+    for (uint32_t bus = 0u; bus < VG_AUDIO_BUS_COUNT; ++bus)
+        host->audio_gain[bus] = 1.0f;
     host->pick_mask = VG_GPU_PICK_MESH | VG_GPU_PICK_CAMERA |
                       VG_GPU_PICK_LIGHT | VG_GPU_PICK_TRIGGER;
     VgGpuHost *expected = NULL;
@@ -376,9 +389,12 @@ int32_t vg_gpu_host_load_visual_profile(VgGpuHost *host, const char *path,
         return false;
     }
     int file_state = host_settings_file_state(path);
-    if (file_state == 0)
+    if (file_state == 0) {
+        for (uint32_t bus = 0u; bus < VG_AUDIO_BUS_COUNT; ++bus)
+            host->audio_gain[bus] = 1.0f;
         return vg_gpu_host_set_visual_mode(host, VG_VISUAL_PROFILE_CLEAN,
                                             error, error_capacity);
+    }
     if (file_state < 0) {
         host_error(error, error_capacity, "No se pudo leer settings visuales");
         return false;
@@ -393,10 +409,108 @@ int32_t vg_gpu_host_load_visual_profile(VgGpuHost *host, const char *path,
         host_error(error, error_capacity, diagnostic.message);
         return false;
     }
+    VgSettingsLayer resolved = {0};
+    resolved.struct_size = sizeof(resolved);
+    resolved.api_version = VG_API_VERSION;
+    if (vg_settings_resolve(NULL, &layer, NULL, &resolved, &diagnostic) != VG_OK) {
+        host_error(error, error_capacity, diagnostic.message);
+        return false;
+    }
+    host->audio_gain[VG_AUDIO_BUS_MASTER] = resolved.audio_master_gain;
+    host->audio_gain[VG_AUDIO_BUS_MUSIC] = resolved.audio_music_gain;
+    host->audio_gain[VG_AUDIO_BUS_SFX] = resolved.audio_sfx_gain;
+    host->audio_gain[VG_AUDIO_BUS_AMBIENCE] = resolved.audio_ambience_gain;
     return vg_gpu_host_set_visual_mode(host,
         (layer.present & VG_SETTING_VISUAL_PROFILE) != 0u
             ? (int32_t)layer.visual_profile : VG_VISUAL_PROFILE_CLEAN,
         error, error_capacity);
+}
+
+int32_t vg_gpu_host_set_audio_enabled(VgGpuHost *host, int32_t enabled) {
+    if (!host_is_current(host) || host->play != NULL || (enabled != 0 && enabled != 1))
+        return false;
+    host->audio_enabled = enabled != 0;
+    return true;
+}
+
+int32_t vg_gpu_host_audio_device_state(const VgGpuHost *host) {
+    if (!host_is_current(host))
+        return -1;
+    if (host->audio == NULL)
+        return VG_AUDIO_DEVICE_STOPPED;
+    return vg_atrium_audio_ready(host->audio) ? VG_AUDIO_DEVICE_READY
+                                                : VG_AUDIO_DEVICE_UNAVAILABLE;
+}
+
+uint64_t vg_gpu_host_audio_voice_starts(const VgGpuHost *host) {
+    return host_is_current(host) ? vg_atrium_audio_stats(host->audio).voice_starts : 0u;
+}
+
+uint32_t vg_gpu_host_audio_active_voices(const VgGpuHost *host) {
+    return host_is_current(host) ? vg_atrium_audio_stats(host->audio).voices : 0u;
+}
+
+uint32_t vg_gpu_host_audio_music_streams(const VgGpuHost *host) {
+    return host_is_current(host) ? vg_atrium_audio_stats(host->audio).music_streams : 0u;
+}
+
+uint64_t vg_gpu_host_audio_stream_updates(const VgGpuHost *host) {
+    return host_is_current(host) ? vg_atrium_audio_stats(host->audio).stream_updates : 0u;
+}
+
+int32_t vg_gpu_host_audio_focus_paused(const VgGpuHost *host) {
+    return host_is_current(host) && host->audio != NULL && host->audio_focus_paused;
+}
+
+float vg_gpu_host_audio_gain(const VgGpuHost *host, uint32_t bus) {
+    return host_is_current(host) && bus < VG_AUDIO_BUS_COUNT
+        ? host->audio_gain[bus] : -1.0f;
+}
+
+int32_t vg_gpu_host_set_audio_gain(VgGpuHost *host, uint32_t bus, float gain) {
+    if (!host_is_current(host) || bus >= VG_AUDIO_BUS_COUNT || !isfinite(gain) ||
+        gain < 0.0f || gain > 1.0f)
+        return false;
+    if (vg_atrium_audio_ready(host->audio) &&
+        vg_atrium_audio_set_gain(host->audio, bus, gain) != VG_OK)
+        return false;
+    host->audio_gain[bus] = gain;
+    return true;
+}
+
+int32_t vg_gpu_host_save_audio_gains(VgGpuHost *host, const char *path,
+                                     char *error, size_t error_capacity) {
+    if (!host_is_current(host) || path == NULL || path[0] == '\0') {
+        host_error(error, error_capacity, "Ruta de settings invalida");
+        return false;
+    }
+    VgSettingsLayer layer = {0};
+    layer.struct_size = sizeof(layer);
+    layer.api_version = VG_API_VERSION;
+    int file_state = host_settings_file_state(path);
+    VgSettingsDiagnostic diagnostic = {0};
+    diagnostic.struct_size = sizeof(diagnostic);
+    diagnostic.api_version = VG_API_VERSION;
+    if (file_state == 1 && vg_settings_load_file(path, &layer, &diagnostic) != VG_OK) {
+        host_error(error, error_capacity, diagnostic.message);
+        return false;
+    }
+    if (file_state < 0) {
+        host_error(error, error_capacity, "No se pudo leer settings de audio");
+        return false;
+    }
+    layer.present |= VG_SETTING_AUDIO_MASTER_GAIN | VG_SETTING_AUDIO_MUSIC_GAIN |
+                     VG_SETTING_AUDIO_SFX_GAIN | VG_SETTING_AUDIO_AMBIENCE_GAIN;
+    layer.audio_master_gain = host->audio_gain[VG_AUDIO_BUS_MASTER];
+    layer.audio_music_gain = host->audio_gain[VG_AUDIO_BUS_MUSIC];
+    layer.audio_sfx_gain = host->audio_gain[VG_AUDIO_BUS_SFX];
+    layer.audio_ambience_gain = host->audio_gain[VG_AUDIO_BUS_AMBIENCE];
+    if (vg_settings_save_file(path, &layer, &diagnostic) != VG_OK) {
+        host_error(error, error_capacity, diagnostic.message);
+        return false;
+    }
+    host_error(error, error_capacity, "");
+    return true;
 }
 
 int32_t vg_gpu_host_save_visual_profile(VgGpuHost *host, const char *path,
@@ -462,6 +576,17 @@ int32_t vg_gpu_host_open_level(VgGpuHost *host, const char *level_path,
     }
     if (!host_read_model(model_path, &host->model_data, &host->model_size)) {
         host_error(error, error_capacity, "No se pudo leer el modelo Atrium");
+        goto fail;
+    }
+    const char *slash = strrchr(model_path, '/');
+    const char *backslash = strrchr(model_path, '\\');
+    if (backslash != NULL && (slash == NULL || backslash > slash))
+        slash = backslash;
+    if (slash == NULL || (size_t)(slash - model_path) > INT_MAX ||
+        snprintf(host->audio_directory, sizeof(host->audio_directory), "%.*s/audio",
+                 (int)(slash - model_path), model_path) >=
+            (int)sizeof(host->audio_directory)) {
+        host_error(error, error_capacity, "Ruta de audio Atrium demasiado larga");
         goto fail;
     }
     VgContextDesc context_desc = {0};
@@ -580,6 +705,20 @@ int32_t vg_gpu_host_set_mode(VgGpuHost *host, int32_t play) {
     host->accumulator = 0.0;
     host->jump_pending = false;
     host->interact_pending = false;
+    host->audio_focus_paused = true;
+    if (host->audio_enabled) {
+        char audio_error[192] = {0};
+        host->audio = vg_atrium_audio_create(host->audio_directory,
+                                              audio_error, sizeof(audio_error));
+        if (!vg_atrium_audio_ready(host->audio))
+            (void)fprintf(stderr, "%s\n", audio_error);
+        else {
+            for (uint32_t bus = 0u; bus < VG_AUDIO_BUS_COUNT; ++bus)
+                (void)vg_atrium_audio_set_gain(host->audio, bus,
+                                                host->audio_gain[bus]);
+            (void)vg_atrium_audio_set_paused(host->audio, false, true);
+        }
+    }
     return true;
 }
 
@@ -670,6 +809,13 @@ static bool host_step_play(VgGpuHost *host, double elapsed, float x, float y, bo
                     if (binding.panel.value == hit.entity.value) {
                         if (vg_door_toggle(host->doors[i]) != VG_OK)
                             return false;
+                        if (vg_atrium_audio_ready(host->audio)) {
+                            VgTransform panel;
+                            if (vg_entity_get_world_transform(host->context, binding.panel,
+                                                               &panel) == VG_OK)
+                                (void)vg_atrium_audio_play_door(host->audio,
+                                                                 panel.position);
+                        }
                         break;
                     }
                 }
@@ -716,6 +862,20 @@ int32_t vg_gpu_host_frame(VgGpuHost *host, double elapsed_seconds,
         host->accumulator = 0.0;
         host->jump_pending = false;
         host->interact_pending = false;
+    }
+    if (vg_atrium_audio_ready(host->audio)) {
+        if (host->play != NULL) {
+            VgTransform camera;
+            if (vg_entity_get_world_transform(host->context, host->play_camera,
+                                               &camera) == VG_OK) {
+                VgVec3 right = host_rotate(camera.rotation,
+                                            (VgVec3){1.0f, 0.0f, 0.0f});
+                (void)vg_atrium_audio_set_listener(host->audio, camera.position, right);
+            }
+        }
+        (void)vg_atrium_audio_set_paused(host->audio, host->play == NULL, focused == 0);
+        host->audio_focus_paused = focused == 0;
+        (void)vg_atrium_audio_update(host->audio);
     }
     return vg_gpu_host_render(host);
 }

@@ -644,7 +644,7 @@ Desbloquea: Neo-PSX como perfil del mismo runtime.
 
 ## A01 — Audio de proyecto, voces, música y emisores
 
-Fase: **P7** · Rol: **runtime** · Estado: **PLANNED**.
+Fase: **P7** · Rol: **runtime** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: R02, I01, D02.
 

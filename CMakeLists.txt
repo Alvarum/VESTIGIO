@@ -71,6 +71,15 @@ if(NOT WIN32)
 endif()
 add_library(Vestigio::Runtime ALIAS vestigio_runtime)
 
+# Audio ownership, buses and event deduplication can be tested without a device.
+add_library(vestigio_audio STATIC src/audio/audio_core.c)
+retro_target(vestigio_audio)
+target_include_directories(vestigio_audio PUBLIC "${PROJECT_SOURCE_DIR}/src")
+target_link_libraries(vestigio_audio PUBLIC vestigio_sdk_headers)
+if(NOT WIN32)
+    target_link_libraries(vestigio_audio PRIVATE m)
+endif()
+
 # cgltf is vendored and compiled separately so third-party diagnostics do not
 # weaken the warnings-as-errors policy applied to Vestigio's importer.
 add_library(vestigio_cgltf STATIC src/assets/import/cgltf_impl.c)
@@ -214,13 +223,20 @@ if(RETRO_BUILD_APPS)
     target_include_directories(vestigio_gpu_raylib PUBLIC "${PROJECT_SOURCE_DIR}/src")
     target_include_directories(vestigio_gpu_raylib SYSTEM PRIVATE "${raylib_SOURCE_DIR}/src")
     target_link_libraries(vestigio_gpu_raylib PUBLIC vestigio_sdk_headers PRIVATE raylib vestigio_runtime)
+    add_library(vestigio_audio_raylib STATIC src/audio/raylib_audio.c)
+    retro_target(vestigio_audio_raylib)
+    target_include_directories(vestigio_audio_raylib PUBLIC "${PROJECT_SOURCE_DIR}/src")
+    target_include_directories(vestigio_audio_raylib SYSTEM PRIVATE "${raylib_SOURCE_DIR}/src")
+    target_link_libraries(vestigio_audio_raylib PUBLIC vestigio_audio PRIVATE raylib)
     if(WIN32)
-        add_library(vestigio_gpu_host SHARED src/platform/gpu_host.c src/platform/win32_embed.c)
+        add_library(vestigio_gpu_host SHARED src/platform/gpu_host.c src/platform/win32_embed.c
+            src/audio/atrium_audio.c)
         retro_target(vestigio_gpu_host)
         target_compile_definitions(vestigio_gpu_host PRIVATE VG_GPU_HOST_BUILD)
         target_include_directories(vestigio_gpu_host PRIVATE "${PROJECT_SOURCE_DIR}/src")
         target_include_directories(vestigio_gpu_host SYSTEM PRIVATE "${raylib_SOURCE_DIR}/src")
-        target_link_libraries(vestigio_gpu_host PRIVATE vestigio_gpu_raylib vestigio_tool raylib comctl32)
+        target_link_libraries(vestigio_gpu_host PRIVATE vestigio_gpu_raylib vestigio_tool
+            vestigio_audio_raylib raylib comctl32)
         set_target_properties(vestigio_gpu_host PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin" PREFIX "" WINDOWS_EXPORT_ALL_SYMBOLS NO)
         install(TARGETS vestigio_gpu_host RUNTIME DESTINATION . COMPONENT Runtime)
@@ -235,6 +251,13 @@ if(RETRO_BUILD_APPS)
     target_compile_definitions(retro_editor PRIVATE RETRO_EDITOR_SESSIONS)
     install(TARGETS retro_session RUNTIME DESTINATION . COMPONENT Runtime)
     if(BUILD_TESTING)
+        add_executable(vestigio_audio_device_test tests/audio/raylib_audio_test.c)
+        retro_target(vestigio_audio_device_test)
+        target_link_libraries(vestigio_audio_device_test PRIVATE vestigio_audio_raylib raylib)
+        add_test(NAME vestigio_audio_device COMMAND vestigio_audio_device_test
+            "${PROJECT_SOURCE_DIR}/assets/demo/audio/atrium-ambience.wav"
+            "${PROJECT_SOURCE_DIR}/assets/demo/audio/door-move.wav")
+        set_tests_properties(vestigio_audio_device PROPERTIES LABELS "audio;device;app")
         add_executable(retro_session_test tests/session_test.c)
         retro_target(retro_session_test)
         target_compile_definitions(retro_session_test PRIVATE RETRO_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
@@ -273,6 +296,12 @@ if(RETRO_BUILD_APPS)
             set_tests_properties(vestigio_studio_visual PROPERTIES
                 FIXTURES_SETUP vestigio_visual_settings
                 LABELS "window;gpu;studio;document;visual;app")
+            add_test(NAME vestigio_studio_audio COMMAND dotnet
+                "${CMAKE_BINARY_DIR}/bin/RetroForge.Studio.Tests.dll"
+                --e07 "${CMAKE_BINARY_DIR}/studio-audio-evidence"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json")
+            set_tests_properties(vestigio_studio_audio PROPERTIES
+                LABELS "window;gpu;studio;audio;settings;app")
         endif()
         add_executable(retro_platform_test tests/platform_test.c)
         retro_target(retro_platform_test)
@@ -305,11 +334,12 @@ if(RETRO_BUILD_APPS)
     retro_target(retro_player)
     target_link_libraries(retro_player PRIVATE retro_session retro_gameplay retro_platform)
     add_executable(vestigio_player src/player/demo_main.c src/player/demo_3d.c
-        src/player/demo_scene.c)
+        src/player/demo_scene.c src/audio/atrium_audio.c)
     retro_target(vestigio_player)
     target_include_directories(vestigio_player PRIVATE "${PROJECT_SOURCE_DIR}/src")
     target_include_directories(vestigio_player SYSTEM PRIVATE "${raylib_SOURCE_DIR}/src")
-    target_link_libraries(vestigio_player PRIVATE vestigio_gpu_raylib vestigio_tool)
+    target_link_libraries(vestigio_player PRIVATE vestigio_gpu_raylib vestigio_tool
+        vestigio_audio_raylib)
     if(WIN32)
         target_link_libraries(vestigio_player PRIVATE shell32)
     endif()
@@ -345,6 +375,27 @@ if(RETRO_BUILD_APPS)
                 PASS_REGULAR_EXPRESSION "visual=retro lights=2 fog=linear"
                 LABELS "window;gpu;document;visual;settings;app")
         endif()
+        add_test(NAME vestigio_player_audio COMMAND vestigio_player
+            --smoke 180 --smoke-door --smoke-audio
+            --settings "${CMAKE_BINARY_DIR}/w07-player-device.settings")
+        set_tests_properties(vestigio_player_audio PROPERTIES
+            LABELS "window;gpu;audio;gamekit;app")
+        add_test(NAME vestigio_player_audio_save COMMAND vestigio_player
+            --smoke 8 --no-audio --save-audio
+            --settings "${CMAKE_BINARY_DIR}/w07-áudio.settings"
+            --volume-master 0.55 --volume-music 0.4
+            --volume-sfx 0.7 --volume-ambience 0.2)
+        set_tests_properties(vestigio_player_audio_save PROPERTIES
+            FIXTURES_SETUP vestigio_audio_settings
+            LABELS "window;gpu;audio;settings;app")
+        add_test(NAME vestigio_player_audio_load COMMAND vestigio_player
+            --smoke 8 --no-audio
+            --settings "${CMAKE_BINARY_DIR}/w07-áudio.settings")
+        set_tests_properties(vestigio_player_audio_load PROPERTIES
+            FIXTURES_REQUIRED vestigio_audio_settings
+            PASS_REGULAR_EXPRESSION
+                "audio gains master=0.55 music=0.40 sfx=0.70 ambience=0.20"
+            LABELS "window;gpu;audio;settings;app")
     endif()
     install(TARGETS retro_editor RUNTIME DESTINATION . COMPONENT Runtime)
     install(DIRECTORY assets DESTINATION . COMPONENT Runtime)
@@ -365,6 +416,12 @@ if(RETRO_BUILD_APPS)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(vestigio_audio_core_test tests/audio/audio_core_test.c)
+    retro_target(vestigio_audio_core_test)
+    target_link_libraries(vestigio_audio_core_test PRIVATE vestigio_audio)
+    add_test(NAME vestigio_audio_core COMMAND vestigio_audio_core_test)
+    set_tests_properties(vestigio_audio_core PROPERTIES LABELS "audio;core")
+
     add_executable(vestigio_spatial_test tests/spatial/spatial_test.c)
     retro_target(vestigio_spatial_test)
     target_link_libraries(vestigio_spatial_test PRIVATE vestigio_runtime)

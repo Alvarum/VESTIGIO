@@ -320,12 +320,15 @@ static VgSettingsLayer settings_layer(VgSettingMask present) {
 static int test_settings_layers_validation_and_persistence(void) {
     const char *path = "i01-settings-test.vgs";
     const char *unicode_path = "i01-configuración-测试.vgs";
+    const char *audio_path = "a01-settings-test.vgs";
     VgSettingsLayer defaults = settings_layer(0u);
     CHECK(vg_settings_defaults(&defaults) == VG_OK);
     CHECK(defaults.present == VG_SETTINGS_ALL && defaults.internal_width == 480u &&
           defaults.internal_height == 270u && defaults.vsync == 1u && defaults.frame_cap == 120u &&
           defaults.binding_count != 0u &&
-          defaults.visual_profile == VG_VISUAL_PROFILE_CLEAN);
+          defaults.visual_profile == VG_VISUAL_PROFILE_CLEAN &&
+          defaults.audio_master_gain == 1.0f && defaults.audio_music_gain == 1.0f &&
+          defaults.audio_sfx_gain == 1.0f && defaults.audio_ambience_gain == 1.0f);
     struct {
         uint32_t struct_size;
         uint32_t api_version;
@@ -345,13 +348,21 @@ static int test_settings_layers_validation_and_persistence(void) {
     project.frame_cap = 90u;
     VgSettingsLayer user =
         settings_layer(VG_SETTING_FULLSCREEN | VG_SETTING_VSYNC | VG_SETTING_LOOK_SENSITIVITY |
-                       VG_SETTING_VISUAL_PROFILE);
+                       VG_SETTING_VISUAL_PROFILE | VG_SETTING_AUDIO_MASTER_GAIN |
+                       VG_SETTING_AUDIO_MUSIC_GAIN | VG_SETTING_AUDIO_SFX_GAIN |
+                       VG_SETTING_AUDIO_AMBIENCE_GAIN);
     user.fullscreen = 1u;
     user.vsync = 0u;
     user.look_sensitivity = 0.004f;
     user.visual_profile = VG_VISUAL_PROFILE_RETRO;
-    VgSettingsLayer session = settings_layer(VG_SETTING_FRAME_CAP);
+    user.audio_master_gain = 0.7f;
+    user.audio_music_gain = 0.3f;
+    user.audio_sfx_gain = 0.8f;
+    user.audio_ambience_gain = 0.4f;
+    VgSettingsLayer session = settings_layer(VG_SETTING_FRAME_CAP |
+                                            VG_SETTING_AUDIO_AMBIENCE_GAIN);
     session.frame_cap = 144u;
+    session.audio_ambience_gain = 0.5f;
     VgSettingsLayer project_before = project;
     VgSettingsLayer user_before = user;
     VgSettingsLayer session_before = session;
@@ -361,7 +372,11 @@ static int test_settings_layers_validation_and_persistence(void) {
     CHECK(resolved.internal_width == 640u && resolved.internal_height == 360u &&
           resolved.fullscreen == 1u && resolved.vsync == 0u && resolved.frame_cap == 144u &&
           fabsf(resolved.look_sensitivity - 0.004f) < 0.0001f &&
-          resolved.visual_profile == VG_VISUAL_PROFILE_RETRO);
+          resolved.visual_profile == VG_VISUAL_PROFILE_RETRO &&
+          resolved.audio_master_gain == user.audio_master_gain &&
+          resolved.audio_music_gain == user.audio_music_gain &&
+          resolved.audio_sfx_gain == user.audio_sfx_gain &&
+          resolved.audio_ambience_gain == session.audio_ambience_gain);
     CHECK(memcmp(&project, &project_before, sizeof(project)) == 0 &&
           memcmp(&user, &user_before, sizeof(user)) == 0 &&
           memcmp(&session, &session_before, sizeof(session)) == 0);
@@ -370,7 +385,11 @@ static int test_settings_layers_validation_and_persistence(void) {
     CHECK(vg_settings_diff(&defaults, &resolved, &changes) == VG_OK);
     CHECK((changes.immediate & VG_SETTING_FRAME_CAP) != 0u &&
           (changes.immediate & VG_SETTING_LOOK_SENSITIVITY) != 0u &&
-          (changes.immediate & VG_SETTING_VISUAL_PROFILE) != 0u);
+          (changes.immediate & VG_SETTING_VISUAL_PROFILE) != 0u &&
+          (changes.immediate & VG_SETTING_AUDIO_MASTER_GAIN) != 0u &&
+          (changes.immediate & VG_SETTING_AUDIO_MUSIC_GAIN) != 0u &&
+          (changes.immediate & VG_SETTING_AUDIO_SFX_GAIN) != 0u &&
+          (changes.immediate & VG_SETTING_AUDIO_AMBIENCE_GAIN) != 0u);
     CHECK(changes.recreate_targets == VG_SETTING_INTERNAL_RESOLUTION);
     CHECK((changes.recreate_surface & VG_SETTING_FULLSCREEN) != 0u &&
           (changes.recreate_surface & VG_SETTING_VSYNC) != 0u);
@@ -399,10 +418,23 @@ static int test_settings_layers_validation_and_persistence(void) {
     CHECK(vg_settings_load_file(path, &loaded, &diagnostic) == VG_OK);
     CHECK(loaded.present == user.present && loaded.fullscreen == user.fullscreen &&
           loaded.vsync == user.vsync && loaded.look_sensitivity == user.look_sensitivity &&
-          loaded.visual_profile == VG_VISUAL_PROFILE_RETRO);
+          loaded.visual_profile == VG_VISUAL_PROFILE_RETRO &&
+          loaded.audio_master_gain == user.audio_master_gain &&
+          loaded.audio_music_gain == user.audio_music_gain &&
+          loaded.audio_sfx_gain == user.audio_sfx_gain &&
+          loaded.audio_ambience_gain == user.audio_ambience_gain);
     VgSettingsLayer invalid_profile = settings_layer(VG_SETTING_VISUAL_PROFILE);
     invalid_profile.visual_profile = 2u;
     CHECK(vg_settings_validate(&invalid_profile, &diagnostic) == VG_ERROR_INVALID_ARGUMENT);
+    VgSettingsLayer invalid_audio = settings_layer(VG_SETTING_AUDIO_SFX_GAIN);
+    invalid_audio.audio_sfx_gain = NAN;
+    CHECK(vg_settings_validate(&invalid_audio, &diagnostic) == VG_ERROR_INVALID_ARGUMENT);
+    invalid_audio.audio_sfx_gain = 1.01f;
+    CHECK(vg_settings_validate(&invalid_audio, &diagnostic) == VG_ERROR_INVALID_ARGUMENT);
+    invalid_audio.audio_sfx_gain = -0.01f;
+    CHECK(vg_settings_validate(&invalid_audio, &diagnostic) == VG_ERROR_INVALID_ARGUMENT);
+    invalid_audio.audio_sfx_gain = 0.0f;
+    CHECK(vg_settings_validate(&invalid_audio, &diagnostic) == VG_OK);
     conflict.bindings[1].code = 0u;
     CHECK(vg_settings_save_file(path, &conflict, &diagnostic) == VG_ERROR_INVALID_ARGUMENT);
     loaded = settings_layer(0u);
@@ -434,6 +466,17 @@ static int test_settings_layers_validation_and_persistence(void) {
     CHECK(vg_settings_load_file(unicode_path, &loaded, &diagnostic) == VG_OK);
     CHECK(loaded.present == user.present && loaded.look_sensitivity == user.look_sensitivity);
     CHECK(remove_utf8(unicode_path) == 0);
+    CHECK(overwrite_text(audio_path,
+                         "VESTIGIO_SETTINGS 1\npresent 00000200\naudio_sfx_gain nan\n"));
+    sentinel_before = loaded;
+    CHECK(vg_settings_load_file(audio_path, &loaded, &diagnostic) == VG_ERROR_INVALID_ARGUMENT);
+    CHECK(memcmp(&loaded, &sentinel_before, sizeof(loaded)) == 0);
+    CHECK(overwrite_text(audio_path,
+                         "VESTIGIO_SETTINGS 1\npresent 00000080\n"
+                         "audio_master_gain 0.4\naudio_master_gain 0.5\n"));
+    CHECK(vg_settings_load_file(audio_path, &loaded, &diagnostic) == VG_ERROR_CONFLICT);
+    CHECK(memcmp(&loaded, &sentinel_before, sizeof(loaded)) == 0);
+    CHECK(remove_utf8(audio_path) == 0);
     return 0;
 }
 

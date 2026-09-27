@@ -30,6 +30,18 @@ VG_GPU_HOST_API int32_t vg_gpu_host_save_visual_profile(VgGpuHost *host, const c
                                                        char *error, size_t error_capacity);
 VG_GPU_HOST_API size_t vg_gpu_host_visual_light_count(const VgGpuHost *host);
 VG_GPU_HOST_API int32_t vg_gpu_host_visual_fog_enabled(const VgGpuHost *host);
+VG_GPU_HOST_API int32_t vg_gpu_host_set_audio_enabled(VgGpuHost *host, int32_t enabled);
+VG_GPU_HOST_API int32_t vg_gpu_host_audio_device_state(const VgGpuHost *host);
+VG_GPU_HOST_API uint64_t vg_gpu_host_audio_voice_starts(const VgGpuHost *host);
+VG_GPU_HOST_API uint32_t vg_gpu_host_audio_active_voices(const VgGpuHost *host);
+VG_GPU_HOST_API uint32_t vg_gpu_host_audio_music_streams(const VgGpuHost *host);
+VG_GPU_HOST_API uint64_t vg_gpu_host_audio_stream_updates(const VgGpuHost *host);
+VG_GPU_HOST_API int32_t vg_gpu_host_audio_focus_paused(const VgGpuHost *host);
+VG_GPU_HOST_API float vg_gpu_host_audio_gain(const VgGpuHost *host, uint32_t bus);
+VG_GPU_HOST_API int32_t vg_gpu_host_set_audio_gain(VgGpuHost *host, uint32_t bus,
+                                                  float gain);
+VG_GPU_HOST_API int32_t vg_gpu_host_save_audio_gains(VgGpuHost *host, const char *path,
+                                                    char *error, size_t error_capacity);
 /* E01: load a native level and its referenced Atrium model. Edit owns the
  * document; Play instantiates a separate world and Stop discards it. */
 VG_GPU_HOST_API int32_t vg_gpu_host_open_level(VgGpuHost *host, const char *level_path,

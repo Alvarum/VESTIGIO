@@ -1,6 +1,7 @@
 #include "player/demo_3d.h"
 
 #include "player/demo_scene.h"
+#include "audio/atrium_audio.h"
 #include "render/gpu_raylib/gpu_renderer.h"
 #include "raylib.h"
 
@@ -101,6 +102,27 @@ static bool demo_apply_visual(VgGpuRenderer *renderer, VgContext *context,
     return vg_gpu_renderer_set_visual_settings(renderer, &visual, error, error_capacity);
 }
 
+static VgVec3 demo_rotate(VgQuat q, VgVec3 vector) {
+    VgVec3 t = {2.0f * (q.y * vector.z - q.z * vector.y),
+                2.0f * (q.z * vector.x - q.x * vector.z),
+                2.0f * (q.x * vector.y - q.y * vector.x)};
+    return (VgVec3){vector.x + q.w * t.x + q.y * t.z - q.z * t.y,
+                    vector.y + q.w * t.y + q.z * t.x - q.x * t.z,
+                    vector.z + q.w * t.z + q.x * t.y - q.y * t.x};
+}
+
+static bool demo_apply_audio_gains(VgAtriumAudio *audio,
+                                    const VgSettingsLayer *settings) {
+    return vg_atrium_audio_set_gain(audio, VG_AUDIO_BUS_MASTER,
+               settings->audio_master_gain) == VG_OK &&
+           vg_atrium_audio_set_gain(audio, VG_AUDIO_BUS_MUSIC,
+               settings->audio_music_gain) == VG_OK &&
+           vg_atrium_audio_set_gain(audio, VG_AUDIO_BUS_SFX,
+               settings->audio_sfx_gain) == VG_OK &&
+           vg_atrium_audio_set_gain(audio, VG_AUDIO_BUS_AMBIENCE,
+               settings->audio_ambience_gain) == VG_OK;
+}
+
 static bool demo_read_model(const char *path, void **out_data, uint64_t *out_size) {
     FILE *file = fopen(path, "rb");
     if (file == NULL)
@@ -155,6 +177,8 @@ static VgInputSample demo_input_sample(bool focused, bool smoke, bool smoke_door
 
 int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_colliders,
                    const char *level_path, bool smoke_door,
+                   bool audio_enabled,
+                   bool save_audio_overrides,
                    const char *requested_settings_path,
                    const VgSettingsLayer *session_settings) {
     if (smoke_door && smoke_frames == 0)
@@ -204,6 +228,33 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
                       settings_error.message);
         return 2;
     }
+    if (save_audio_overrides) {
+        const VgSettingMask audio_mask = VG_SETTING_AUDIO_MASTER_GAIN |
+            VG_SETTING_AUDIO_MUSIC_GAIN | VG_SETTING_AUDIO_SFX_GAIN |
+            VG_SETTING_AUDIO_AMBIENCE_GAIN;
+        if (settings_path == NULL || session_settings == NULL ||
+            (session_settings->present & audio_mask) == 0u) {
+            (void)fprintf(stderr, "--save-audio requiere --volume-* y ruta de settings\n");
+            return 2;
+        }
+        VgSettingMask changed = session_settings->present & audio_mask;
+        user_settings.present |= changed;
+        if ((changed & VG_SETTING_AUDIO_MASTER_GAIN) != 0u)
+            user_settings.audio_master_gain = session_settings->audio_master_gain;
+        if ((changed & VG_SETTING_AUDIO_MUSIC_GAIN) != 0u)
+            user_settings.audio_music_gain = session_settings->audio_music_gain;
+        if ((changed & VG_SETTING_AUDIO_SFX_GAIN) != 0u)
+            user_settings.audio_sfx_gain = session_settings->audio_sfx_gain;
+        if ((changed & VG_SETTING_AUDIO_AMBIENCE_GAIN) != 0u)
+            user_settings.audio_ambience_gain = session_settings->audio_ambience_gain;
+        if (vg_settings_save_file(settings_path, &user_settings, &settings_error) != VG_OK) {
+            (void)fprintf(stderr, "No se guardaron volumenes: %s\n", settings_error.message);
+            return 2;
+        }
+    }
+    (void)printf("audio gains master=%.2f music=%.2f sfx=%.2f ambience=%.2f\n",
+                 (double)settings.audio_master_gain, (double)settings.audio_music_gain,
+                 (double)settings.audio_sfx_gain, (double)settings.audio_ambience_gain);
     char model_path[2048] = {0};
     char default_level_path[2048] = {0};
     void *model_data = NULL;
@@ -229,6 +280,7 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
     VgGpuRenderer *renderer = NULL;
     VgContext *context = NULL;
     VgDemoScene *scene = NULL;
+    VgAtriumAudio *audio = NULL;
     bool gpu_attached = false;
     bool window_ready = false;
     bool cursor_captured = false;
@@ -301,6 +353,21 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
                  settings.visual_profile == VG_VISUAL_PROFILE_RETRO ? "retro" : "clean",
                  vg_document_instance_light_count(vg_demo_scene_document_instance(scene)),
                  visual_environment.fog_enabled ? "linear" : "off");
+    if (audio_enabled) {
+        char audio_path[2048];
+        path_length = snprintf(audio_path, sizeof(audio_path), "%sassets/demo/audio",
+                               GetApplicationDirectory());
+        if (path_length >= 0 && (size_t)path_length < sizeof(audio_path)) {
+            char audio_error[192] = {0};
+            audio = vg_atrium_audio_create(audio_path, audio_error, sizeof(audio_error));
+            if (!vg_atrium_audio_ready(audio))
+                (void)fprintf(stderr, "%s\n", audio_error);
+            else if (!demo_apply_audio_gains(audio, &settings))
+                (void)fprintf(stderr, "Audio: volumen inicial invalido\n");
+        } else {
+            (void)fprintf(stderr, "Audio: ruta de assets demasiado larga\n");
+        }
+    }
 
     VgVec3 start_position = {0};
     if (vg_demo_scene_camera_position(scene, &start_position) != VG_OK)
@@ -348,6 +415,23 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
                 (void)fprintf(stderr, "No hay ruta de settings para guardar perfil\n");
             }
         }
+        if (smoke_frames == 0 && (IsKeyPressed(KEY_F7) || IsKeyPressed(KEY_F8))) {
+            float delta = IsKeyPressed(KEY_F7) ? -0.1f : 0.1f;
+            settings.audio_master_gain = fmaxf(0.0f,
+                fminf(1.0f, settings.audio_master_gain + delta));
+            if (vg_atrium_audio_ready(audio))
+                (void)vg_atrium_audio_set_gain(audio, VG_AUDIO_BUS_MASTER,
+                                                settings.audio_master_gain);
+            if (settings_path != NULL) {
+                user_settings.present |= VG_SETTING_AUDIO_MASTER_GAIN;
+                user_settings.audio_master_gain = settings.audio_master_gain;
+                if (vg_settings_save_file(settings_path, &user_settings,
+                                           &settings_error) != VG_OK)
+                    (void)fprintf(stderr, "No se guardo volumen: %s\n",
+                                  settings_error.message);
+            }
+            (void)printf("audio master=%.2f\n", (double)settings.audio_master_gain);
+        }
         bool focused = smoke_frames > 0 || IsWindowFocused();
         if (smoke_frames > 0) {
             if (frames == smoke_frames / 2)
@@ -393,6 +477,18 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
         if (result == VG_OK)
             result = vg_demo_scene_step(scene, smoke_frames > 0 ? 1.0 / 60.0 : now - previous);
         previous = now;
+        if (result == VG_OK && vg_atrium_audio_ready(audio)) {
+            VgVec3 door_position;
+            if (vg_demo_scene_take_door_event(scene, &door_position))
+                (void)vg_atrium_audio_play_door(audio, door_position);
+            VgTransform camera;
+            if (vg_demo_scene_camera_transform(scene, &camera) == VG_OK) {
+                VgVec3 right = demo_rotate(camera.rotation, (VgVec3){1.0f, 0.0f, 0.0f});
+                (void)vg_atrium_audio_set_listener(audio, camera.position, right);
+            }
+            (void)vg_atrium_audio_set_paused(audio, false, !focused);
+            (void)vg_atrium_audio_update(audio);
+        }
         if (result == VG_OK && !demo_apply_visual(renderer, context,
                               vg_demo_scene_document_instance(scene),
                               settings.visual_profile, gpu_error, sizeof(gpu_error))) {
@@ -460,6 +556,20 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
         goto cleanup;
     }
     stats = vg_gpu_renderer_stats(renderer);
+    if (audio_enabled) {
+        VgAudioCoreStats audio_stats = vg_atrium_audio_stats(audio);
+        (void)printf("audio=%s door_events=%llu ambience_streams=%u stream_updates=%llu\n",
+                     vg_atrium_audio_ready(audio) ? "ready" : "unavailable",
+                     (unsigned long long)audio_stats.voice_starts,
+                     audio_stats.music_streams,
+                     (unsigned long long)audio_stats.stream_updates);
+        if (smoke_door && vg_atrium_audio_ready(audio) &&
+            (audio_stats.voice_starts != 2u || audio_stats.music_streams != 1u ||
+             audio_stats.stream_updates == 0u)) {
+            (void)fprintf(stderr, "Audio: ambiente/puerta no produjeron eventos\n");
+            goto cleanup;
+        }
+    }
     (void)printf("demo_3d frames=%d draws=%llu triangles=%llu uploads=%llu readbacks=%llu "
                  "camera=(%.2f,%.2f,%.2f)\n",
                  frames, (unsigned long long)stats.draw_calls, (unsigned long long)stats.triangles,
@@ -467,6 +577,7 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
                  (double)end_position.x, (double)end_position.y, (double)end_position.z);
     exit_code = 0;
 cleanup:
+    vg_atrium_audio_destroy(audio);
     free(model_data);
     vg_demo_scene_destroy(scene);
     if (gpu_attached) {

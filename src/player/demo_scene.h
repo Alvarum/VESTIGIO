@@ -16,6 +16,8 @@ VgResult vg_demo_scene_submit_input(VgDemoScene *scene, const VgInputSample *sam
 VgResult vg_demo_scene_step(VgDemoScene *scene, double elapsed_seconds);
 VgWorld vg_demo_scene_world(const VgDemoScene *scene);
 VgResult vg_demo_scene_camera_position(const VgDemoScene *scene, VgVec3 *out_position);
+VgResult vg_demo_scene_camera_transform(const VgDemoScene *scene, VgTransform *out_transform);
+bool vg_demo_scene_take_door_event(VgDemoScene *scene, VgVec3 *out_position);
 const VgSpatialScene *vg_demo_scene_spatial(const VgDemoScene *scene);
 const VgDocumentInstance *vg_demo_scene_document_instance(const VgDemoScene *scene);
 /* NULL when the centered interaction ray does not hit an authored door. */

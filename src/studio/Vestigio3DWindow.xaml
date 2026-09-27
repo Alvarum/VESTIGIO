@@ -163,6 +163,20 @@
             </StackPanel>
             <TextBlock x:Name="FieldError" Foreground="{StaticResource DangerBrush}"
                        TextWrapping="Wrap" Margin="0,9,0,0"/>
+            <TextBlock Text="AUDIO" Foreground="{StaticResource AccentBrush}"
+                       FontSize="11" FontWeight="SemiBold" Margin="0,20,0,7"/>
+            <TextBlock Text="General" Foreground="{StaticResource MutedBrush}"/>
+            <Slider x:Name="MasterVolume" Tag="0" Minimum="0" Maximum="100" Value="100"
+                    ValueChanged="AudioVolume_ValueChanged" Margin="0,2,0,7"/>
+            <TextBlock Text="Ambiente" Foreground="{StaticResource MutedBrush}"/>
+            <Slider x:Name="AmbienceVolume" Tag="3" Minimum="0" Maximum="100" Value="100"
+                    ValueChanged="AudioVolume_ValueChanged" Margin="0,2,0,7"/>
+            <TextBlock Text="Efectos" Foreground="{StaticResource MutedBrush}"/>
+            <Slider x:Name="SfxVolume" Tag="2" Minimum="0" Maximum="100" Value="100"
+                    ValueChanged="AudioVolume_ValueChanged" Margin="0,2,0,7"/>
+            <TextBlock Text="Música (sin pista en Atrium)" Foreground="{StaticResource MutedBrush}"/>
+            <Slider x:Name="MusicVolume" Tag="1" Minimum="0" Maximum="100" Value="100"
+                    ValueChanged="AudioVolume_ValueChanged" Margin="0,2,0,7"/>
             <TextBlock Text="Cada aplicación se puede deshacer. Los cambios de Probar no se guardan."
                        Foreground="{StaticResource FaintBrush}" TextWrapping="Wrap"
                        Margin="0,18,0,0"/>

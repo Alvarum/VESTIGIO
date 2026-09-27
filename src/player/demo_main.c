@@ -1,6 +1,7 @@
 #include "player/demo_3d.h"
 
 #include <errno.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,7 +17,10 @@ static int usage(void) {
                   "[--fullscreen|--windowed] [--vsync|--no-vsync] "
                   "[--frame-cap hz] [--sensitivity valor] [--show-colliders] "
                   "[--level archivo.level.json] [--settings archivo] "
-                  "[--visual clean|retro] [--smoke-door]\n");
+                  "[--visual clean|retro] [--smoke-door] "
+                  "[--no-audio|--smoke-audio] [--volume-master 0..1] "
+                  "[--volume-music 0..1] [--volume-sfx 0..1] "
+                  "[--volume-ambience 0..1] [--save-audio]\n");
     return 2;
 }
 
@@ -25,6 +29,9 @@ static int demo_main(int argc, char **argv) {
     const char *capture = NULL;
     bool show_colliders = false;
     bool smoke_door = false;
+    bool force_audio = false;
+    bool disable_audio = false;
+    bool save_audio = false;
     const char *level_path = NULL;
     const char *settings_path = NULL;
     VgSettingsLayer session = {0};
@@ -51,6 +58,35 @@ static int demo_main(int argc, char **argv) {
             session.present |= VG_SETTING_VISUAL_PROFILE;
         } else if (strcmp(argument, "--smoke-door") == 0) {
             smoke_door = true;
+        } else if (strcmp(argument, "--smoke-audio") == 0) {
+            force_audio = true;
+        } else if (strcmp(argument, "--no-audio") == 0) {
+            disable_audio = true;
+        } else if (strcmp(argument, "--save-audio") == 0) {
+            save_audio = true;
+        } else if ((strcmp(argument, "--volume-master") == 0 ||
+                    strcmp(argument, "--volume-music") == 0 ||
+                    strcmp(argument, "--volume-sfx") == 0 ||
+                    strcmp(argument, "--volume-ambience") == 0) && index + 1 < argc) {
+            char *end = NULL;
+            errno = 0;
+            float value = strtof(argv[++index], &end);
+            if (errno != 0 || end == argv[index] || *end != '\0' || !isfinite(value) ||
+                value < 0.0f || value > 1.0f)
+                return usage();
+            if (strcmp(argument, "--volume-master") == 0) {
+                session.present |= VG_SETTING_AUDIO_MASTER_GAIN;
+                session.audio_master_gain = value;
+            } else if (strcmp(argument, "--volume-music") == 0) {
+                session.present |= VG_SETTING_AUDIO_MUSIC_GAIN;
+                session.audio_music_gain = value;
+            } else if (strcmp(argument, "--volume-sfx") == 0) {
+                session.present |= VG_SETTING_AUDIO_SFX_GAIN;
+                session.audio_sfx_gain = value;
+            } else {
+                session.present |= VG_SETTING_AUDIO_AMBIENCE_GAIN;
+                session.audio_ambience_gain = value;
+            }
         } else if (strcmp(argument, "--smoke") == 0 && index + 1 < argc) {
             char *end = NULL;
             errno = 0;
@@ -99,7 +135,9 @@ static int demo_main(int argc, char **argv) {
         }
     }
     return vg_demo_3d_run(smoke_frames, capture, show_colliders, level_path,
-                          smoke_door, settings_path,
+                          smoke_door, !disable_audio &&
+                              ((smoke_frames == 0 && !smoke_door) || force_audio),
+                          save_audio, settings_path,
                           session.present != 0u ? &session : NULL);
 }
 

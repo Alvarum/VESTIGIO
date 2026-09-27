@@ -163,7 +163,7 @@
       "validation": ["V-CORE", "V-APP", "V-GPU", "V-DATA"], "unlocks": "Neo-PSX como perfil del mismo runtime."
     },
     {
-      "id": "A01", "phase": "P7", "title": "Audio de proyecto, voces, música y emisores", "role": "runtime", "dependencies": ["R02", "I01", "D02"], "locks": ["audio-core", "public-api"], "status": "PLANNED",
+      "id": "A01", "phase": "P7", "title": "Audio de proyecto, voces, música y emisores", "role": "runtime", "dependencies": ["R02", "I01", "D02"], "locks": ["audio-core", "public-api"], "status": "IN_PROGRESS",
       "paths": ["src/audio/", "src/assets/", "src/platform/raylib_platform.c", "src/api/", "src/content/", "tests/audio/"],
       "steps": ["Separar Sound compartido, Voice mutable y Music streaming; buses master/music/SFX/ambience y listener/emisor espacial.", "Conectar eventos de interacción al playback sin repetir sonidos por frame; límites de voces y política de prioridad explícitos.", "Exponer configuración al SDK y esquema documental, lifecycle de streaming y pausa/foco/cambio de mundo; registrar contratos reales de pan/volumen de backend."],
       "acceptance": ["Dos emisores comparten Sound pero tienen voces independientes; descargar mundo detiene sus voces sin invalidar otros usuarios.", "Música se actualiza sin cargar todo como PCM y buses persisten; dispositivo ausente/fallo se comunica sin crash.", "Escucha real confirma posición/volumen/evento y pausa; pruebas automatizadas cubren ownership y límites, no sustituyen audición."],

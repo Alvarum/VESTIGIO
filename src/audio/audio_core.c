@@ -41,6 +41,7 @@ typedef struct VgAudioMusicSlot {
     bool used;
     uint64_t world_id;
     uint64_t token;
+    VgAudioBus bus;
     float gain;
     bool loop;
 } VgAudioMusicSlot;
@@ -334,7 +335,7 @@ VgResult vg_audio_core_set_bus_gain(VgAudioCore *core, VgAudioBus bus, float lin
         if (core->music[index].used)
             core->config.backend.music_set_gain(
                 core->config.backend.user, core->music[index].token,
-                clamp01(core->bus_gain[VG_AUDIO_BUS_MASTER] * core->bus_gain[VG_AUDIO_BUS_MUSIC] *
+                clamp01(core->bus_gain[VG_AUDIO_BUS_MASTER] * core->bus_gain[core->music[index].bus] *
                         core->music[index].gain));
     return VG_OK;
 }
@@ -591,7 +592,8 @@ VgResult vg_audio_core_music_start(VgAudioCore *core, const VgAudioMusicDesc *de
                                    VgAudioMusic *out_music) {
     if (core == NULL || description == NULL || out_music == NULL ||
         description->source_token == 0u || !isfinite(description->gain) ||
-        description->gain < 0.0f || description->gain > 1.0f)
+        description->gain < 0.0f || description->gain > 1.0f ||
+        description->bus >= VG_AUDIO_BUS_COUNT)
         return VG_ERROR_INVALID_ARGUMENT;
     if (!core->device_open)
         return device_error(core);
@@ -614,11 +616,13 @@ VgResult vg_audio_core_music_start(VgAudioCore *core, const VgAudioMusicDesc *de
     slot->used = true;
     slot->world_id = description->world_id;
     slot->token = token;
+    slot->bus = description->bus == VG_AUDIO_BUS_MASTER
+                    ? VG_AUDIO_BUS_MUSIC : description->bus;
     slot->gain = description->gain;
     slot->loop = description->loop;
     core->config.backend.music_set_gain(core->config.backend.user, token,
                                         clamp01(core->bus_gain[VG_AUDIO_BUS_MASTER] *
-                                                core->bus_gain[VG_AUDIO_BUS_MUSIC] * slot->gain));
+                                                core->bus_gain[slot->bus] * slot->gain));
     core->config.backend.music_play(core->config.backend.user, token, slot->loop);
     core->config.backend.music_set_paused(core->config.backend.user, token, core_paused(core));
     out_music->value = handle_make(selected, slot->generation);

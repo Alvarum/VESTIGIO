@@ -15,6 +15,7 @@ public partial class Vestigio3DWindow : Window
     private readonly string _sourceLevelPath;
     private bool _savedWorkingCopy;
     private bool _refreshingHierarchy;
+    private bool _refreshingAudio;
     private readonly Dictionary<string, string> _entityLabels = new(StringComparer.OrdinalIgnoreCase);
     private float[] _displayedPosition = [0, 0, 0];
     private float[] _displayedRotation = [0, 0, 0, 1];
@@ -23,7 +24,7 @@ public partial class Vestigio3DWindow : Window
     private readonly string[] _displayedTexts = new string[9];
 
     internal Vestigio3DWindow(string levelPath, string modelPath,
-        string? visualSettingsPath = null)
+        string? visualSettingsPath = null, bool enableAudio = true)
     {
         if (!File.Exists(levelPath))
             throw new FileNotFoundException("No se encontró el nivel 3D.", levelPath);
@@ -35,6 +36,7 @@ public partial class Vestigio3DWindow : Window
         Viewport.LevelPath = _sourceLevelPath;
         Viewport.ModelPath = modelPath;
         Viewport.VisualSettingsPath = visualSettingsPath;
+        Viewport.EnableAudio = enableAudio;
         Viewport.SelectionChanged += (_, _) => RefreshSelection();
         LevelTitle.Text = DocumentName(levelPath);
         LevelPathText.Text = _sourceLevelPath;
@@ -56,6 +58,17 @@ public partial class Vestigio3DWindow : Window
     internal int VisualProfileForTest => VisualProfile.SelectedIndex;
     internal string VisualSummaryForTest => VisualSummaryText.Text;
     internal void SelectVisualProfileForTest(int mode) => VisualProfile.SelectedIndex = mode;
+    internal void SelectAudioGainForTest(uint bus, double percent) =>
+        AudioSlider(bus).Value = percent;
+
+    private Slider AudioSlider(uint bus) => bus switch
+    {
+        0 => MasterVolume,
+        1 => MusicVolume,
+        2 => SfxVolume,
+        3 => AmbienceVolume,
+        _ => throw new ArgumentOutOfRangeException(nameof(bus))
+    };
 
     private void LoadEntityLabels(string levelPath)
     {
@@ -139,6 +152,31 @@ public partial class Vestigio3DWindow : Window
         VisualSummaryText.Text = Viewport.VisualSummary;
         if (Viewport.VisualMode >= 0 && VisualProfile.SelectedIndex != Viewport.VisualMode)
             VisualProfile.SelectedIndex = Viewport.VisualMode;
+        _refreshingAudio = true;
+        try
+        {
+            for (uint bus = 0; bus < 4; ++bus)
+                AudioSlider(bus).Value = Math.Round(Viewport.AudioGain(bus) * 100.0f);
+        }
+        finally { _refreshingAudio = false; }
+    }
+
+    private void AudioVolume_ValueChanged(object sender,
+        RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_refreshingAudio || Viewport is null || !Viewport.IsNativeReady ||
+            sender is not Slider slider || !uint.TryParse(slider.Tag?.ToString(), out uint bus))
+            return;
+        float gain = (float)(slider.Value / 100.0);
+        if (!Viewport.TrySetAudioGain(bus, gain))
+        {
+            _refreshingAudio = true;
+            slider.Value = Viewport.AudioGain(bus) * 100.0f;
+            _refreshingAudio = false;
+            StatusText.Text = $"No se pudo guardar volumen: {Viewport.LastError}";
+            return;
+        }
+        StatusText.Text = $"Volumen guardado · {slider.Value:0}%";
     }
 
     private void VisualProfile_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -233,7 +271,9 @@ public partial class Vestigio3DWindow : Window
             return;
         }
         SetEditingEnabled(false);
-        StatusText.Text = "Probar · instancia aislada del documento";
+        StatusText.Text = Viewport.EnableAudio && Viewport.AudioDeviceState != 1
+            ? "Probar · audio no disponible; puedes seguir jugando"
+            : "Probar · instancia aislada del documento";
     }
 
     private void Stop_Click(object sender, RoutedEventArgs e)
