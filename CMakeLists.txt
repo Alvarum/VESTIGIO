@@ -138,9 +138,10 @@ install(FILES
 
 # Documentos de proyecto y nivel. Este target no depende del runtime ni de una
 # plataforma grafica, de modo que los validadores se pueden ejecutar en CI CPU.
-add_library(vestigio_content STATIC
-    src/content/json.c
-    src/content/content.c)
+  add_library(vestigio_content STATIC
+      src/content/json.c
+      src/content/content.c
+      src/content/room_recipe.c)
 retro_target(vestigio_content)
 target_include_directories(vestigio_content PUBLIC "${PROJECT_SOURCE_DIR}/src")
 if(NOT WIN32)
@@ -301,6 +302,17 @@ if(RETRO_BUILD_APPS)
             set_tests_properties(vestigio_gpu_host_e03 PROPERTIES
                 ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin"
                 LABELS "window;gpu;studio;asset;document;app")
+            add_executable(vestigio_gpu_host_e04_test tests/platform/gpu_host_e04_test.c)
+            retro_target(vestigio_gpu_host_e04_test)
+            target_include_directories(vestigio_gpu_host_e04_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
+            target_link_libraries(vestigio_gpu_host_e04_test PRIVATE vestigio_gpu_host)
+            add_test(NAME vestigio_gpu_host_e04 COMMAND vestigio_gpu_host_e04_test
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.gltf"
+                "${CMAKE_BINARY_DIR}/e04-room-copy.level.json")
+            set_tests_properties(vestigio_gpu_host_e04 PROPERTIES
+                ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin"
+                LABELS "window;gpu;studio;document;spatial;app")
             add_test(NAME retro_studio_authoring COMMAND dotnet
                 "${CMAKE_BINARY_DIR}/bin/RetroForge.Studio.Tests.dll"
                 "${CMAKE_BINARY_DIR}/studio-evidence"
@@ -357,6 +369,12 @@ if(RETRO_BUILD_APPS)
                 "${PROJECT_SOURCE_DIR}/tests/assets/fixtures/static_triangle.glb")
             set_tests_properties(vestigio_studio_e03 PROPERTIES
                 LABELS "window;gpu;studio;asset;document;app")
+            add_test(NAME vestigio_studio_e04_room COMMAND dotnet
+                "${CMAKE_BINARY_DIR}/bin/RetroForge.Studio.Tests.dll"
+                --e04-room-recipe "${CMAKE_BINARY_DIR}/studio-e04-evidence"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json")
+            set_tests_properties(vestigio_studio_e04_room PROPERTIES
+                LABELS "window;gpu;studio;document;spatial;app")
         endif()
         add_executable(retro_platform_test tests/platform_test.c)
         retro_target(retro_platform_test)
@@ -419,8 +437,15 @@ if(RETRO_BUILD_APPS)
                 "${CMAKE_BINARY_DIR}/e03-player-evidence")
             set_tests_properties(vestigio_player_e03_import PROPERTIES
                 LABELS "window;gpu;asset;document;app")
+            add_test(NAME vestigio_player_e04_room COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/player/e04_room_level.py"
+                "$<TARGET_FILE:vestigio_player>"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json"
+                "${CMAKE_BINARY_DIR}/e04-player-evidence")
+            set_tests_properties(vestigio_player_e04_room PROPERTIES
+                LABELS "window;gpu;document;spatial;app")
         else()
-            message(WARNING "Python 3 is required to run vestigio_player_e03_import; the application itself does not require Python")
+            message(WARNING "Python 3 is required to run Player E03/E04 integration tests; the application itself does not require Python")
         endif()
         add_test(NAME vestigio_player_demo COMMAND vestigio_player --smoke 8)
         set_tests_properties(vestigio_player_demo PROPERTIES LABELS "window;gpu;sdk;app")
@@ -501,6 +526,12 @@ if(BUILD_TESTING)
     target_compile_definitions(vestigio_content_test PRIVATE
         VG_CONTENT_FIXTURES="${PROJECT_SOURCE_DIR}/tests/content/fixtures")
     add_test(NAME vestigio_content COMMAND vestigio_content_test)
+
+    add_executable(vestigio_room_recipe_test tests/content/room_recipe_test.c)
+    retro_target(vestigio_room_recipe_test)
+    target_include_directories(vestigio_room_recipe_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
+    target_link_libraries(vestigio_room_recipe_test PRIVATE vestigio_content)
+    add_test(NAME vestigio_room_recipe COMMAND vestigio_room_recipe_test)
 
     add_executable(vestigio_document_test tests/content/document_test.c)
     retro_target(vestigio_document_test)

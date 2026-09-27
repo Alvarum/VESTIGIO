@@ -5,6 +5,7 @@
 #include "audio/atrium_audio.h"
 #include "content/document_internal.h"
 #include "content/document_runtime.h"
+#include "content/room_recipe.h"
 #include "gamekit/atrium_animation.h"
 #include "platform/win32_embed.h"
 #include "raylib.h"
@@ -61,6 +62,11 @@ struct VgGpuHost {
     size_t imported_count;
     VgEntity preview_entity;
     bool preview_active;
+    VgDocumentInstance *room_preview_original_edit;
+    VgEntity room_preview_original_camera;
+    bool room_preview_active;
+    bool room_view_grid, room_view_ghost;
+    float room_view_floor_z;
     bool gpu_attached;
     float edit_yaw, edit_pitch;
     float play_yaw, play_pitch;
@@ -121,6 +127,29 @@ static void host_error(char *out, size_t capacity, const char *message) {
 }
 
 static size_t host_collect_gizmos(const VgGpuHost *host, VgGpuGizmo *out, size_t capacity);
+static size_t host_collect_room_ghosts(const VgGpuHost *host, VgGpuRoomOutline *out,
+                                       VgVec3 points[][VG_ROOM_MAX_VERTICES], size_t capacity);
+static void host_rebind_selection(VgGpuHost *host) {
+    size_t count = host->selection_count;
+    char ids[VG_TOOL_MAX_COMMANDS][37];
+    memcpy(ids, host->selection_uuids, count * sizeof(ids[0]));
+    host->has_selection = false;
+    host->selected_uuid[0] = '\0';
+    host->selection_count = 0u;
+    for (size_t i = 0u; i < count; ++i)
+        (void)vg_gpu_host_select_add(host, ids[i], i != 0u, false);
+}
+static void host_cancel_room_preview_internal(VgGpuHost *host) {
+    if (host == NULL || !host->room_preview_active)
+        return;
+    VgDocumentInstance *candidate = host->edit;
+    host->edit = host->room_preview_original_edit;
+    host->edit_camera = host->room_preview_original_camera;
+    host->room_preview_original_edit = NULL;
+    host->room_preview_active = false;
+    vg_document_instance_destroy(candidate);
+    host_rebind_selection(host);
+}
 static void host_clear_preview(VgGpuHost *host) {
     if (host->preview_active && host->context != NULL)
         (void)vg_entity_destroy(host->context, host->preview_entity);
@@ -207,6 +236,7 @@ static void host_release_play(VgGpuHost *host) {
 
 static void host_release_level(VgGpuHost *host) {
     host_release_play(host);
+    host_cancel_room_preview_internal(host);
     host_clear_preview(host);
     if (host->gesture.has_preview)
         vg_document_instance_destroy(host->gesture.original_edit);
@@ -760,7 +790,8 @@ static bool host_apply_editor_hidden(VgGpuHost *host, const VgDocument *document
             continue;
         const VgJsonNode *components =
             vg_json_object_get(entities->as.array.items[index], "components");
-        if (vg_json_object_get(components, "engine.mesh") == NULL)
+        if (vg_json_object_get(components, "engine.mesh") == NULL &&
+            vg_json_object_get(components, "vestigio.room") == NULL)
             continue;
         VgUuid uuid;
         VgEntity entity;
@@ -861,6 +892,15 @@ int32_t vg_gpu_host_render(VgGpuHost *host) {
         if (vg_gpu_renderer_draw_world(host->renderer, host->context,
                                        vg_document_instance_world(instance)) != VG_OK)
             return false;
+        if (host->play == NULL && (host->room_view_grid || host->room_view_ghost)) {
+            VgGpuRoomOutline ghosts[64];
+            VgVec3 points[64][VG_ROOM_MAX_VERTICES];
+            size_t count =
+                host->room_view_ghost ? host_collect_room_ghosts(host, ghosts, points, 64u) : 0u;
+            if (!vg_gpu_renderer_draw_room_editor_overlay(host->renderer, host->room_view_floor_z,
+                                                          host->room_view_grid, ghosts, count))
+                return false;
+        }
         if (host->play == NULL && host->gizmo_operation >= 0) {
             VgGpuGizmo gizmos[VG_TOOL_MAX_COMMANDS];
             size_t count = host_collect_gizmos(host, gizmos, VG_TOOL_MAX_COMMANDS);
@@ -1152,6 +1192,8 @@ int32_t vg_gpu_host_set_mode(VgGpuHost *host, int32_t play) {
     if (!host_is_current(host) || host->edit == NULL || host->gesture.active ||
         (play != 0 && play != 1))
         return false;
+    if (host->room_preview_active)
+        host_cancel_room_preview_internal(host);
     if (play == 0) {
         host_release_play(host);
         return true;
@@ -1566,7 +1608,8 @@ static bool host_entity_has_mesh(const VgGpuHost *host, size_t index) {
         return false;
     const VgJsonNode *components =
         vg_json_object_get(entities->as.array.items[index], "components");
-    return vg_json_object_get(components, "engine.mesh") != NULL;
+    return vg_json_object_get(components, "engine.mesh") != NULL ||
+           vg_json_object_get(components, "vestigio.room") != NULL;
 }
 
 size_t vg_gpu_host_entity_count(const VgGpuHost *host) {
@@ -1835,7 +1878,7 @@ static bool host_apply_batch(VgGpuHost *host, VgToolBatch *batch, VgToolResult *
 
 static VgToolBatch *host_begin_edit(VgGpuHost *host, char *error, size_t error_capacity) {
     if (!host_is_current(host) || host->document == NULL || host->edit == NULL ||
-        host->play != NULL || host->gesture.active) {
+        host->play != NULL || host->gesture.active || host->room_preview_active) {
         host_error(error, error_capacity, "La edicion requiere el modo Editar");
         return NULL;
     }
@@ -2315,6 +2358,44 @@ static bool host_find_instance_uuid(const VgGpuHost *host, const char *uuid, VgE
         }
     }
     return false;
+}
+
+static size_t host_collect_room_ghosts(const VgGpuHost *host, VgGpuRoomOutline *out,
+                                       VgVec3 points[][VG_ROOM_MAX_VERTICES], size_t capacity) {
+    const VgJsonNode *entities = vg_json_object_get(vg_document_root(host->document), "entities");
+    if (entities == NULL || entities->type != VG_JSON_ARRAY)
+        return 0u;
+    size_t count = 0u;
+    for (size_t i = 0u; i < entities->as.array.count && count < capacity; ++i) {
+        const VgJsonNode *entity_node = entities->as.array.items[i];
+        const VgJsonNode *recipe_node =
+            vg_json_object_get(vg_json_object_get(entity_node, "components"), "vestigio.room");
+        if (recipe_node == NULL)
+            continue;
+        VgRoomRecipe recipe;
+        if (!vg_room_recipe_parse(recipe_node, &recipe, NULL, 0u))
+            continue;
+        const VgJsonNode *id = vg_json_object_get(entity_node, "id");
+        VgEntity entity;
+        VgTransform world;
+        if (id == NULL || id->type != VG_JSON_STRING ||
+            !host_find_instance_uuid(host, id->as.string.data, &entity) ||
+            vg_entity_get_world_transform(host->context, entity, &world) != VG_OK)
+            continue;
+        if (fabsf(world.position.z + recipe.floor_z * world.scale.z - host->room_view_floor_z) <=
+            0.25f)
+            continue;
+        for (uint32_t j = 0u; j < recipe.vertex_count; ++j) {
+            VgVec3 point = {recipe.vertices[j][0] * world.scale.x,
+                            recipe.vertices[j][1] * world.scale.y, recipe.floor_z * world.scale.z};
+            VgVec3 rotated = host_rotate(world.rotation, point);
+            points[count][j] = (VgVec3){world.position.x + rotated.x, world.position.y + rotated.y,
+                                        world.position.z + rotated.z};
+        }
+        out[count] = (VgGpuRoomOutline){points[count], recipe.vertex_count};
+        ++count;
+    }
+    return count;
 }
 
 static bool host_selection_editable(const VgGpuHost *host, bool structural, char *error,
@@ -3117,6 +3198,221 @@ int32_t vg_gpu_host_set_selection_fields_json(VgGpuHost *host, const char *json,
     return valid && host_apply_batch(host, batch, NULL, error, error_capacity);
 }
 
+static bool host_room_recipe_canonical(const char *recipe_json, char **out_canonical, char *error,
+                                       size_t error_capacity) {
+    if (recipe_json == NULL || strlen(recipe_json) > VG_CONTENT_MAX_FILE_BYTES) {
+        host_error(error, error_capacity, "Receta de sala demasiado grande o ausente");
+        return false;
+    }
+    VgJsonError json_error = {0};
+    VgJsonNode *node = vg_json_parse(recipe_json, strlen(recipe_json), &json_error);
+    VgRoomRecipe recipe;
+    bool valid = node != NULL && vg_room_recipe_parse(node, &recipe, error, error_capacity);
+    if (valid) {
+        size_t length = 0u;
+        valid = vg_json_write_canonical(node, out_canonical, &length);
+        if (!valid)
+            host_error(error, error_capacity, "Sin memoria para receta de sala");
+    } else if (node == NULL) {
+        host_error(error, error_capacity, "JSON de receta de sala invalido");
+    }
+    vg_json_destroy(node);
+    return valid;
+}
+
+static char *host_room_components(const char *canonical, char *error, size_t error_capacity) {
+    size_t length = strlen(canonical);
+    char *components = malloc(length + sizeof("{\"vestigio.room\":}"));
+    if (components == NULL) {
+        host_error(error, error_capacity, "Sin memoria para sala");
+        return NULL;
+    }
+    (void)snprintf(components, length + sizeof("{\"vestigio.room\":}"), "{\"vestigio.room\":%s}",
+                   canonical);
+    return components;
+}
+
+int32_t vg_gpu_host_cancel_room_preview(VgGpuHost *host) {
+    if (!host_is_current(host))
+        return false;
+    host_cancel_room_preview_internal(host);
+    return true;
+}
+
+int32_t vg_gpu_host_preview_room_recipe(VgGpuHost *host, const char *recipe_json, char *error,
+                                        size_t error_capacity) {
+    if (!host_is_current(host) || host->document == NULL || host->play != NULL ||
+        host->gesture.active) {
+        host_error(error, error_capacity, "Vista previa requiere modo Editar");
+        return false;
+    }
+    host_cancel_room_preview_internal(host);
+    char *canonical = NULL;
+    if (!host_room_recipe_canonical(recipe_json, &canonical, error, error_capacity))
+        return false;
+    const char *selected_room = NULL;
+    if (host->selection_count == 1u) {
+        const VgJsonNode *selected = host_document_entity(host, host->selection_uuids[0]);
+        if (vg_json_object_get(vg_json_object_get(selected, "components"), "vestigio.room") != NULL)
+            selected_room = host->selection_uuids[0];
+    }
+    char *components =
+        selected_room == NULL ? host_room_components(canonical, error, error_capacity) : NULL;
+    if (selected_room == NULL && components == NULL) {
+        free(canonical);
+        return false;
+    }
+    VgToolBatch *batch = host_begin_edit(host, error, error_capacity);
+    if (batch == NULL) {
+        free(canonical);
+        free(components);
+        return false;
+    }
+    const VgDocumentTransform transform = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 1.0}, {1.0, 1.0, 1.0}};
+    VgDocumentDiagnostic diagnostic = {0};
+    bool queued =
+        selected_room != NULL
+            ? vg_tool_set_component(batch, selected_room, "vestigio.room", canonical, &diagnostic)
+            : vg_tool_create_entity(batch, "$room-preview", NULL, &transform, components,
+                                    &diagnostic);
+    free(canonical);
+    free(components);
+    char *json = NULL;
+    size_t length = 0u;
+    bool prepared = queued && vg_tool_preview(batch, &json, &length, NULL, &diagnostic);
+    vg_tool_cancel(batch);
+    if (!prepared) {
+        host_error(error, error_capacity, diagnostic.message);
+        return false;
+    }
+    VgDocument *preview_document = NULL;
+    bool opened =
+        vg_document_open_memory("<room-preview>", json, length, &preview_document, &diagnostic);
+    free(json);
+    if (!opened) {
+        host_error(error, error_capacity, diagnostic.message);
+        return false;
+    }
+    VgDocumentInstance *candidate = NULL;
+    VgEntity camera = {VG_INVALID_HANDLE_VALUE};
+    prepared =
+        host_prepare_instance(host, preview_document, &candidate, &camera, &diagnostic, true);
+    vg_document_destroy(preview_document);
+    if (!prepared) {
+        host_error(error, error_capacity, diagnostic.message);
+        return false;
+    }
+    host->room_preview_original_edit = host->edit;
+    host->room_preview_original_camera = host->edit_camera;
+    host->edit = candidate;
+    host->edit_camera = camera;
+    host->room_preview_active = true;
+    host_rebind_selection(host);
+    host_error(error, error_capacity, "");
+    return true;
+}
+
+int32_t vg_gpu_host_create_room_recipe(VgGpuHost *host, const char *recipe_json, char *uuid,
+                                       size_t uuid_capacity, char *error, size_t error_capacity) {
+    if (!host_is_current(host) || uuid == NULL || uuid_capacity < 37u) {
+        host_error(error, error_capacity, "Se requiere UUID de salida");
+        return false;
+    }
+    host_cancel_room_preview_internal(host);
+    char *canonical = NULL;
+    if (!host_room_recipe_canonical(recipe_json, &canonical, error, error_capacity))
+        return false;
+    char *components = host_room_components(canonical, error, error_capacity);
+    free(canonical);
+    if (components == NULL)
+        return false;
+    VgToolBatch *batch = host_begin_edit(host, error, error_capacity);
+    if (batch == NULL) {
+        free(components);
+        return false;
+    }
+    const VgDocumentTransform transform = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 1.0}, {1.0, 1.0, 1.0}};
+    VgDocumentDiagnostic diagnostic = {0};
+    bool queued =
+        vg_tool_create_entity(batch, "$new-room-recipe", NULL, &transform, components, &diagnostic);
+    free(components);
+    if (!queued) {
+        host_error(error, error_capacity, diagnostic.message);
+        vg_tool_cancel(batch);
+        return false;
+    }
+    VgToolResult result;
+    if (!host_apply_batch(host, batch, &result, error, error_capacity))
+        return false;
+    if (!host_result_id(&result, "$new-room-recipe", uuid, uuid_capacity)) {
+        host_error(error, error_capacity, "No se devolvio UUID de sala");
+        return false;
+    }
+    (void)vg_gpu_host_select(host, uuid);
+    return true;
+}
+
+int32_t vg_gpu_host_update_room_recipe(VgGpuHost *host, const char *uuid, const char *recipe_json,
+                                       char *error, size_t error_capacity) {
+    if (!host_is_current(host) || uuid == NULL) {
+        host_error(error, error_capacity, "Se requiere sala existente");
+        return false;
+    }
+    host_cancel_room_preview_internal(host);
+    const VgJsonNode *entity = host_document_entity(host, uuid);
+    const VgJsonNode *components = vg_json_object_get(entity, "components");
+    if (vg_json_object_get(components, "vestigio.room") == NULL) {
+        host_error(error, error_capacity, "La entidad no tiene receta de sala");
+        return false;
+    }
+    char *canonical = NULL;
+    if (!host_room_recipe_canonical(recipe_json, &canonical, error, error_capacity))
+        return false;
+    VgToolBatch *batch = host_begin_edit(host, error, error_capacity);
+    if (batch == NULL) {
+        free(canonical);
+        return false;
+    }
+    VgDocumentDiagnostic diagnostic = {0};
+    bool queued = vg_tool_set_component(batch, uuid, "vestigio.room", canonical, &diagnostic);
+    free(canonical);
+    if (!queued) {
+        host_error(error, error_capacity, diagnostic.message);
+        vg_tool_cancel(batch);
+        return false;
+    }
+    return host_apply_batch(host, batch, NULL, error, error_capacity);
+}
+
+int32_t vg_gpu_host_room_recipe_json(const VgGpuHost *host, const char *uuid, char *json,
+                                     size_t json_capacity) {
+    if (!host_is_current(host) || uuid == NULL || json == NULL || json_capacity == 0u)
+        return 0;
+    const VgJsonNode *entity = host_document_entity(host, uuid);
+    const VgJsonNode *recipe =
+        vg_json_object_get(vg_json_object_get(entity, "components"), "vestigio.room");
+    char *canonical = NULL;
+    size_t length = 0u;
+    if (recipe == NULL || !vg_json_write_canonical(recipe, &canonical, &length))
+        return 0;
+    bool fits = length < json_capacity && length <= INT32_MAX;
+    if (fits)
+        memcpy(json, canonical, length + 1u);
+    free(canonical);
+    return fits ? (int32_t)length : 0;
+}
+
+int32_t vg_gpu_host_set_room_editor_view(VgGpuHost *host, int32_t grid, int32_t ghost,
+                                         float floor_z) {
+    if (!host_is_current(host) || host->edit == NULL || (grid != 0 && grid != 1) ||
+        (ghost != 0 && ghost != 1) || !isfinite(floor_z) || fabsf(floor_z) > 1000.0f)
+        return false;
+    host->room_view_grid = grid != 0;
+    host->room_view_ghost = ghost != 0;
+    host->room_view_floor_z = floor_z;
+    return true;
+}
+
 int32_t vg_gpu_host_add_room(VgGpuHost *host, char *uuid, size_t uuid_capacity, char *error,
                              size_t error_capacity) {
     if (uuid == NULL || uuid_capacity < 37u) {
@@ -3296,7 +3592,7 @@ static bool host_rollback_save_copies(VgHostSaveCopy *copies, size_t count) {
 int32_t vg_gpu_host_save_level(VgGpuHost *host, const char *path, char *error,
                                size_t error_capacity) {
     if (!host_is_current(host) || host->document == NULL || host->play != NULL ||
-        host->gesture.active || path == NULL || path[0] == '\0') {
+        host->gesture.active || host->room_preview_active || path == NULL || path[0] == '\0') {
         host_error(error, error_capacity, "Guardar requiere una ruta y el modo Editar");
         return false;
     }
@@ -3396,8 +3692,8 @@ int32_t vg_gpu_host_is_dirty(const VgGpuHost *host) {
 int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path, const char *model_path,
                                  char *error, size_t error_capacity) {
     if (!host_is_current(host) || host->edit == NULL || host->play != NULL ||
-        host->gesture.active || level_path == NULL || level_path[0] == '\0' || model_path == NULL ||
-        model_path[0] == '\0') {
+        host->gesture.active || host->room_preview_active || level_path == NULL ||
+        level_path[0] == '\0' || model_path == NULL || model_path[0] == '\0') {
         host_error(error, error_capacity, "Reabrir requiere rutas y el modo Editar");
         return false;
     }
@@ -3460,7 +3756,7 @@ int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path, const 
 
 static int32_t host_history(VgGpuHost *host, bool undo, char *error, size_t error_capacity) {
     if (!host_is_current(host) || host->edit == NULL || host->play != NULL ||
-        host->gesture.active) {
+        host->gesture.active || host->room_preview_active) {
         host_error(error, error_capacity, "Historial requiere el modo Editar");
         return false;
     }
@@ -3629,7 +3925,8 @@ static int32_t host_pick_impl(VgGpuHost *host, float u, float v, char *uuid, siz
         const VgJsonNode *components =
             vg_json_object_get(entities->as.array.items[index], "components");
         uint32_t kind = 0u;
-        if (vg_json_object_get(components, "engine.mesh") != NULL)
+        if (vg_json_object_get(components, "engine.mesh") != NULL ||
+            vg_json_object_get(components, "vestigio.room") != NULL)
             kind = VG_GPU_PICK_MESH;
         else if (vg_json_object_get(components, "engine.camera") != NULL)
             kind = VG_GPU_PICK_CAMERA;

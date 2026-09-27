@@ -180,6 +180,10 @@ public partial class Vestigio3DWindow : Window
         RefreshSelectionFields();
         RefreshAssetLibrary();
         RefreshSchemaInspector();
+        RefreshRoomEditor();
+        RefreshRoomDimensions();
+        UpdateRoomPlan();
+        if (!Viewport.IsPlaying) _ = ApplyRoomEditorView();
         RefreshDirty();
         VisualSummaryText.Text = Viewport.VisualSummary;
         if (Viewport.VisualMode >= 0 && VisualProfile.SelectedIndex != Viewport.VisualMode)
@@ -300,6 +304,7 @@ public partial class Vestigio3DWindow : Window
         FrameButton.IsEnabled = enabled;
         AddButton.IsEnabled = enabled;
         AddRoomButton.IsEnabled = enabled;
+        OpenRoomEditorButton.IsEnabled = enabled;
         DuplicateButton.IsEnabled = enabled && editableSelection;
         DeleteButton.IsEnabled = enabled && editableSelection;
         ReparentButton.IsEnabled = enabled && editableSelection;
@@ -323,10 +328,40 @@ public partial class Vestigio3DWindow : Window
         ApplyFieldsButton.IsEnabled = enabled && _fieldViews.Count > 0;
         ApplyOrganizationButton.IsEnabled = enabled && editableSelection;
         HideLayer.IsEnabled = enabled && editableSelection;
+        RoomVertices.IsEnabled = enabled;
+        RoomRectX.IsEnabled = enabled;
+        RoomRectY.IsEnabled = enabled;
+        RoomRectWidth.IsEnabled = enabled;
+        RoomRectDepth.IsEnabled = enabled;
+        RoomRectButton.IsEnabled = enabled;
+        RoomFloor.IsEnabled = enabled;
+        RoomHeight.IsEnabled = enabled;
+        RoomThickness.IsEnabled = enabled;
+        RoomOpenings.IsEnabled = enabled;
+        OpeningEdge.IsEnabled = enabled;
+        OpeningKind.IsEnabled = enabled;
+        OpeningOffset.IsEnabled = enabled;
+        OpeningWidth.IsEnabled = enabled;
+        OpeningHeight.IsEnabled = enabled;
+        OpeningSill.IsEnabled = enabled;
+        AddOpeningButton.IsEnabled = enabled;
+        UpdateOpeningButton.IsEnabled = enabled;
+        RemoveOpeningButton.IsEnabled = enabled;
+        PreviewRoomButton.IsEnabled = enabled;
+        CancelRoomPreviewButton.IsEnabled = enabled;
+        CommitRoomButton.IsEnabled = enabled;
+        RoomGrid.IsEnabled = enabled;
+        RoomGhost.IsEnabled = enabled;
+        RoomFloorView.IsEnabled = enabled;
     }
 
     private void Play_Click(object sender, RoutedEventArgs e)
     {
+        if (_roomPreviewActive)
+        {
+            _ = Viewport.TryCancelRoomPreview();
+            _roomPreviewActive = false;
+        }
         if (_previewedAssetId.Length > 0)
         {
             _ = Viewport.TryPreviewAsset("");
@@ -492,6 +527,8 @@ public partial class Vestigio3DWindow : Window
     {
         if (!Viewport.TryReopenLevel()) return false;
         _previewedAssetId = "";
+        _editingRoomId = "";
+        _loadedRoomRecipe = "";
         LoadEntityLabels(ActiveLevelPath);
         CameraMode.SelectedIndex = 0;
         RefreshDocument();
@@ -516,6 +553,7 @@ public partial class Vestigio3DWindow : Window
             return;
         }
         RefreshSelectionFields();
+        RefreshRoomEditor();
         ConfigureGizmo();
     }
 
@@ -548,6 +586,14 @@ public partial class Vestigio3DWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && _roomPreviewActive)
+        {
+            _ = Viewport.TryCancelRoomPreview();
+            _roomPreviewActive = false;
+            StatusText.Text = "Vista previa cancelada";
+            e.Handled = true;
+            return;
+        }
         if (e.Key == Key.Escape && Viewport.IsGestureActive)
         {
             Viewport.TryEndGesture(false);

@@ -39,6 +39,9 @@ typedef struct VgAssetRef {
 } VgAssetRef;
 
 VgResult vg_asset_catalog_upsert(VgContext *context, const VgAssetSourceDesc *source);
+/* Generated sources may be retired when no live lease or component still uses
+ * their ID. Returns false while another instance owns the asset. */
+bool vg_asset_catalog_remove_if_unused(VgContext *context, VgAssetId id, uint64_t variant);
 VgResult vg_asset_set_decoder(VgContext *context, VgAssetType type, const VgAssetDecoder *decoder);
 VgResult vg_asset_attach_gpu(VgContext *context, const VgAssetGpuExecutor *executor);
 VgResult vg_asset_require_gpu_executor(VgContext *context, const void *user);

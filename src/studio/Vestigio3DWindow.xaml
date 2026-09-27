@@ -38,9 +38,12 @@
               IsEnabled="False" Click="Stop_Click"/>
       <Border Width="1" Margin="12,3" Background="{StaticResource BorderBrush}"/>
       <Button x:Name="AddButton" Content="+ Añadir pilar" Click="Add_Click"/>
-      <Button x:Name="AddRoomButton" Content="+ Habitación con abertura"
+      <Button x:Name="AddRoomButton" Content="+ Sala del demo"
               Margin="6,0,0,0" Click="AddRoom_Click"
-              ToolTip="Crea una habitación junto al punto inicial con una abertura transitable. Una por nivel."/>
+              ToolTip="Añade la sala fija del ejemplo Atrium (una por nivel)."/>
+      <Button x:Name="OpenRoomEditorButton" Content="Construir sala…"
+              Margin="6,0,0,0" Click="OpenRoomEditor_Click"
+              ToolTip="Abre el constructor de habitaciones y aberturas editables."/>
       <Button x:Name="DuplicateButton" Content="Duplicar" Margin="6,0,0,0"
               IsEnabled="False" Click="Duplicate_Click"/>
       <Button x:Name="DeleteButton" Content="Borrar" Margin="6,0,0,0"
@@ -115,7 +118,8 @@
 
       <Border Grid.Column="1" Margin="10,0,0,0" Background="{StaticResource PanelBrush}"
               BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer x:Name="InspectorScroll" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
           <StackPanel Margin="14">
             <TextBlock Text="JERARQUÍA" Foreground="{StaticResource AccentBrush}"
                        FontSize="11" FontWeight="SemiBold"/>
@@ -181,6 +185,120 @@
             </StackPanel>
             <TextBlock x:Name="OrganizationError" Foreground="{StaticResource DangerBrush}"
                        TextWrapping="Wrap" Margin="0,4,0,0"/>
+            <TextBlock x:Name="RoomSectionHeading" Text="CONSTRUCCIÓN · HABITACIONES"
+                       Foreground="{StaticResource AccentBrush}"
+                       FontSize="11" FontWeight="SemiBold" Margin="0,20,0,6"/>
+            <TextBlock Text="Crea un rectángulo rápido o escribe el contorno x,y, un vértice por línea en orden antihorario."
+                       Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"/>
+            <WrapPanel Margin="0,7,0,0">
+              <TextBlock Text="X" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
+              <TextBox x:Name="RoomRectX" Text="-2" Width="35" Margin="4,0,8,0"/>
+              <TextBlock Text="Y" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
+              <TextBox x:Name="RoomRectY" Text="-3" Width="35" Margin="4,0,8,0"/>
+              <TextBlock Text="Ancho" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
+              <TextBox x:Name="RoomRectWidth" Text="4" Width="35" Margin="4,0,8,0"/>
+              <TextBlock Text="Largo" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
+              <TextBox x:Name="RoomRectDepth" Text="4" Width="35" Margin="4,0,6,0"/>
+              <Button x:Name="RoomRectButton" Content="Trazar" Click="RoomRect_Click"/>
+            </WrapPanel>
+            <TextBox x:Name="RoomVertices" Height="82" Margin="0,6,0,8"
+                     AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                     Text="-2,-3&#10;2,-3&#10;2,1&#10;-2,1"
+                     TextChanged="RoomVertices_Changed"/>
+            <TextBlock x:Name="RoomDimensions" Foreground="{StaticResource FaintBrush}"
+                       TextWrapping="Wrap" Margin="0,0,0,7"/>
+            <WrapPanel>
+              <StackPanel Width="75" Margin="0,0,6,0">
+                <TextBlock Text="Planta Z" Foreground="{StaticResource MutedBrush}"/>
+                <TextBox x:Name="RoomFloor" Text="0" ToolTip="Altura de suelo en metros"
+                         TextChanged="RoomFloor_Changed"/>
+              </StackPanel>
+              <StackPanel Width="75" Margin="0,0,6,0">
+                <TextBlock Text="Alto" Foreground="{StaticResource MutedBrush}"/>
+                <TextBox x:Name="RoomHeight" Text="3" ToolTip="Altura de paredes en metros"/>
+              </StackPanel>
+              <StackPanel Width="75">
+                <TextBlock Text="Grosor" Foreground="{StaticResource MutedBrush}"/>
+                <TextBox x:Name="RoomThickness" Text="0.2" ToolTip="Grosor de pared en metros"/>
+              </StackPanel>
+            </WrapPanel>
+            <TextBlock Text="Aberturas · arista 0 une los primeros dos vértices"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,9,0,4"
+                       TextWrapping="Wrap"/>
+            <ListBox x:Name="RoomOpenings" Height="66" Background="{StaticResource SurfaceBrush}"
+                     Foreground="{StaticResource TextBrush}"
+                     SelectionChanged="RoomOpenings_SelectionChanged"/>
+            <WrapPanel Margin="0,6,0,0">
+              <StackPanel Width="53" Margin="0,0,5,0">
+                <TextBlock Text="Arista" Foreground="{StaticResource MutedBrush}"/>
+                <TextBox x:Name="OpeningEdge" Text="0"/>
+              </StackPanel>
+              <StackPanel Width="83" Margin="0,0,5,0">
+                <TextBlock Text="Tipo" Foreground="{StaticResource MutedBrush}"/>
+                <ComboBox x:Name="OpeningKind" SelectedIndex="0">
+                  <ComboBoxItem Content="Puerta" Tag="door"/>
+                  <ComboBoxItem Content="Ventana" Tag="window"/>
+                  <ComboBoxItem Content="Hueco" Tag="gap"/>
+                </ComboBox>
+              </StackPanel>
+              <StackPanel Width="54" Margin="0,0,5,0">
+                <TextBlock Text="Inicio" Foreground="{StaticResource MutedBrush}"/>
+                <TextBox x:Name="OpeningOffset" Text="1" ToolTip="Desde el primer vértice, metros"/>
+              </StackPanel>
+              <StackPanel Width="54" Margin="0,0,5,0">
+                <TextBlock Text="Ancho" Foreground="{StaticResource MutedBrush}"/>
+                <TextBox x:Name="OpeningWidth" Text="1"/>
+              </StackPanel>
+              <StackPanel Width="54">
+                <TextBlock Text="Alto" Foreground="{StaticResource MutedBrush}"/>
+                <TextBox x:Name="OpeningHeight" Text="2"/>
+              </StackPanel>
+              <StackPanel Width="54" Margin="0,5,0,0">
+                <TextBlock Text="Umbral" Foreground="{StaticResource MutedBrush}"/>
+                <TextBox x:Name="OpeningSill" Text="0" ToolTip="Desde el suelo, metros"/>
+              </StackPanel>
+            </WrapPanel>
+            <WrapPanel Margin="0,7,0,0">
+              <Button x:Name="AddOpeningButton" Content="Añadir abertura"
+                      Click="AddOpening_Click"/>
+              <Button x:Name="UpdateOpeningButton" Content="Actualizar" Margin="6,0,0,0"
+                      Click="UpdateOpening_Click"/>
+              <Button x:Name="RemoveOpeningButton" Content="Quitar" Margin="6,0,0,0"
+                      Click="RemoveOpening_Click"/>
+            </WrapPanel>
+            <WrapPanel Margin="0,10,0,0">
+              <Button x:Name="PreviewRoomButton" Content="Vista previa"
+                      Click="PreviewRoom_Click"/>
+              <Button x:Name="CancelRoomPreviewButton" Content="Cancelar"
+                      Margin="6,0,0,0" Click="CancelRoomPreview_Click"/>
+              <Button x:Name="CommitRoomButton" Content="Crear habitación"
+                      Margin="6,0,0,0" Click="CommitRoom_Click"/>
+            </WrapPanel>
+            <TextBlock x:Name="RoomEditorError" Foreground="{StaticResource DangerBrush}"
+                       TextWrapping="Wrap" Margin="0,5,0,0"/>
+            <TextBlock Text="VISTA EDITORIAL" Foreground="{StaticResource AccentBrush}"
+                       FontSize="11" FontWeight="SemiBold" Margin="0,16,0,6"/>
+            <WrapPanel Margin="0,0,0,6">
+              <TextBlock Text="Planta activa Z" Foreground="{StaticResource MutedBrush}"
+                         VerticalAlignment="Center"/>
+              <ComboBox x:Name="RoomFloorView" Width="75" Margin="7,0,0,0"
+                        IsEditable="True" Text="0"
+                        SelectionChanged="RoomView_Changed" LostFocus="RoomView_Changed"/>
+            </WrapPanel>
+            <WrapPanel>
+              <CheckBox x:Name="RoomGrid" Content="Cuadrícula" IsChecked="True"
+                        Checked="RoomView_Changed" Unchecked="RoomView_Changed"/>
+              <CheckBox x:Name="RoomGhost" Content="Contornos de otras plantas"
+                        Margin="12,0,0,0" Checked="RoomView_Changed"
+                        Unchecked="RoomView_Changed"/>
+            </WrapPanel>
+            <Border Margin="0,7,0,0" BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1">
+              <local:RoomPlanView x:Name="RoomPlan" Height="180"/>
+            </Border>
+            <TextBlock Text="El plano de autoría destaca la planta activa; Probar muestra todas."
+                       Foreground="{StaticResource FaintBrush}" TextWrapping="Wrap"
+                       Margin="0,5,0,0"/>
             <TextBlock Text="BIBLIOTECA DE ASSETS" Foreground="{StaticResource AccentBrush}"
                        FontSize="11" FontWeight="SemiBold" Margin="0,20,0,6"/>
             <WrapPanel>

@@ -414,6 +414,20 @@ VgResult vg_asset_catalog_upsert(VgContext *context, const VgAssetSourceDesc *so
     return VG_OK;
 }
 
+bool vg_asset_catalog_remove_if_unused(VgContext *context, VgAssetId id, uint64_t variant) {
+    if (!vg_runtime_context_valid(context) || context->assets == NULL)
+        return false;
+    VgAssetRegistry *registry = context->assets;
+    VgAssetResident *resident = vg_asset_find_resident(registry, id, variant, NULL);
+    if (resident != NULL && (resident->external_refs != 0u || resident->component_refs != 0u))
+        return false;
+    VgAssetCatalogEntry *entry = vg_asset_find_catalog(registry, id, variant);
+    if (entry == NULL)
+        return false;
+    vg_asset_release_catalog_entry(context, entry);
+    return true;
+}
+
 VgResult vg_asset_set_decoder(VgContext *context, VgAssetType type, const VgAssetDecoder *decoder) {
     if (!vg_runtime_context_valid(context) || decoder == NULL || decoder->decode == NULL ||
         decoder->destroy == NULL || (type != VG_ASSET_TYPE_TEXTURE && type != VG_ASSET_TYPE_MESH))

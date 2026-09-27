@@ -119,6 +119,34 @@ internal static class GpuHostNative
         nuint uuidCapacity, [Out] byte[] error, nuint errorCapacity);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_preview_room_recipe(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string recipeJson,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_cancel_room_preview(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_create_room_recipe(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string recipeJson,
+        [Out] byte[] uuid, nuint uuidCapacity, [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_update_room_recipe(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string uuid,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string recipeJson,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_room_recipe_json(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string uuid,
+        [Out] byte[] json, nuint jsonCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_set_room_editor_view(nint host,
+        int grid, int ghost, float floorZ);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int vg_gpu_host_duplicate_selected(nint host, [Out] byte[] uuid,
         nuint uuidCapacity, [Out] byte[] error, nuint errorCapacity);
 

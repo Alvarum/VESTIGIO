@@ -98,6 +98,13 @@ typedef struct VgGpuGizmo {
     int32_t operation; /* 0 move, 1 rotate, 2 scale */
 } VgGpuGizmo;
 
+/* Editor-only construction guides. The caller owns outline vertex arrays for
+ * the duration of this draw; no guide is added to the runtime world. */
+typedef struct VgGpuRoomOutline {
+    const VgVec3 *vertices;
+    uint32_t count;
+} VgGpuRoomOutline;
+
 /* Requires the owner thread to have an active raylib graphics context. */
 VgGpuRenderer *vg_gpu_renderer_create(VgGpuRendererConfig config, char *error,
                                       size_t error_capacity);
@@ -142,6 +149,8 @@ VgResult vg_gpu_renderer_draw_world(VgGpuRenderer *renderer, VgContext *context,
 VgResult vg_gpu_renderer_draw_spatial_debug(VgGpuRenderer *renderer,
                                             const VgSpatialScene *spatial);
 bool vg_gpu_renderer_draw_gizmos(VgGpuRenderer *renderer, const VgGpuGizmo *gizmos, size_t count);
+bool vg_gpu_renderer_draw_room_editor_overlay(VgGpuRenderer *renderer, float floor_z, bool grid,
+                                              const VgGpuRoomOutline *ghosts, size_t ghost_count);
 /* Returns 0 for no handle, or 1/2/3 for X/Y/Z. u,v are normalized to the
  * internal scene image, excluding the letterboxed area of the host window. */
 int32_t vg_gpu_renderer_gizmo_hit(const VgGpuRenderer *renderer, const VgGpuGizmo *gizmos,

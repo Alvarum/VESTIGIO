@@ -1136,6 +1136,200 @@ internal static class Program
         Console.WriteLine("PASS W09 Studio room six pieces/labels/undo/redo/save/reopen/play GPU");
     }
 
+    private static void VerifyE04RoomRecipe(string output, string level)
+    {
+        Directory.CreateDirectory(output);
+        string sourceCopy = Path.Combine(output, "e04-room-source.level.json");
+        string saved = Path.Combine(output, "e04-room-saved.level.json");
+        File.Copy(level, sourceCopy, true);
+        byte[] sourceHash = SHA256.HashData(File.ReadAllBytes(sourceCopy));
+        var app = new Application();
+        app.Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("pack://application:,,,/retro_studio;component/Themes/Graphite.xaml")
+        });
+        var window = App.CreateAtriumWindow(["--atrium", "--level", sourceCopy]);
+        var content = (FrameworkElement)window.Content;
+        window.Content = null;
+        using var source = new HwndSource(new HwndSourceParameters("VESTIGIO E04 recipe")
+        {
+            Width = 1320, Height = 820, WindowStyle = unchecked((int)0x80000000)
+        });
+        try
+        {
+            source.RootVisual = content;
+            Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            content.Measure(new Size(1320, 820));
+            content.Arrange(new Rect(0, 0, 1320, 820));
+            content.UpdateLayout();
+            var viewport = window.GpuViewport;
+            window.RefreshForTest();
+            Check(viewport.IsNativeReady && viewport.RenderForTest(),
+                $"E04 recipe no abrió GPU: {viewport.LastError}");
+            int initialCount = viewport.EntityUuids().Count;
+            ulong initialRevision = GpuHostNative.vg_gpu_host_document_revision(
+                viewport.NativeHandleForTest);
+            string initialGpu = Path.Combine(output, "e04-room-before.png");
+            Check(viewport.CaptureForTest(initialGpu),
+                "No se capturó escena antes de preview.");
+            static void Click(Vestigio3DWindow window, string name) =>
+                ((Button)window.FindName(name)!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+            ((TextBox)window.FindName("RoomVertices")!).Text =
+                "-2,-3\n2,-3\n3,1\n0,3\n-2,1";
+            ((TextBox)window.FindName("OpeningEdge")!).Text = "0";
+            ((TextBox)window.FindName("OpeningOffset")!).Text = "1.5";
+            Click(window, "AddOpeningButton");
+            Click(window, "PreviewRoomButton");
+            Check(viewport.EntityUuids().Count == initialCount &&
+                  GpuHostNative.vg_gpu_host_document_revision(
+                      viewport.NativeHandleForTest) == initialRevision &&
+                  !viewport.IsDocumentDirty && viewport.RenderForTest() &&
+                  viewport.CaptureForTest(Path.Combine(output, "e04-room-preview.png")),
+                "Preview creó entidades, ensució el documento o no se dibujó.");
+            Click(window, "CancelRoomPreviewButton");
+            string afterCancelGpu = Path.Combine(output, "e04-room-cancelled.png");
+            Check(viewport.EntityUuids().Count == initialCount &&
+                  GpuHostNative.vg_gpu_host_document_revision(
+                      viewport.NativeHandleForTest) == initialRevision &&
+                  viewport.RenderForTest() && viewport.CaptureForTest(afterCancelGpu) &&
+                  SHA256.HashData(File.ReadAllBytes(initialGpu)).AsSpan().SequenceEqual(
+                      SHA256.HashData(File.ReadAllBytes(afterCancelGpu))),
+                "Cancelar preview dejó objetos huérfanos o píxeles residuales.");
+            Click(window, "CommitRoomButton");
+            string roomId = viewport.SelectedUuid;
+            Check(Guid.TryParse(roomId, out _) &&
+                  viewport.EntityUuids().Count > initialCount &&
+                  viewport.IsDocumentDirty &&
+                  viewport.TryGetRoomRecipe(roomId, out string recipe) &&
+                  recipe.Contains("\"door\"", StringComparison.Ordinal) &&
+                  recipe.Contains("\"vertices\"", StringComparison.Ordinal),
+                $"Crear habitación no conservó receta/selección: {viewport.LastError}");
+            string createdGpu = Path.Combine(output, "e04-room-created.png");
+            Check(viewport.RenderForTest() && viewport.CaptureForTest(createdGpu) &&
+                  !SHA256.HashData(File.ReadAllBytes(createdGpu)).AsSpan().SequenceEqual(
+                      SHA256.HashData(File.ReadAllBytes(initialGpu))),
+                "Crear y encuadrar no hizo visible la habitación en GPU.");
+            Click(window, "OpenRoomEditorButton");
+            Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.Render);
+            var shell = new RenderTargetBitmap(1320, 820, 96, 96,
+                PixelFormats.Pbgra32);
+            shell.Render(content);
+            var shellPng = new PngBitmapEncoder();
+            shellPng.Frames.Add(BitmapFrame.Create(shell));
+            using (var image = File.Create(Path.Combine(output, "e04-room-studio-shell.png")))
+                shellPng.Save(image);
+            var openings = (ListBox)window.FindName("RoomOpenings")!;
+            openings.SelectedIndex = -1;
+            ((TextBox)window.FindName("OpeningEdge")!).Text = "2";
+            ((ComboBox)window.FindName("OpeningKind")!).SelectedIndex = 1;
+            ((TextBox)window.FindName("OpeningOffset")!).Text = "1";
+            ((TextBox)window.FindName("OpeningHeight")!).Text = "1";
+            ((TextBox)window.FindName("OpeningSill")!).Text = "1";
+            Click(window, "AddOpeningButton");
+            openings.SelectedIndex = -1;
+            ((TextBox)window.FindName("OpeningEdge")!).Text = "4";
+            ((ComboBox)window.FindName("OpeningKind")!).SelectedIndex = 2;
+            ((TextBox)window.FindName("OpeningSill")!).Text = "0";
+            Click(window, "AddOpeningButton");
+            ((TextBox)window.FindName("RoomHeight")!).Text = "4";
+            Click(window, "CommitRoomButton");
+            Check(viewport.TryGetRoomRecipe(roomId, out recipe) &&
+                  recipe.Contains("\"window\"", StringComparison.Ordinal) &&
+                  recipe.Contains("\"gap\"", StringComparison.Ordinal),
+                "Actualizar habitación perdió ventana/hueco.");
+            Click(window, "UndoButton");
+            Check(viewport.TryGetRoomRecipe(roomId, out recipe) &&
+                  !recipe.Contains("\"window\"", StringComparison.Ordinal) &&
+                  openings.Items.Count == 1 &&
+                  ((TextBox)window.FindName("RoomHeight")!).Text == "3",
+                "Deshacer no restauró receta y campos visibles anteriores.");
+            Click(window, "RedoButton");
+            Check(viewport.TryGetRoomRecipe(roomId, out recipe) &&
+                  recipe.Contains("\"window\"", StringComparison.Ordinal) &&
+                  openings.Items.Count == 3 &&
+                  ((TextBox)window.FindName("RoomHeight")!).Text == "4",
+                "Rehacer no restauró abertura y campos visibles.");
+            Check(viewport.TrySelectMany([]), "No se pudo limpiar selección para otra planta.");
+            window.RefreshForTest();
+            ((TextBox)window.FindName("RoomFloor")!).Text = "3";
+            ((TextBox)window.FindName("RoomVertices")!).Text =
+                "0,-1\n4,-1\n4,3\n0,3";
+            openings.Items.Clear();
+            Click(window, "CommitRoomButton");
+            string upperRoomId = viewport.SelectedUuid;
+            bool hasUpperRecipe = viewport.TryGetRoomRecipe(upperRoomId,
+                out string upperRecipe);
+            using var parsedUpper = hasUpperRecipe
+                ? System.Text.Json.JsonDocument.Parse(upperRecipe) : null;
+            Check(upperRoomId != roomId &&
+                  hasUpperRecipe &&
+                  parsedUpper?.RootElement.GetProperty("floor_z").GetSingle() == 3,
+                $"La segunda planta no se creó: primera={roomId}, activa={upperRoomId}, " +
+                $"error={((TextBlock)window.FindName("RoomEditorError")!).Text}, " +
+                $"botón={((Button)window.FindName("CommitRoomButton")!).Content}, " +
+                $"nativa={viewport.LastError}, receta={upperRecipe}");
+            var plan = (RoomPlanView)window.FindName("RoomPlan")!;
+            var floorView = (ComboBox)window.FindName("RoomFloorView")!;
+            floorView.Text = "3";
+            window.RefreshForTest();
+            byte[] PlanPixels()
+            {
+                plan.UpdateLayout();
+                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.Render);
+                var image = new RenderTargetBitmap(
+                    Math.Max(1, (int)Math.Ceiling(plan.ActualWidth)),
+                    Math.Max(1, (int)Math.Ceiling(plan.ActualHeight)),
+                    96, 96, PixelFormats.Pbgra32);
+                image.Render(plan);
+                byte[] pixels = new byte[image.PixelWidth * image.PixelHeight * 4];
+                image.CopyPixels(pixels, image.PixelWidth * 4, 0);
+                return pixels;
+            }
+            byte[] noGhost = SHA256.HashData(PlanPixels());
+            ((CheckBox)window.FindName("RoomGhost")!).IsChecked = true;
+            Check(!SHA256.HashData(PlanPixels()).AsSpan().SequenceEqual(noGhost),
+                $"Ghosting no cambió el plano de dos plantas: " +
+                $"rooms={plan.Rooms.Count}, floor={plan.ActiveFloor}, " +
+                $"ghost={plan.ShowGhost}, size={plan.ActualWidth}x{plan.ActualHeight}.");
+            var planImage = new RenderTargetBitmap(
+                Math.Max(1, (int)Math.Ceiling(plan.ActualWidth)),
+                Math.Max(1, (int)Math.Ceiling(plan.ActualHeight)),
+                96, 96, PixelFormats.Pbgra32);
+            planImage.Render(plan);
+            var planPng = new PngBitmapEncoder();
+            planPng.Frames.Add(BitmapFrame.Create(planImage));
+            using (var image = File.Create(Path.Combine(output, "e04-room-plan-ghost.png")))
+                planPng.Save(image);
+            byte[] grid = SHA256.HashData(PlanPixels());
+            ((CheckBox)window.FindName("RoomGrid")!).IsChecked = false;
+            Check(!SHA256.HashData(PlanPixels()).AsSpan().SequenceEqual(grid),
+                "Cuadrícula no cambió el plano editorial.");
+            Check(window.TrySaveToPath(saved) && window.TryReopen() &&
+                  viewport.TryGetRoomRecipe(roomId, out recipe) &&
+                  recipe.Contains("\"gap\"", StringComparison.Ordinal) &&
+                  viewport.TryGetRoomRecipe(upperRoomId, out _) &&
+                  viewport.RenderForTest() &&
+                  viewport.CaptureForTest(Path.Combine(output, "e04-room-reopened.png")),
+                $"Round-trip habitación falló: {viewport.LastError}");
+            Click(window, "PlayButton");
+            Check(viewport.IsPlaying && viewport.RenderForTest() &&
+                  viewport.CaptureForTest(Path.Combine(output, "e04-room-play.png")),
+                "La sala reabierta no se pudo jugar.");
+            Click(window, "StopButton");
+            Check(!viewport.IsPlaying && !viewport.IsDocumentDirty &&
+                  SHA256.HashData(File.ReadAllBytes(sourceCopy)).AsSpan()
+                      .SequenceEqual(sourceHash),
+                "Probar cambió documento o archivo fuente.");
+        }
+        finally
+        {
+            source.RootVisual = null;
+            window.GpuViewport.Dispose();
+        }
+        Console.WriteLine("PASS E04 Studio room recipe preview/cancel/edit/save/play GPU");
+    }
+
     private static void VerifyStudioDoor(string output, string level, string model)
     {
         Directory.CreateDirectory(output);
@@ -1479,6 +1673,11 @@ internal static class Program
             if (args.Length == 3 && args[0] == "--w09")
             {
                 VerifyWave9Room(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
+                return 0;
+            }
+            if (args.Length == 3 && args[0] == "--e04-room-recipe")
+            {
+                VerifyE04RoomRecipe(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
                 return 0;
             }
             if (args.Length == 3 && args[0] == "--e02")

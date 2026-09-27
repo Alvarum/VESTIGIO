@@ -271,6 +271,8 @@ public sealed class GpuViewportHost : HwndHost
     internal bool TrySetPlaying(bool play)
     {
         if (_gestureActive && !TryEndGesture(false)) return false;
+        if (play && _nativeHost != 0)
+            _ = GpuHostNative.vg_gpu_host_cancel_room_preview(_nativeHost);
         if (!_levelOpen || _nativeHost == 0 ||
             GpuHostNative.vg_gpu_host_set_mode(_nativeHost, play ? 1 : 0) == 0 ||
             GpuHostNative.vg_gpu_host_mode(_nativeHost) != (play ? 1 : 0))
@@ -548,6 +550,66 @@ public sealed class GpuViewportHost : HwndHost
         return true;
     }
 
+    internal bool TryPreviewRoomRecipe(string recipeJson)
+    {
+        if (!_levelOpen || IsPlaying || _nativeHost == 0 || _gestureActive)
+            return false;
+        byte[] error = new byte[512];
+        if (GpuHostNative.vg_gpu_host_preview_room_recipe(_nativeHost, recipeJson,
+                error, (nuint)error.Length) != 0)
+            return true;
+        LastError = GpuHostNative.Error(error);
+        return false;
+    }
+
+    internal bool TryCancelRoomPreview() => _nativeHost != 0 &&
+        GpuHostNative.vg_gpu_host_cancel_room_preview(_nativeHost) != 0;
+
+    internal bool TryCreateRoomRecipe(string recipeJson, out string uuid)
+    {
+        uuid = "";
+        if (!_levelOpen || IsPlaying || _nativeHost == 0 || _gestureActive)
+            return false;
+        byte[] nativeId = new byte[80], error = new byte[512];
+        if (GpuHostNative.vg_gpu_host_create_room_recipe(_nativeHost, recipeJson,
+                nativeId, (nuint)nativeId.Length, error, (nuint)error.Length) == 0)
+        {
+            LastError = GpuHostNative.Error(error);
+            return false;
+        }
+        uuid = GpuHostNative.Error(nativeId);
+        SetSelection(uuid);
+        return true;
+    }
+
+    internal bool TryUpdateRoomRecipe(string uuid, string recipeJson)
+    {
+        if (!_levelOpen || IsPlaying || _nativeHost == 0 || _gestureActive)
+            return false;
+        byte[] error = new byte[512];
+        if (GpuHostNative.vg_gpu_host_update_room_recipe(_nativeHost, uuid,
+                recipeJson, error, (nuint)error.Length) != 0)
+            return true;
+        LastError = GpuHostNative.Error(error);
+        return false;
+    }
+
+    internal bool TryGetRoomRecipe(string uuid, out string recipeJson)
+    {
+        recipeJson = "";
+        if (!_levelOpen || _nativeHost == 0 || uuid == "Ninguno") return false;
+        byte[] json = new byte[16384];
+        if (GpuHostNative.vg_gpu_host_room_recipe_json(_nativeHost, uuid,
+                json, (nuint)json.Length) == 0) return false;
+        recipeJson = GpuHostNative.Error(json);
+        return true;
+    }
+
+    internal bool TrySetRoomEditorView(bool grid, bool ghost, float floorZ) =>
+        _levelOpen && !IsPlaying && _nativeHost != 0 && float.IsFinite(floorZ) &&
+        GpuHostNative.vg_gpu_host_set_room_editor_view(_nativeHost,
+            grid ? 1 : 0, ghost ? 1 : 0, floorZ) != 0;
+
     internal bool TryDuplicateSelected()
     {
         byte[] uuid = new byte[80], error = new byte[512];
@@ -718,6 +780,7 @@ public sealed class GpuViewportHost : HwndHost
 
     internal bool TrySaveLevel(string path)
     {
+        if (_nativeHost != 0) _ = TryCancelRoomPreview();
         byte[] error = new byte[512];
         if (!_levelOpen || IsPlaying || _nativeHost == 0 ||
             GpuHostNative.vg_gpu_host_save_level(_nativeHost, path, error,
@@ -733,6 +796,7 @@ public sealed class GpuViewportHost : HwndHost
     internal bool TryReopenLevel()
     {
         if (!_levelOpen || IsPlaying || _nativeHost == 0) return false;
+        _ = TryCancelRoomPreview();
         byte[] error = new byte[512];
         if (GpuHostNative.vg_gpu_host_reopen_level(_nativeHost,
                 LevelPath ?? ResolveDemoAsset("atrium.level.json"),

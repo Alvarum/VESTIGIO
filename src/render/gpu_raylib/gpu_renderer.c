@@ -1827,6 +1827,67 @@ static Vector3 gizmo_ring_point(Vector3 center, Vector3 normal, float radius, in
                                            radius));
 }
 
+bool vg_gpu_renderer_draw_room_editor_overlay(VgGpuRenderer *renderer, float floor_z, bool grid,
+                                              const VgGpuRoomOutline *ghosts, size_t ghost_count) {
+    if (renderer == NULL || !renderer_require_owner(renderer) || renderer->target.id == 0u ||
+        !isfinite(floor_z) || (ghost_count != 0u && ghosts == NULL) || ghost_count > 128u)
+        return false;
+    for (size_t index = 0u; index < ghost_count; ++index) {
+        if (ghosts[index].vertices == NULL || ghosts[index].count < 3u || ghosts[index].count > 64u)
+            return false;
+        for (uint32_t vertex = 0u; vertex < ghosts[index].count; ++vertex) {
+            VgVec3 point = ghosts[index].vertices[vertex];
+            if (!isfinite(point.x) || !isfinite(point.y) || !isfinite(point.z))
+                return false;
+        }
+    }
+    if (!grid && ghost_count == 0u)
+        return true;
+    BeginTextureMode(renderer->target);
+    BeginMode3D(renderer->camera);
+    uint32_t lines = 0u;
+    if (grid) {
+        float camera_x = isfinite(renderer->camera.target.x)
+                             ? fmaxf(-1000000.0f, fminf(1000000.0f, renderer->camera.target.x))
+                             : 0.0f;
+        float camera_y = isfinite(renderer->camera.target.y)
+                             ? fmaxf(-1000000.0f, fminf(1000000.0f, renderer->camera.target.y))
+                             : 0.0f;
+        int32_t cx = (int32_t)floorf(camera_x);
+        int32_t cy = (int32_t)floorf(camera_y);
+        float z = floor_z + 0.025f;
+        for (int32_t offset = -16; offset <= 16; ++offset) {
+            int32_t x = cx + offset;
+            int32_t y = cy + offset;
+            Color x_color = x % 5 == 0 ? (Color){88, 196, 220, 155} : (Color){70, 128, 151, 75};
+            Color y_color = y % 5 == 0 ? (Color){88, 196, 220, 155} : (Color){70, 128, 151, 75};
+            DrawLine3D((Vector3){(float)x, (float)(cy - 16), z},
+                       (Vector3){(float)x, (float)(cy + 16), z}, x_color);
+            DrawLine3D((Vector3){(float)(cx - 16), (float)y, z},
+                       (Vector3){(float)(cx + 16), (float)y, z}, y_color);
+            lines += 2u;
+        }
+    }
+    if (ghost_count != 0u) {
+        rlDisableDepthTest();
+        const Color ghost_color = {222, 158, 250, 170};
+        for (size_t index = 0u; index < ghost_count; ++index) {
+            for (uint32_t vertex = 0u; vertex < ghosts[index].count; ++vertex) {
+                VgVec3 start = ghosts[index].vertices[vertex];
+                VgVec3 end = ghosts[index].vertices[(vertex + 1u) % ghosts[index].count];
+                DrawLine3D((Vector3){start.x, start.y, start.z + 0.04f},
+                           (Vector3){end.x, end.y, end.z + 0.04f}, ghost_color);
+                ++lines;
+            }
+        }
+        rlEnableDepthTest();
+    }
+    EndMode3D();
+    EndTextureMode();
+    renderer->stats.draw_calls += lines;
+    return true;
+}
+
 bool vg_gpu_renderer_draw_gizmos(VgGpuRenderer *renderer, const VgGpuGizmo *gizmos, size_t count) {
     if (renderer == NULL || !renderer_require_owner(renderer) || renderer->target.id == 0u ||
         (count != 0u && gizmos == NULL))

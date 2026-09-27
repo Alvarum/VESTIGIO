@@ -81,6 +81,21 @@ VG_GPU_HOST_API int32_t vg_gpu_host_add_mesh(VgGpuHost *host, char *uuid, size_t
  * The north opening is 1.6 m wide and 2.2 m high; output selects its left jamb. */
 VG_GPU_HOST_API int32_t vg_gpu_host_add_room(VgGpuHost *host, char *uuid, size_t uuid_capacity,
                                              char *error, size_t error_capacity);
+/* E04: bounded room recipe. Preview owns a temporary GPU world and never changes
+ * the document or history. Coordinates are XY floor, Z up, in metres. */
+VG_GPU_HOST_API int32_t vg_gpu_host_preview_room_recipe(VgGpuHost *host, const char *recipe_json,
+                                                        char *error, size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_cancel_room_preview(VgGpuHost *host);
+VG_GPU_HOST_API int32_t vg_gpu_host_create_room_recipe(VgGpuHost *host, const char *recipe_json,
+                                                       char *uuid, size_t uuid_capacity,
+                                                       char *error, size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_update_room_recipe(VgGpuHost *host, const char *uuid,
+                                                       const char *recipe_json, char *error,
+                                                       size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_room_recipe_json(const VgGpuHost *host, const char *uuid,
+                                                     char *json, size_t json_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_set_room_editor_view(VgGpuHost *host, int32_t grid,
+                                                         int32_t ghost, float floor_z);
 /* Optional stable label for an authored room piece. Returns 0 for other entities. */
 VG_GPU_HOST_API int32_t vg_gpu_host_entity_label(const VgGpuHost *host, const char *uuid,
                                                  char *label, size_t label_capacity);

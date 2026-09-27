@@ -1,4 +1,5 @@
 #include "content/content.h"
+#include "content/room_recipe.h"
 
 #include "content/json.h"
 
@@ -191,7 +192,8 @@ static bool vg_content_validate_capabilities(VgContentValidation *validation,
                         strcmp(capability, "component.engine.mesh.v1") == 0 ||
                         strcmp(capability, "component.engine.collider.v1") == 0 ||
                         strcmp(capability, "component.engine.door.v1") == 0 ||
-                        strcmp(capability, "component.engine.light.v1") == 0;
+                        strcmp(capability, "component.engine.light.v1") == 0 ||
+                        strcmp(capability, "component.vestigio.room.v1") == 0;
             if (!known) {
                 char path[96];
                 (void)snprintf(path, sizeof(path), "$.required[%zu]", index);
@@ -321,7 +323,7 @@ static bool vg_content_validate_transform(VgContentValidation *validation,
 static bool vg_content_component_known(const char *name) {
     return strcmp(name, "engine.camera") == 0 || strcmp(name, "engine.mesh") == 0 ||
            strcmp(name, "engine.collider") == 0 || strcmp(name, "engine.door") == 0 ||
-           strcmp(name, "engine.light") == 0;
+           strcmp(name, "engine.light") == 0 || strcmp(name, "vestigio.room") == 0;
 }
 
 static bool vg_content_component_version(VgContentValidation *validation, const VgJsonNode *node,
@@ -342,6 +344,13 @@ static bool vg_content_validate_component(VgContentValidation *validation, const
                                           const char *id) {
     if (!vg_content_component_known(name))
         return true;
+    if (strcmp(name, "vestigio.room") == 0) {
+        VgRoomRecipe recipe;
+        char error[256];
+        if (!vg_room_recipe_parse(node, &recipe, error, sizeof(error)))
+            return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT, path, id, "%s", error);
+        return true;
+    }
     if (!vg_content_component_version(validation, node, path, id))
         return false;
     if (strcmp(name, "engine.camera") == 0) {
@@ -463,6 +472,11 @@ static bool vg_content_validate_components(VgContentValidation *validation,
             return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT, path, id,
                                    "door panel requires mesh, kinematic collider and hinge parent");
     }
+    if (components != NULL && vg_json_object_get(components, "vestigio.room") != NULL &&
+        (vg_json_object_get(components, "engine.mesh") != NULL ||
+         vg_json_object_get(components, "engine.collider") != NULL))
+        return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT, path, id,
+                               "room recipe owns its derived mesh and collider");
     return true;
 }
 

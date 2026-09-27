@@ -1,7 +1,9 @@
 #include "content/document_runtime.h"
 
+#include "assets/asset_registry.h"
 #include "content/document_internal.h"
 #include "content/json.h"
+#include "content/room_recipe.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +15,8 @@ typedef struct VgDocumentEntityBinding {
     VgSpatialCollider collider;
     VgSpatialColliderDesc collider_description;
     bool has_collider;
+    VgRoomMesh room_mesh;
+    VgAssetId room_asset_id;
 } VgDocumentEntityBinding;
 
 typedef struct VgDocumentAssetBinding {
@@ -191,6 +195,109 @@ static VgResult vg_document_apply_mesh(VgDocumentInstance *instance,
     return VG_OK;
 }
 
+static VgResult vg_document_apply_room(VgDocumentInstance *instance, const VgJsonNode *component,
+                                       VgEntity entity, const char *entity_id,
+                                       VgDocumentDiagnostic *diagnostic) {
+    VgRoomRecipe recipe;
+    char detail[256];
+    if (!vg_room_recipe_parse(component, &recipe, detail, sizeof(detail)))
+        return vg_document_runtime_invalid(diagnostic, "$.entities[].components.vestigio.room",
+                                           entity_id, detail);
+    size_t entity_index = instance->entity_count;
+    for (size_t i = 0u; i < instance->entity_count; ++i)
+        if (instance->entities[i].entity.value == entity.value) {
+            entity_index = i;
+            break;
+        }
+    if (entity_index == instance->entity_count ||
+        !vg_room_recipe_build(&recipe, &instance->entities[entity_index].room_mesh, detail,
+                              sizeof(detail)))
+        return vg_document_runtime_invalid(diagnostic, "$.entities[].components.vestigio.room",
+                                           entity_id, detail);
+    VgRoomMesh *mesh = &instance->entities[entity_index].room_mesh;
+    void *ir = NULL;
+    size_t ir_size = 0u;
+    if (!vg_room_mesh_model_ir(mesh, &ir, &ir_size))
+        return vg_document_runtime_invalid(diagnostic, "$.entities[].components.vestigio.room",
+                                           entity_id, "Room mesh model could not be built");
+    uint64_t a = UINT64_C(14695981039346656037), b = UINT64_C(1099511628211);
+    for (const unsigned char *p = (const unsigned char *)entity_id; *p != 0u; ++p) {
+        a = (a ^ *p) * UINT64_C(1099511628211);
+        b = (b ^ *p) * UINT64_C(14029467366897019727);
+    }
+    for (uint32_t i = 0u; i < mesh->vertex_count; ++i)
+        for (size_t j = 0u; j < sizeof(mesh->vertices[i]); ++j) {
+            unsigned char value = ((const unsigned char *)&mesh->vertices[i])[j];
+            a = (a ^ value) * UINT64_C(1099511628211);
+            b = (b ^ value) * UINT64_C(14029467366897019727);
+        }
+    VgAssetId id = {{0}};
+    memcpy(&id.bytes[0], &a, sizeof(a));
+    memcpy(&id.bytes[8], &b, sizeof(b));
+    instance->entities[entity_index].room_asset_id = id;
+    VgAssetSourceDesc source = {0};
+    source.struct_size = sizeof(source);
+    source.api_version = VG_API_VERSION;
+    source.id = id;
+    source.type = VG_ASSET_TYPE_MESH;
+    source.importer_version = VG_ROOM_MODEL_IMPORTER_VERSION;
+    source.version = 1u;
+    source.source_path = "generated/room.ir";
+    source.source_data = ir;
+    source.source_size = ir_size;
+    VgResult result = vg_asset_catalog_upsert(instance->context, &source);
+    free(ir);
+    if (result != VG_OK)
+        return vg_document_runtime_fail(diagnostic, VG_DOCUMENT_VALIDATION, result,
+                                        "$.entities[].components.vestigio.room", entity_id,
+                                        "room asset registration");
+    VgAssetRequest request = {0};
+    request.struct_size = sizeof(request);
+    request.api_version = VG_API_VERSION;
+    request.id = id;
+    request.type = VG_ASSET_TYPE_MESH;
+    request.required_residency = VG_ASSET_RESIDENCY_CPU | VG_ASSET_RESIDENCY_GPU;
+    VgAsset lease = {VG_INVALID_HANDLE_VALUE};
+    result = vg_asset_acquire(instance->context, &request, &lease);
+    if (result != VG_OK) {
+        (void)vg_asset_catalog_remove_if_unused(instance->context, id, 0u);
+        return vg_document_runtime_fail(diagnostic, VG_DOCUMENT_VALIDATION, result,
+                                        "$.entities[].components.vestigio.room", entity_id,
+                                        "room asset acquisition");
+    }
+    instance->assets[instance->asset_count++] = (VgDocumentAssetBinding){id, lease};
+    float minimum[3] = {mesh->vertices[0].position[0], mesh->vertices[0].position[1],
+                        mesh->vertices[0].position[2]};
+    float maximum[3] = {minimum[0], minimum[1], minimum[2]};
+    for (uint32_t i = 1u; i < mesh->vertex_count; ++i)
+        for (uint32_t axis = 0u; axis < 3u; ++axis) {
+            float value = mesh->vertices[i].position[axis];
+            if (value < minimum[axis])
+                minimum[axis] = value;
+            if (value > maximum[axis])
+                maximum[axis] = value;
+        }
+    VgMeshRendererDesc renderer = {0};
+    renderer.struct_size = sizeof(renderer);
+    renderer.api_version = VG_API_VERSION;
+    renderer.asset = lease;
+    renderer.node_index = 0u;
+    renderer.mesh_index = VG_RENDER_DEFAULT_INDEX;
+    renderer.material_override = VG_RENDER_DEFAULT_INDEX;
+    renderer.bounds_center =
+        (VgVec3){(minimum[0] + maximum[0]) * 0.5f, (minimum[1] + maximum[1]) * 0.5f,
+                 (minimum[2] + maximum[2]) * 0.5f};
+    renderer.bounds_extent =
+        (VgVec3){(maximum[0] - minimum[0]) * 0.5f, (maximum[1] - minimum[1]) * 0.5f,
+                 (maximum[2] - minimum[2]) * 0.5f};
+    result = vg_mesh_renderer_set(instance->context, entity, &renderer);
+    if (result != VG_OK)
+        return vg_document_runtime_fail(diagnostic, VG_DOCUMENT_VALIDATION, result,
+                                        "$.entities[].components.vestigio.room", entity_id,
+                                        "room mesh renderer");
+    return VG_OK;
+}
+
 static VgResult vg_document_apply_components(VgDocumentInstance *instance,
                                              const VgDocumentInstanceDesc *description,
                                              const VgJsonNode *entity, VgEntity runtime_entity,
@@ -224,6 +331,9 @@ static VgResult vg_document_apply_components(VgDocumentInstance *instance,
     if (mesh != NULL)
         return vg_document_apply_mesh(instance, description, mesh, runtime_entity, entity_id,
                                       diagnostic);
+    const VgJsonNode *room = vg_json_object_get(components, "vestigio.room");
+    if (room != NULL)
+        return vg_document_apply_room(instance, room, runtime_entity, entity_id, diagnostic);
     return VG_OK;
 }
 
@@ -234,13 +344,16 @@ static VgResult vg_document_apply_colliders(VgDocumentInstance *instance,
     for (size_t index = 0u; index < instance->entity_count; ++index) {
         const VgJsonNode *components =
             vg_json_object_get(entities->as.array.items[index], "components");
-        if (vg_json_object_get(components, "engine.collider") != NULL)
+        if (vg_json_object_get(components, "engine.collider") != NULL ||
+            instance->entities[index].room_mesh.vertices != NULL)
             ++count;
     }
     if (count == 0u)
         return VG_OK;
     VgSpatialSceneConfig config = {0};
     config.max_colliders = count;
+    config.max_meshes = count;
+    config.max_triangles_per_mesh = VG_ROOM_MAX_TRIANGLES;
     VgResult result = vg_spatial_scene_create(&config, &instance->spatial);
     if (result != VG_OK)
         return vg_document_runtime_fail(diagnostic,
@@ -251,9 +364,54 @@ static VgResult vg_document_apply_colliders(VgDocumentInstance *instance,
         const VgJsonNode *entity = entities->as.array.items[index];
         const VgJsonNode *components = vg_json_object_get(entity, "components");
         const VgJsonNode *component = vg_json_object_get(components, "engine.collider");
-        if (component == NULL)
+        VgRoomMesh *room = &instance->entities[index].room_mesh;
+        if (component == NULL && room->vertices == NULL)
             continue;
         const char *id = vg_document_node_string(vg_json_object_get(entity, "id"));
+        if (room->vertices != NULL) {
+            VgVec3 *positions = calloc(room->vertex_count, sizeof(*positions));
+            uint32_t *indices = calloc(room->vertex_count, sizeof(*indices));
+            if (positions == NULL || indices == NULL) {
+                free(positions);
+                free(indices);
+                return vg_document_runtime_fail(
+                    diagnostic, VG_DOCUMENT_OUT_OF_MEMORY, VG_ERROR_OUT_OF_MEMORY,
+                    "$.entities[].components.vestigio.room", id, "room collider allocation");
+            }
+            for (uint32_t i = 0u; i < room->vertex_count; ++i) {
+                positions[i] =
+                    (VgVec3){room->vertices[i].position[0], room->vertices[i].position[1],
+                             room->vertices[i].position[2]};
+                indices[i] = i;
+            }
+            VgSpatialMeshData data = {positions, room->vertex_count, indices, room->vertex_count};
+            VgSpatialMesh spatial_mesh = {0};
+            VgResult room_result = vg_spatial_mesh_create(instance->spatial, &data, &spatial_mesh);
+            free(positions);
+            free(indices);
+            if (room_result != VG_OK)
+                return vg_document_runtime_fail(diagnostic, VG_DOCUMENT_VALIDATION, room_result,
+                                                "$.entities[].components.vestigio.room", id,
+                                                "room spatial mesh");
+            VgSpatialColliderDesc room_collider = {0};
+            room_collider.entity = instance->entities[index].entity;
+            room_collider.layer_mask = UINT64_C(1);
+            room_collider.shape_type = VG_SPATIAL_SHAPE_STATIC_MESH;
+            room_collider.shape.mesh = spatial_mesh;
+            room_collider.enabled = true;
+            room_result = vg_entity_get_world_transform(instance->context, room_collider.entity,
+                                                        &room_collider.transform);
+            if (room_result == VG_OK)
+                room_result = vg_spatial_collider_create(instance->spatial, &room_collider,
+                                                         &instance->entities[index].collider);
+            if (room_result != VG_OK)
+                return vg_document_runtime_fail(diagnostic, VG_DOCUMENT_VALIDATION, room_result,
+                                                "$.entities[].components.vestigio.room", id,
+                                                "room spatial collider");
+            instance->entities[index].collider_description = room_collider;
+            instance->entities[index].has_collider = true;
+            continue;
+        }
         const char *motion = vg_document_node_string(vg_json_object_get(component, "motion"));
         if (motion == NULL || (strcmp(motion, "static") != 0 && strcmp(motion, "kinematic") != 0))
             return vg_document_runtime_invalid(
@@ -374,10 +532,21 @@ static void vg_document_instance_cleanup(VgDocumentInstance *instance) {
     if (instance == NULL)
         return;
     vg_spatial_scene_destroy(instance->spatial);
-    for (size_t index = instance->asset_count; index > 0u; --index)
-        (void)vg_asset_release(instance->context, instance->assets[index - 1u].asset);
     if (instance->world.value != VG_INVALID_HANDLE_VALUE)
         (void)vg_world_destroy(instance->context, instance->world);
+    for (size_t index = instance->asset_count; index > 0u; --index)
+        (void)vg_asset_release(instance->context, instance->assets[index - 1u].asset);
+    if (instance->entities != NULL)
+        for (size_t index = 0u; index < instance->entity_count; ++index)
+            if (instance->entities[index].room_mesh.vertices != NULL)
+                (void)vg_asset_catalog_remove_if_unused(
+                    instance->context, instance->entities[index].room_asset_id, 0u);
+    uint32_t purged = 0u;
+    (void)vg_assets_purge_unused(instance->context, &purged);
+    (void)vg_asset_flush_gpu(instance->context);
+    if (instance->entities != NULL)
+        for (size_t index = 0u; index < instance->entity_count; ++index)
+            vg_room_mesh_destroy(&instance->entities[index].room_mesh);
     free(instance->assets);
     free(instance->doors);
     free(instance->entities);

@@ -44,7 +44,7 @@ Para una captura reproducible que se cierra sola:
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/run-3d-demo.ps1 -Smoke 8 -Capture build/atrium.png
 ```
 
-Para comparar otro nivel guardado desde Studio, pasa `-Level ruta\nivel.level.json`. El Player usa el modelo `atrium.gltf` de esta demo; esta opción no importa por sí sola modelos arbitrarios.
+Para jugar otro nivel guardado desde Studio, pasa `-Level ruta\nivel.level.json`. Player carga los modelos GLB/glTF importados que figuran en el manifiesto de ese nivel y verifica sus huellas.
 
 ## Abrir el editor VESTIGIO Studio
 
@@ -58,7 +58,7 @@ En **Editar**, haz clic sobre un objeto o selecciónalo en **Jerarquía**. Con *
 
 Para editar varios objetos a la vez, selecciónalos con **Ctrl** o **Mayús** en la jerarquía o en el viewport. Elige **Mover**, **Rotar** o **Escalar**, espacio **Mundo/Local**, pivote y **Paso**; arrastra el eje coloreado del gizmo GPU. El arrastre sigue el eje visto desde la cámara, incluso en órbita. **Escape** cancela sin ensuciar el documento; soltar confirma un solo paso de Deshacer. **Duplicar**, **Borrar** y **Cambiar padre** actúan sobre toda la selección; el motor rechaza ciclos de jerarquía y transformaciones que crearían shear. Guarda y reabre la copia para comprobar el resultado.
 
-**+ Habitación con abertura** añade una sala fija alrededor del punto inicial, sobre el piso del Atrium, en un solo paso de Deshacer. El vano frontal se puede cruzar en Probar; la pared contigua bloquea. Puedes añadir **una por nivel**. Sus seis piezas protegidas no se duplican ni transforman individualmente; los pilares normales sí. Guarda una copia y ábrela en Player con `-Level "ruta/nivel.level.json"` para jugarla fuera de Studio.
+**+ Habitación con abertura** conserva la sala fija de la demo anterior alrededor del punto inicial, en un solo paso de Deshacer. Puedes añadir **una plantilla fija por nivel**; sus seis piezas protegidas no se duplican ni transforman individualmente. Para crear varias habitaciones editables, usa **Construcción · Habitaciones** más abajo. Guarda una copia y ábrela en Player con `-Level "ruta/nivel.level.json"` para jugarla fuera de Studio.
 
 Pulsa **Probar** para jugar una instancia aislada del documento con colisiones, salto y puerta interactiva (**E**); **Detener** vuelve a Editar sin guardar los cambios ocurridos durante la prueba. El selector **Imagen** alterna Limpio/Retro. Los deslizantes de **Audio** ajustan volúmenes; el sonido se reproduce en Probar. Para usar otro archivo de preferencias, inicia Studio con `-Settings ruta.settings` (o el ejecutable directo con `--settings ruta.settings`).
 
@@ -73,6 +73,16 @@ Pulsa **Colocar** para crear una entidad. Puedes colocar el mismo modelo varias 
 En **Organización del editor** asigna grupo y capa. **Ocultar capa en editor** afecta la vista Editar; en **Probar** y Player esos objetos vuelven a verse. **Renombrar** cambia el nombre del recurso sin cambiar su ID; **Reimportar** actualiza el archivo conservando ese ID. Usa **Guardar como…** en una carpeta de trabajo: Studio copia los modelos importados a `assets/<ID>.glb` o `.gltf` junto al nivel. Después **Reabrir** comprueba el resultado, y puedes jugar el archivo con `tools/run-3d-demo.ps1 -Level "ruta\nivel.level.json"`.
 
 Los `.gltf` que dependen de archivos externos se rechazan con un diagnóstico; para este flujo expórtalos como `.glb` o con datos embebidos. Si modificas un modelo copiado sin reimportarlo, Studio/Player detectan que su huella ya no coincide.
+
+## Construir habitaciones y aberturas (E04)
+
+En **Editar**, abre **Construcción · Habitaciones**. Para empezar rápido, introduce posición y dimensiones en metros y pulsa **Trazar**: el panel prepara cuatro vértices. También puedes escribir un contorno `x,y`, un vértice por línea, en sentido antihorario. **Planta Z**, alto y grosor controlan la receta; las cotas y la cuadrícula del plano ayudan a revisarla.
+
+Para abrir un muro, elige una arista (la primera es `0`), el tipo **puerta**, **ventana** o **hueco**, su distancia desde el inicio de la arista, ancho, alto y antepecho. Pulsa **Añadir abertura** y después **Vista previa**. La vista previa no guarda objetos: **Cancelar** la retira sin crear historial. **Crear habitación** confirma la receta en una sola acción de Deshacer. Selecciona la habitación en **Jerarquía** para cambiar su contorno o aberturas y pulsa **Actualizar habitación**; Deshacer/Rehacer regenera la malla y la colisión juntas.
+
+Puedes crear otra habitación con distinta **Planta Z**. En el plano de autoría, **Cuadrícula** muestra la referencia métrica y **Otras plantas translúcidas** muestra sus contornos como guía. Esos controles son editoriales: **Probar** y Player muestran todas las plantas. Guarda una copia con **Guardar como…**, usa **Reabrir** y después **Probar** para recorrerla; el vano abierto se atraviesa y la pared contigua bloquea.
+
+Las aberturas de esta receta son vacíos en el muro: una abertura de tipo puerta no crea todavía una hoja móvil, y la de ventana no añade marco ni vidrio. Esos objetos y la edición avanzada entre pisos tienen tickets posteriores.
 
 ## Compilar y ejecutar pruebas
 
