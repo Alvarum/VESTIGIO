@@ -62,7 +62,7 @@
     <Grid Grid.Row="2" Margin="12,0,12,8">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*"/>
-        <ColumnDefinition Width="314"/>
+        <ColumnDefinition Width="370"/>
       </Grid.ColumnDefinitions>
       <Grid Grid.Column="0">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -161,6 +161,59 @@
               <Button x:Name="ReparentButton" Content="Cambiar padre" Margin="6,0,0,0"
                       IsEnabled="False" Click="Reparent_Click"/>
             </StackPanel>
+            <TextBlock Text="ORGANIZACIÓN DEL EDITOR" Foreground="{StaticResource AccentBrush}"
+                       FontSize="11" FontWeight="SemiBold" Margin="0,18,0,6"/>
+            <TextBlock Text="Grupo y capa no cambian el padre ni la visibilidad del juego."
+                       Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"/>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+              <TextBox x:Name="EditorGroup" Width="137" ToolTip="Grupo de la selección"/>
+              <TextBox x:Name="EditorLayer" Width="137" Margin="6,0,0,0"
+                       ToolTip="Capa de la selección"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+              <Button x:Name="ApplyOrganizationButton" Content="Aplicar grupo/capa"
+                      Click="ApplyOrganization_Click"/>
+              <CheckBox x:Name="HideLayer"
+                        VerticalAlignment="Center" Margin="9,0,0,0"
+                        Checked="HideLayer_Changed" Unchecked="HideLayer_Changed"/>
+              <TextBlock Text="Ocultar capa" Foreground="{StaticResource MutedBrush}"
+                         VerticalAlignment="Center" Margin="5,0,0,0"/>
+            </StackPanel>
+            <TextBlock x:Name="OrganizationError" Foreground="{StaticResource DangerBrush}"
+                       TextWrapping="Wrap" Margin="0,4,0,0"/>
+            <TextBlock Text="BIBLIOTECA DE ASSETS" Foreground="{StaticResource AccentBrush}"
+                       FontSize="11" FontWeight="SemiBold" Margin="0,20,0,6"/>
+            <WrapPanel>
+              <Button x:Name="ImportAssetButton" Content="Importar GLB/glTF…"
+                      Click="ImportAsset_Click"/>
+              <Button x:Name="PlaceAssetButton" Content="Colocar" Margin="6,0,0,0"
+                      Click="PlaceAsset_Click" IsEnabled="False"/>
+              <Button x:Name="ReimportAssetButton" Content="Reimportar" Margin="6,0,0,0"
+                      Click="ReimportAsset_Click" IsEnabled="False"/>
+            </WrapPanel>
+            <ListBox x:Name="AssetList" Height="112" Margin="0,7,0,0"
+                     Background="{StaticResource SurfaceBrush}"
+                     Foreground="{StaticResource TextBrush}"
+                     SelectionChanged="AssetList_SelectionChanged"/>
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+              <TextBox x:Name="AssetName" Width="214" ToolTip="Nombre visible del asset"/>
+              <Button x:Name="RenameAssetButton" Content="Renombrar"
+                      Margin="6,0,0,0" Click="RenameAsset_Click" IsEnabled="False"/>
+            </StackPanel>
+            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="3"
+                    Margin="0,8,0,0" Padding="9">
+              <StackPanel Orientation="Horizontal">
+                <Border Width="48" Height="48" Background="{StaticResource AccentSoftBrush}"
+                        CornerRadius="3">
+                  <TextBlock Text="3D" Foreground="{StaticResource AccentBrush}"
+                             FontWeight="Bold" FontSize="16" HorizontalAlignment="Center"
+                             VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock x:Name="AssetDetails" Margin="9,0,0,0" Width="255"
+                           Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
+                           Text="Selecciona un modelo. Vista previa no generada."/>
+              </StackPanel>
+            </Border>
             <TextBlock Text="TRANSFORMACIÓN" Foreground="{StaticResource AccentBrush}"
                        FontSize="11" FontWeight="SemiBold" Margin="0,20,0,5"/>
             <TextBlock x:Name="SelectedLabel" Text="Ningún objeto seleccionado"
@@ -204,6 +257,17 @@
             </StackPanel>
             <TextBlock x:Name="FieldError" Foreground="{StaticResource DangerBrush}"
                        TextWrapping="Wrap" Margin="0,9,0,0"/>
+            <TextBlock Text="INSPECTOR DE COMPONENTES" Foreground="{StaticResource AccentBrush}"
+                       FontSize="11" FontWeight="SemiBold" Margin="0,20,0,5"/>
+            <TextBlock Text="Sólo se aplican los campos modificados de la selección."
+                       Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"/>
+            <StackPanel x:Name="SchemaFieldsPanel" Margin="0,8,0,0"/>
+            <Button x:Name="ApplyFieldsButton" Content="Aplicar campos"
+                    Click="ApplyFields_Click" IsEnabled="False"/>
+            <TextBlock Text="PROBLEMAS" Foreground="{StaticResource AccentBrush}"
+                       FontSize="11" FontWeight="SemiBold" Margin="0,20,0,5"/>
+            <ListBox x:Name="ProblemsList" Height="72" Background="{StaticResource SurfaceBrush}"
+                     Foreground="{StaticResource DangerBrush}"/>
             <TextBlock Text="AUDIO" Foreground="{StaticResource AccentBrush}"
                        FontSize="11" FontWeight="SemiBold" Margin="0,20,0,7"/>
             <TextBlock Text="General" Foreground="{StaticResource MutedBrush}"/>

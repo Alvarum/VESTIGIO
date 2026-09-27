@@ -1,5 +1,7 @@
 #include "platform/gpu_host.h"
 
+#include "assets/import/gltf_import.h"
+#include "assets/import/sha256.h"
 #include "audio/atrium_audio.h"
 #include "content/document_internal.h"
 #include "content/document_runtime.h"
@@ -35,6 +37,7 @@ struct VgGpuHost {
     unsigned long owner_thread;
     VgContext *context;
     VgDocument *document;
+    const VgDocument *resolving_document;
     VgDocumentInstance *edit;
     VgDocumentInstance *play;
     VgAtriumAnimation *animation;
@@ -48,6 +51,16 @@ struct VgGpuHost {
     uint64_t model_size;
     VgAssetId model_id;
     bool model_registered;
+    char level_directory[2048];
+    struct {
+        char id[37];
+        char fingerprint[65];
+        uint64_t version;
+        uint64_t bytes;
+    } imported[256];
+    size_t imported_count;
+    VgEntity preview_entity;
+    bool preview_active;
     bool gpu_attached;
     float edit_yaw, edit_pitch;
     float play_yaw, play_pitch;
@@ -108,6 +121,11 @@ static void host_error(char *out, size_t capacity, const char *message) {
 }
 
 static size_t host_collect_gizmos(const VgGpuHost *host, VgGpuGizmo *out, size_t capacity);
+static void host_clear_preview(VgGpuHost *host) {
+    if (host->preview_active && host->context != NULL)
+        (void)vg_entity_destroy(host->context, host->preview_entity);
+    host->preview_active = false;
+}
 
 /* 1 exists, 0 missing, -1 invalid/inaccessible. Settings paths are UTF-8. */
 static int host_settings_file_state(const char *path) {
@@ -189,6 +207,7 @@ static void host_release_play(VgGpuHost *host) {
 
 static void host_release_level(VgGpuHost *host) {
     host_release_play(host);
+    host_clear_preview(host);
     if (host->gesture.has_preview)
         vg_document_instance_destroy(host->gesture.original_edit);
     memset(&host->gesture, 0, sizeof(host->gesture));
@@ -210,6 +229,8 @@ static void host_release_level(VgGpuHost *host) {
     host->model_data = NULL;
     host->model_size = 0u;
     host->model_registered = false;
+    host->level_directory[0] = '\0';
+    host->imported_count = 0u;
     host->audio_directory[0] = '\0';
     host->audio_focus_paused = false;
     host->accumulator = 0.0;
@@ -224,13 +245,56 @@ static void host_release_level(VgGpuHost *host) {
     host->saved_length = 0u;
 }
 
+static FILE *host_open_file(const char *path, const char *mode) {
+#ifdef _WIN32
+    wchar_t wide_path[4096], wide_mode[16];
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide_path,
+                            (int)(sizeof(wide_path) / sizeof(wide_path[0]))) == 0 ||
+        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, mode, -1, wide_mode,
+                            (int)(sizeof(wide_mode) / sizeof(wide_mode[0]))) == 0)
+        return NULL;
+    return _wfopen(wide_path, wide_mode);
+#else
+    return fopen(path, mode);
+#endif
+}
+
+static bool host_remove_file(const char *path) {
+#ifdef _WIN32
+    wchar_t wide[4096];
+    return MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide,
+                               (int)(sizeof(wide) / sizeof(wide[0]))) != 0 &&
+           _wremove(wide) == 0;
+#else
+    return remove(path) == 0;
+#endif
+}
+
+static bool host_create_directory(const char *path) {
+#ifdef _WIN32
+    wchar_t wide[4096];
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide,
+                            (int)(sizeof(wide) / sizeof(wide[0]))) == 0)
+        return false;
+    if (CreateDirectoryW(wide, NULL))
+        return true;
+    if (GetLastError() != ERROR_ALREADY_EXISTS)
+        return false;
+    DWORD attributes = GetFileAttributesW(wide);
+    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0 &&
+           (attributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0;
+#else
+    return mkdir(path, 0755) == 0 || errno == EEXIST;
+#endif
+}
+
 static bool host_read_model(const char *path, void **out_data, uint64_t *out_size) {
-    FILE *file = fopen(path, "rb");
+    FILE *file = host_open_file(path, "rb");
     if (file == NULL)
         return false;
     long size = 0;
-    bool ok = fseek(file, 0, SEEK_END) == 0 && (size = ftell(file)) > 0 && size <= 1024 * 1024 &&
-              fseek(file, 0, SEEK_SET) == 0;
+    bool ok = fseek(file, 0, SEEK_END) == 0 && (size = ftell(file)) > 0 &&
+              size <= 16 * 1024 * 1024 && fseek(file, 0, SEEK_SET) == 0;
     void *data = ok ? malloc((size_t)size) : NULL;
     ok = data != NULL && fread(data, 1u, (size_t)size, file) == (size_t)size;
     (void)fclose(file);
@@ -243,6 +307,368 @@ static bool host_read_model(const char *path, void **out_data, uint64_t *out_siz
     return true;
 }
 
+static bool host_level_directory(const char *path, char out[2048]) {
+    const char *slash = strrchr(path, '/');
+    const char *backslash = strrchr(path, '\\');
+    if (backslash != NULL && (slash == NULL || backslash > slash))
+        slash = backslash;
+    size_t length = slash == NULL ? 0u : (size_t)(slash - path);
+    if (length == 0u || length >= 2048u)
+        return false;
+    memcpy(out, path, length);
+    out[length] = '\0';
+    return true;
+}
+
+static bool host_asset_path(const VgGpuHost *host, const char *source, char out[4096]) {
+    if (host->level_directory[0] == '\0' || source == NULL ||
+        snprintf(out, 4096u, "%s/%s", host->level_directory, source) >= 4096)
+        return false;
+#ifdef _WIN32
+    size_t start = strlen(host->level_directory) + 1u;
+    for (size_t index = start;; ++index) {
+        if (out[index] != '/' && out[index] != '\0')
+            continue;
+        char saved = out[index];
+        out[index] = '\0';
+        wchar_t wide[4096];
+        if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, out, -1, wide,
+                                (int)(sizeof(wide) / sizeof(wide[0]))) == 0) {
+            out[index] = saved;
+            return false;
+        }
+        DWORD attributes = GetFileAttributesW(wide);
+        out[index] = saved;
+        if (attributes != INVALID_FILE_ATTRIBUTES &&
+            (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
+            return false;
+        if (saved == '\0')
+            break;
+    }
+#endif
+    return true;
+}
+
+static void host_fingerprint(const void *data, size_t size, char out[65]) {
+    VgSha256 hash;
+    uint8_t digest[32];
+    vg_sha256_init(&hash);
+    vg_sha256_update(&hash, data, size);
+    vg_sha256_finish(&hash, digest);
+    for (size_t index = 0u; index < 32u; ++index)
+        (void)snprintf(out + index * 2u, 3u, "%02x", digest[index]);
+}
+
+static const VgJsonNode *host_asset_node(const VgDocument *document, const char *id) {
+    const VgJsonNode *assets = vg_json_object_get(vg_document_root(document), "assets");
+    if (assets == NULL || assets->type != VG_JSON_ARRAY)
+        return NULL;
+    for (size_t index = 0u; index < assets->as.array.count; ++index) {
+        const VgJsonNode *asset = assets->as.array.items[index];
+        const VgJsonNode *asset_id = vg_json_object_get(asset, "id");
+        if (asset_id != NULL && asset_id->type == VG_JSON_STRING &&
+            strcmp(asset_id->as.string.data, id) == 0)
+            return asset;
+    }
+    return NULL;
+}
+
+static void host_asset_id_text(VgAssetId id, char text[37]) {
+    size_t at = 0u;
+    for (size_t index = 0u; index < 16u; ++index) {
+        if (index == 4u || index == 6u || index == 8u || index == 10u)
+            text[at++] = '-';
+        (void)snprintf(text + at, 3u, "%02x", id.bytes[index]);
+        at += 2u;
+    }
+    text[36] = '\0';
+}
+
+static bool host_asset_id_parse(const char *text, VgAssetId *out) {
+    if (text == NULL || strlen(text) != 36u || out == NULL)
+        return false;
+    size_t byte = 0u;
+    for (size_t index = 0u; index < 36u;) {
+        if (index == 8u || index == 13u || index == 18u || index == 23u) {
+            if (text[index++] != '-')
+                return false;
+            continue;
+        }
+        unsigned value = 0u;
+        for (size_t digit = 0u; digit < 2u; ++digit) {
+            char c = text[index++];
+            unsigned nibble = c >= '0' && c <= '9'   ? (unsigned)(c - '0')
+                              : c >= 'a' && c <= 'f' ? (unsigned)(c - 'a' + 10)
+                                                     : 256u;
+            if (nibble > 15u)
+                return false;
+            value = value * 16u + nibble;
+        }
+        out->bytes[byte++] = (uint8_t)value;
+    }
+    return true;
+}
+
+static char *host_json_quote(const char *text) {
+    size_t length = strlen(text);
+    if (length > (SIZE_MAX - 3u) / 6u)
+        return NULL;
+    char *quoted = malloc(length * 6u + 3u);
+    if (quoted == NULL)
+        return NULL;
+    size_t at = 0u;
+    quoted[at++] = '"';
+    for (size_t index = 0u; index < length; ++index) {
+        unsigned char c = (unsigned char)text[index];
+        if (c == '"' || c == '\\') {
+            quoted[at++] = '\\';
+            quoted[at++] = (char)c;
+        } else if (c < 0x20u) {
+            (void)snprintf(quoted + at, 7u, "\\u%04x", c);
+            at += 6u;
+        } else {
+            quoted[at++] = (char)c;
+        }
+    }
+    quoted[at++] = '"';
+    quoted[at] = '\0';
+    return quoted;
+}
+
+static bool host_json_append(char *out, size_t capacity, size_t *length, const char *text) {
+    size_t additional = strlen(text);
+    if (*length >= capacity || additional >= capacity - *length)
+        return false;
+    memcpy(out + *length, text, additional + 1u);
+    *length += additional;
+    return true;
+}
+
+static char *host_asset_entry_json(const char *id, const char *name, const char *source,
+                                   const char *fingerprint) {
+    char *quoted_name = host_json_quote(name);
+    char *quoted_source = host_json_quote(source);
+    if (quoted_name == NULL || quoted_source == NULL) {
+        free(quoted_name);
+        free(quoted_source);
+        return NULL;
+    }
+    size_t capacity = strlen(quoted_name) + strlen(quoted_source) + 256u;
+    char *json = malloc(capacity);
+    if (json != NULL)
+        (void)snprintf(json, capacity,
+                       "{\"id\":\"%s\",\"name\":%s,\"source\":%s,\"fingerprint\":\"%s\"}", id,
+                       quoted_name, quoted_source, fingerprint);
+    free(quoted_name);
+    free(quoted_source);
+    return json;
+}
+
+static char *host_updated_assets_json(const VgDocument *document, const char *id, const char *name,
+                                      const char *source, const char *fingerprint,
+                                      bool *was_replaced) {
+    const VgJsonNode *assets = vg_json_object_get(vg_document_root(document), "assets");
+    char *out = malloc(1024u * 1024u);
+    if (out == NULL)
+        return NULL;
+    out[0] = '\0';
+    size_t length = 0u;
+    bool replaced = false;
+    bool okay = host_json_append(out, 1024u * 1024u, &length, "[");
+    if (assets != NULL && assets->type == VG_JSON_ARRAY) {
+        for (size_t index = 0u; okay && index < assets->as.array.count; ++index) {
+            const VgJsonNode *node = assets->as.array.items[index];
+            const VgJsonNode *asset_id = vg_json_object_get(node, "id");
+            bool match = asset_id != NULL && asset_id->type == VG_JSON_STRING &&
+                         strcmp(asset_id->as.string.data, id) == 0;
+            char *entry = NULL;
+            size_t entry_length = 0u;
+            if (match) {
+                entry = host_asset_entry_json(id, name, source, fingerprint);
+                replaced = true;
+            } else {
+                (void)vg_json_write_canonical(node, &entry, &entry_length);
+            }
+            okay = entry != NULL &&
+                   (index == 0u || host_json_append(out, 1024u * 1024u, &length, ",")) &&
+                   host_json_append(out, 1024u * 1024u, &length, entry);
+            free(entry);
+        }
+    }
+    if (okay && !replaced) {
+        char *entry = host_asset_entry_json(id, name, source, fingerprint);
+        okay = entry != NULL &&
+               ((assets == NULL || assets->as.array.count == 0u) ||
+                host_json_append(out, 1024u * 1024u, &length, ",")) &&
+               host_json_append(out, 1024u * 1024u, &length, entry);
+        free(entry);
+    }
+    okay = okay && host_json_append(out, 1024u * 1024u, &length, "]");
+    if (!okay) {
+        free(out);
+        return NULL;
+    }
+    if (was_replaced != NULL)
+        *was_replaced = replaced;
+    return out;
+}
+
+static bool host_copy_model_file(const char *path, const void *data, size_t size) {
+    char temporary[4096];
+    if (snprintf(temporary, sizeof(temporary), "%s.tmp", path) >= (int)sizeof(temporary))
+        return false;
+    FILE *file = host_open_file(temporary, "wb");
+    if (file == NULL)
+        return false;
+    bool okay = fwrite(data, 1u, size, file) == size && fflush(file) == 0;
+    okay = fclose(file) == 0 && okay;
+    if (!okay) {
+        (void)host_remove_file(temporary);
+        return false;
+    }
+#ifdef _WIN32
+    wchar_t wide_temporary[4096], wide_path[4096];
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, temporary, -1, wide_temporary,
+                            (int)(sizeof(wide_temporary) / sizeof(wide_temporary[0]))) == 0 ||
+        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide_path,
+                            (int)(sizeof(wide_path) / sizeof(wide_path[0]))) == 0 ||
+        !MoveFileExW(wide_temporary, wide_path,
+                     MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+        (void)host_remove_file(temporary);
+        return false;
+    }
+#else
+    if (rename(temporary, path) != 0) {
+        (void)host_remove_file(temporary);
+        return false;
+    }
+#endif
+    return true;
+}
+
+static bool host_ensure_asset_directory(const char *level_directory) {
+    char path[4096];
+    if (snprintf(path, sizeof(path), "%s/assets", level_directory) >= (int)sizeof(path))
+        return false;
+    return host_create_directory(path);
+}
+
+static bool host_ensure_source_parents(const char *level_directory, const char *source) {
+    char path[4096];
+    if (snprintf(path, sizeof(path), "%s/%s", level_directory, source) >= (int)sizeof(path))
+        return false;
+    size_t start = strlen(level_directory) + 1u;
+    for (size_t index = start; path[index] != '\0'; ++index) {
+        if (path[index] != '/')
+            continue;
+        path[index] = '\0';
+        bool okay = host_create_directory(path);
+        path[index] = '/';
+        if (!okay)
+            return false;
+    }
+    return true;
+}
+
+static void *host_import_allocate(void *user, uint64_t size) {
+    (void)user;
+    return size <= SIZE_MAX ? malloc((size_t)size) : NULL;
+}
+
+static void host_import_deallocate(void *user, void *data) {
+    (void)user;
+    free(data);
+}
+
+static bool host_validate_model(const char *source, const void *data, uint64_t size, char *error,
+                                size_t error_capacity) {
+    VgAssetMemory memory = {NULL, host_import_allocate, host_import_deallocate};
+    VgGltfImportOptions options;
+    vg_gltf_default_options(&options);
+    VgStaticModelIr *model = NULL;
+    uint64_t bytes = 0u;
+    VgGltfDiagnostic diagnostic = {0};
+    VgResult result =
+        vg_gltf_import(NULL, &memory, source, data, size, &options, &model, &bytes, &diagnostic);
+    if (result == VG_OK)
+        vg_gltf_model_destroy(&memory, model);
+    else
+        host_error(error, error_capacity, diagnostic.message);
+    return result == VG_OK;
+}
+
+static VgResult host_register_imported(VgGpuHost *host, VgContext *context, const VgJsonNode *asset,
+                                       VgAssetId id) {
+    const VgJsonNode *path_node = vg_json_object_get(asset, "source");
+    const VgJsonNode *fingerprint_node = vg_json_object_get(asset, "fingerprint");
+    if (path_node == NULL || fingerprint_node == NULL || path_node->type != VG_JSON_STRING ||
+        fingerprint_node->type != VG_JSON_STRING)
+        return VG_ERROR_INVALID_ARGUMENT;
+    char id_text[37];
+    host_asset_id_text(id, id_text);
+    char path[4096];
+    if (!host_asset_path(host, path_node->as.string.data, path))
+        return VG_ERROR_INVALID_ARGUMENT;
+    void *data = NULL;
+    uint64_t size = 0u;
+    if (!host_read_model(path, &data, &size))
+        return VG_ERROR_NOT_FOUND;
+    char actual[65];
+    host_fingerprint(data, (size_t)size, actual);
+    if (strcmp(actual, fingerprint_node->as.string.data) != 0) {
+        free(data);
+        return VG_ERROR_CONFLICT;
+    }
+    size_t slot = host->imported_count;
+    for (size_t index = 0u; index < host->imported_count; ++index)
+        if (strcmp(host->imported[index].id, id_text) == 0) {
+            slot = index;
+            break;
+        }
+    if (slot < host->imported_count && strcmp(host->imported[slot].fingerprint, actual) == 0) {
+        free(data);
+        return VG_OK;
+    }
+    if (slot == 256u) {
+        free(data);
+        return VG_ERROR_CAPACITY;
+    }
+    uint64_t total = size;
+    for (size_t index = 0u; index < host->imported_count; ++index)
+        if (index != slot)
+            total += host->imported[index].bytes;
+    if (slot == host->imported_count && host->imported_count >= 32u) {
+        free(data);
+        return VG_ERROR_CAPACITY;
+    }
+    if (total > UINT64_C(128) * 1024u * 1024u) {
+        free(data);
+        return VG_ERROR_CAPACITY;
+    }
+    VgAssetSourceDesc source = {0};
+    source.struct_size = sizeof(source);
+    source.api_version = VG_API_VERSION;
+    source.id = id;
+    source.type = VG_ASSET_TYPE_MESH;
+    source.importer_version = VG_STATIC_MODEL_IMPORTER_VERSION;
+    source.version = slot < host->imported_count ? host->imported[slot].version + 1u : 1u;
+    source.source_path = path_node->as.string.data;
+    source.source_data = data;
+    source.source_size = size;
+    VgResult result = vg_asset_catalog_upsert(context, &source);
+    free(data);
+    if (result == VG_OK) {
+        (void)snprintf(host->imported[slot].id, sizeof(host->imported[slot].id), "%s", id_text);
+        (void)snprintf(host->imported[slot].fingerprint, sizeof(host->imported[slot].fingerprint),
+                       "%s", actual);
+        host->imported[slot].version = source.version;
+        host->imported[slot].bytes = size;
+        if (slot == host->imported_count)
+            ++host->imported_count;
+    }
+    return result;
+}
+
 static VgResult host_resolve_asset(void *user, VgContext *context, VgAssetId id, VgAssetType type,
                                    VgAsset *out_asset) {
     VgGpuHost *host = user;
@@ -250,8 +676,32 @@ static VgResult host_resolve_asset(void *user, VgContext *context, VgAssetId id,
                                                 0x75, 0x6d, 0x2d, 0x6d, 0x6f, 0x64, 0x65, 0x6c};
     if (type != VG_ASSET_TYPE_MESH || host->model_data == NULL)
         return VG_ERROR_UNSUPPORTED;
-    if (memcmp(id.bytes, atrium_asset_id, sizeof(atrium_asset_id)) != 0)
-        return VG_ERROR_NOT_FOUND;
+    if (memcmp(id.bytes, atrium_asset_id, sizeof(atrium_asset_id)) != 0) {
+        char text[37];
+        host_asset_id_text(id, text);
+        const VgJsonNode *asset = host_asset_node(
+            host->resolving_document != NULL ? host->resolving_document : host->document, text);
+        if (asset == NULL)
+            return VG_ERROR_NOT_FOUND;
+        VgResult registered = host_register_imported(host, context, asset, id);
+        if (registered != VG_OK)
+            return registered;
+        VgAssetRequest request = {0};
+        request.struct_size = sizeof(request);
+        request.api_version = VG_API_VERSION;
+        request.id = id;
+        request.type = type;
+        request.required_residency = VG_ASSET_RESIDENCY_CPU | VG_ASSET_RESIDENCY_GPU;
+        VgResult result = vg_asset_acquire(context, &request, out_asset);
+        if (result != VG_OK)
+            return result;
+        result = vg_asset_reload(context, *out_asset);
+        if (result != VG_OK) {
+            (void)vg_asset_release(context, *out_asset);
+            return result;
+        }
+        return VG_OK;
+    }
     if (host->model_registered && memcmp(host->model_id.bytes, id.bytes, 16u) != 0)
         return VG_ERROR_NOT_FOUND;
     if (!host->model_registered) {
@@ -295,6 +745,30 @@ static bool host_find_camera(VgGpuHost *host, VgDocumentInstance *instance, VgEn
         }
     }
     return false;
+}
+
+static bool host_apply_editor_hidden(VgGpuHost *host, const VgDocument *document,
+                                     VgDocumentInstance *instance) {
+    const VgJsonNode *entities = vg_json_object_get(vg_document_root(document), "entities");
+    if (entities == NULL || entities->type != VG_JSON_ARRAY ||
+        entities->as.array.count != vg_document_instance_entity_count(instance))
+        return false;
+    for (size_t index = 0u; index < entities->as.array.count; ++index) {
+        const VgJsonNode *editor = vg_json_object_get(entities->as.array.items[index], "editor");
+        const VgJsonNode *hidden = vg_json_object_get(editor, "hidden");
+        if (hidden == NULL || hidden->type != VG_JSON_BOOL || !hidden->as.boolean)
+            continue;
+        const VgJsonNode *components =
+            vg_json_object_get(entities->as.array.items[index], "components");
+        if (vg_json_object_get(components, "engine.mesh") == NULL)
+            continue;
+        VgUuid uuid;
+        VgEntity entity;
+        if (!vg_document_instance_entity_at(instance, index, &uuid, &entity) ||
+            vg_mesh_renderer_clear(host->context, entity) != VG_OK)
+            return false;
+    }
+    return true;
 }
 
 static VgQuat host_rotation(float yaw, float pitch) {
@@ -604,6 +1078,10 @@ int32_t vg_gpu_host_open_level(VgGpuHost *host, const char *level_path, const ch
         level_path[0] == '\0' || model_path[0] == '\0' || host->document != NULL)
         return false;
     VgDocumentDiagnostic diagnostic = {0};
+    if (!host_level_directory(level_path, host->level_directory)) {
+        host_error(error, error_capacity, "Ruta de nivel invalida");
+        return false;
+    }
     if (!vg_document_open_file(level_path, &host->document, &diagnostic)) {
         host_error(error, error_capacity, diagnostic.message);
         return false;
@@ -639,10 +1117,14 @@ int32_t vg_gpu_host_open_level(VgGpuHost *host, const char *level_path, const ch
         host_error(error, error_capacity, "No se pudo habilitar el importer glTF");
         goto fail;
     }
-    VgDocumentInstanceDesc description = {host_resolve_asset, host, 0u};
+    VgDocumentInstanceDesc description = {host_resolve_asset, host, 1u};
     if (vg_document_instantiate(host->context, host->document, &description, &host->edit,
                                 &diagnostic) != VG_OK) {
         host_error(error, error_capacity, diagnostic.message);
+        goto fail;
+    }
+    if (!host_apply_editor_hidden(host, host->document, host->edit)) {
+        host_error(error, error_capacity, "No se pudieron aplicar capas de editor");
         goto fail;
     }
     if (!host_find_camera(host, host->edit, &host->edit_camera)) {
@@ -676,6 +1158,7 @@ int32_t vg_gpu_host_set_mode(VgGpuHost *host, int32_t play) {
     }
     if (host->play != NULL)
         return true;
+    host_clear_preview(host);
     VgDocumentDiagnostic diagnostic = {0};
     VgDocumentInstanceDesc description = {host_resolve_asset, host, 2u};
     if (vg_document_instantiate(host->context, host->document, &description, &host->play,
@@ -1072,9 +1555,9 @@ int32_t vg_gpu_host_gizmo_drag_direction(VgGpuHost *host, float u, float v, int3
         return false;
     VgGpuGizmo gizmos[VG_TOOL_MAX_COMMANDS];
     size_t count = host_collect_gizmos(host, gizmos, VG_TOOL_MAX_COMMANDS);
-    return count != 0u && vg_gpu_renderer_gizmo_drag_direction(host->renderer, gizmos, count,
-                                                                x / draw_width, y / draw_height,
-                                                                axis, out_x, out_y);
+    return count != 0u &&
+           vg_gpu_renderer_gizmo_drag_direction(host->renderer, gizmos, count, x / draw_width,
+                                                y / draw_height, axis, out_x, out_y);
 }
 
 static bool host_entity_has_mesh(const VgGpuHost *host, size_t index) {
@@ -1249,11 +1732,20 @@ int32_t vg_gpu_host_selected_transform(const VgGpuHost *host, float position[3],
 static bool host_prepare_instance(VgGpuHost *host, const VgDocument *document,
                                   VgDocumentInstance **out_edit, VgEntity *out_camera,
                                   VgDocumentDiagnostic *diagnostic, bool preserve_camera) {
-    VgDocumentInstanceDesc description = {host_resolve_asset, host, 0u};
+    VgDocumentInstanceDesc description = {host_resolve_asset, host, 1u};
     VgDocumentInstance *candidate = NULL;
-    if (vg_document_instantiate(host->context, document, &description, &candidate, diagnostic) !=
-        VG_OK)
+    host->resolving_document = document;
+    VgResult result =
+        vg_document_instantiate(host->context, document, &description, &candidate, diagnostic);
+    host->resolving_document = NULL;
+    if (result != VG_OK)
         return false;
+    if (!host_apply_editor_hidden(host, document, candidate)) {
+        vg_document_instance_destroy(candidate);
+        host_error(diagnostic->message, sizeof(diagnostic->message),
+                   "No se pudieron aplicar capas de editor");
+        return false;
+    }
     VgEntity camera;
     if (!host_find_camera(host, candidate, &camera)) {
         vg_document_instance_destroy(candidate);
@@ -1285,6 +1777,7 @@ static void host_swap_edit(VgGpuHost *host, VgDocumentInstance *candidate, VgEnt
     char selected[VG_TOOL_MAX_COMMANDS][37];
     size_t selected_count = host->selection_count;
     memcpy(selected, host->selection_uuids, selected_count * 37u);
+    host_clear_preview(host);
     vg_document_instance_destroy(host->edit);
     host->edit = candidate;
     host->edit_camera = camera;
@@ -1362,6 +1855,352 @@ static bool host_result_id(const VgToolResult *result, const char *temporary, ch
         }
     }
     return false;
+}
+
+int32_t vg_gpu_host_assets_json(const VgGpuHost *host, char *json, size_t capacity) {
+    if (!host_is_current(host) || host->document == NULL || json == NULL || capacity < 3u)
+        return 0;
+    const VgJsonNode *assets = vg_json_object_get(vg_document_root(host->document), "assets");
+    size_t length = 0u;
+    json[0] = '\0';
+    if (!host_json_append(json, capacity, &length, "["))
+        return 0;
+    if (assets != NULL && assets->type == VG_JSON_ARRAY) {
+        for (size_t index = 0u; index < assets->as.array.count; ++index) {
+            const VgJsonNode *asset = assets->as.array.items[index];
+            const VgJsonNode *id = vg_json_object_get(asset, "id");
+            const VgJsonNode *name = vg_json_object_get(asset, "name");
+            const VgJsonNode *source = vg_json_object_get(asset, "source");
+            const VgJsonNode *fingerprint = vg_json_object_get(asset, "fingerprint");
+            if (id == NULL || name == NULL || source == NULL || fingerprint == NULL)
+                return 0;
+            char path[4096];
+            void *data = NULL;
+            uint64_t bytes = 0u;
+            char actual[65] = {0};
+            bool available = host_asset_path(host, source->as.string.data, path) &&
+                             host_read_model(path, &data, &bytes);
+            if (available)
+                host_fingerprint(data, (size_t)bytes, actual);
+            free(data);
+            const char *status = !available                                         ? "missing"
+                                 : strcmp(actual, fingerprint->as.string.data) != 0 ? "modified"
+                                                                                    : "ready";
+            const char *diagnostic = !available ? "No se pudo leer el modelo"
+                                     : strcmp(status, "modified") == 0
+                                         ? "El fingerprint cambió; reimporta el modelo"
+                                         : "";
+            char *entry =
+                host_asset_entry_json(id->as.string.data, name->as.string.data,
+                                      source->as.string.data, fingerprint->as.string.data);
+            char *quoted_diagnostic = host_json_quote(diagnostic);
+            char *quoted_path = host_json_quote(source->as.string.data);
+            if (entry == NULL || quoted_diagnostic == NULL || quoted_path == NULL) {
+                free(entry);
+                free(quoted_diagnostic);
+                free(quoted_path);
+                return 0;
+            }
+            size_t entry_length = strlen(entry);
+            if (entry_length == 0u || entry[entry_length - 1u] != '}') {
+                free(entry);
+                free(quoted_diagnostic);
+                free(quoted_path);
+                return 0;
+            }
+            entry[entry_length - 1u] = '\0';
+            char extra[4096];
+            if (snprintf(extra, sizeof(extra), ",\"path\":%s,\"status\":\"%s\",\"diagnostic\":%s}",
+                         quoted_path, status, quoted_diagnostic) >= (int)sizeof(extra)) {
+                free(entry);
+                free(quoted_diagnostic);
+                free(quoted_path);
+                return 0;
+            }
+            bool okay = (index == 0u || host_json_append(json, capacity, &length, ",")) &&
+                        host_json_append(json, capacity, &length, entry) &&
+                        host_json_append(json, capacity, &length, extra);
+            free(entry);
+            free(quoted_diagnostic);
+            free(quoted_path);
+            if (!okay)
+                return 0;
+        }
+    }
+    return host_json_append(json, capacity, &length, "]") ? (int32_t)length : 0;
+}
+
+static bool host_import_source(VgGpuHost *host, const char *path, const char *existing_id,
+                               char *out_id, size_t id_capacity, char *error,
+                               size_t error_capacity) {
+    if (host == NULL || path == NULL || path[0] == '\0' || out_id == NULL || id_capacity < 37u) {
+        host_error(error, error_capacity, "Ruta o UUID de asset invalido");
+        return false;
+    }
+    VgToolBatch *batch = host_begin_edit(host, error, error_capacity);
+    if (batch == NULL)
+        return false;
+    const char *extension = strrchr(path, '.');
+    bool glb =
+        extension != NULL && (strcmp(extension, ".glb") == 0 || strcmp(extension, ".GLB") == 0);
+    bool gltf =
+        extension != NULL && (strcmp(extension, ".gltf") == 0 || strcmp(extension, ".GLTF") == 0);
+    if (!glb && !gltf) {
+        host_error(error, error_capacity, "Se admite .glb o .gltf con datos embebidos");
+        vg_tool_cancel(batch);
+        return false;
+    }
+    void *data = NULL;
+    uint64_t bytes = 0u;
+    if (!host_read_model(path, &data, &bytes)) {
+        host_error(error, error_capacity, "No se pudo leer el modelo (maximo 16 MiB)");
+        vg_tool_cancel(batch);
+        return false;
+    }
+    char fingerprint[65];
+    host_fingerprint(data, (size_t)bytes, fingerprint);
+    const VgJsonNode *previous = NULL;
+    char id[37];
+    if (existing_id != NULL) {
+        VgAssetId parsed;
+        if (!host_asset_id_parse(existing_id, &parsed) ||
+            (previous = host_asset_node(host->document, existing_id)) == NULL) {
+            host_error(error, error_capacity, "Asset para reimportar no existe");
+            goto fail;
+        }
+        (void)snprintf(id, sizeof(id), "%s", existing_id);
+    } else {
+        const VgJsonNode *assets = vg_json_object_get(vg_document_root(host->document), "assets");
+        if (assets != NULL && assets->type == VG_JSON_ARRAY) {
+            for (size_t index = 0u; index < assets->as.array.count; ++index) {
+                const VgJsonNode *asset = assets->as.array.items[index];
+                const VgJsonNode *old_hash = vg_json_object_get(asset, "fingerprint");
+                const VgJsonNode *old_id = vg_json_object_get(asset, "id");
+                if (old_hash != NULL && old_id != NULL &&
+                    strcmp(old_hash->as.string.data, fingerprint) == 0) {
+                    (void)snprintf(out_id, id_capacity, "%s", old_id->as.string.data);
+                    host_error(error, error_capacity, "");
+                    free(data);
+                    vg_tool_cancel(batch);
+                    return true;
+                }
+            }
+        }
+        char path_hash[65];
+        host_fingerprint(path, strlen(path), path_hash);
+        (void)snprintf(id, sizeof(id), "%.8s-%.4s-4%.3s-8%.3s-%.12s", path_hash, path_hash + 8,
+                       path_hash + 13, path_hash + 17, path_hash + 20);
+        if (host_asset_node(host->document, id) != NULL) {
+            host_error(error, error_capacity, "Colision de UUID de asset");
+            goto fail;
+        }
+    }
+    char source[128];
+    if (snprintf(source, sizeof(source), "assets/%s.%s", id, glb ? "glb" : "gltf") >=
+        (int)sizeof(source)) {
+        host_error(error, error_capacity, "Ruta de asset demasiado larga");
+        goto fail;
+    }
+    if (!host_validate_model(source, data, bytes, error, error_capacity))
+        goto fail;
+    const char *name = NULL;
+    if (previous != NULL) {
+        const VgJsonNode *name_node = vg_json_object_get(previous, "name");
+        name = name_node->as.string.data;
+    } else {
+        const char *slash = strrchr(path, '/');
+        const char *backslash = strrchr(path, '\\');
+        if (backslash != NULL && (slash == NULL || backslash > slash))
+            slash = backslash;
+        name = slash == NULL ? path : slash + 1u;
+    }
+    if (name[0] == '\0' || strlen(name) > 128u) {
+        host_error(error, error_capacity, "Nombre de asset invalido");
+        goto fail;
+    }
+    char destination[4096];
+    if (!host_ensure_asset_directory(host->level_directory) ||
+        !host_asset_path(host, source, destination)) {
+        host_error(error, error_capacity, "No se pudo preparar carpeta de assets");
+        goto fail;
+    }
+    void *backup = NULL;
+    uint64_t backup_bytes = 0u;
+    bool had_destination = host_read_model(destination, &backup, &backup_bytes);
+    bool same_file = strcmp(path, destination) == 0;
+    if (!same_file && !host_copy_model_file(destination, data, (size_t)bytes)) {
+        host_error(error, error_capacity, "No se pudo copiar el modelo al proyecto");
+        free(backup);
+        goto fail;
+    }
+    char *manifest = host_updated_assets_json(host->document, id, name, source, fingerprint, NULL);
+    VgDocumentDiagnostic diagnostic = {0};
+    bool had_manifest = manifest != NULL;
+    bool queued = had_manifest && vg_tool_set_assets(batch, manifest, &diagnostic);
+    free(manifest);
+    bool committed = queued && host_apply_batch(host, batch, NULL, error, error_capacity);
+    if (!committed) {
+        if (!queued) {
+            host_error(error, error_capacity,
+                       !had_manifest ? "No se pudo construir manifest" : diagnostic.message);
+            vg_tool_cancel(batch);
+        }
+        if (!same_file) {
+            bool restored = false;
+            if (had_destination)
+                restored = host_copy_model_file(destination, backup, (size_t)backup_bytes);
+            else
+                restored = host_remove_file(destination);
+            if (!restored)
+                host_error(error, error_capacity,
+                           "Fallo importacion y rollback; revisa asset copiado");
+        }
+        free(backup);
+        free(data);
+        return false;
+    }
+    free(backup);
+    free(data);
+    (void)snprintf(out_id, id_capacity, "%s", id);
+    host_error(error, error_capacity, "");
+    return true;
+fail:
+    free(data);
+    vg_tool_cancel(batch);
+    return false;
+}
+
+int32_t vg_gpu_host_import_asset(VgGpuHost *host, const char *path, char *id, size_t id_capacity,
+                                 char *error, size_t error_capacity) {
+    return host_import_source(host, path, NULL, id, id_capacity, error, error_capacity);
+}
+
+int32_t vg_gpu_host_reimport_asset(VgGpuHost *host, const char *id, const char *path, char *error,
+                                   size_t error_capacity) {
+    char result_id[37];
+    return host_import_source(host, path, id, result_id, sizeof(result_id), error, error_capacity);
+}
+
+int32_t vg_gpu_host_rename_asset(VgGpuHost *host, const char *id, const char *name, char *error,
+                                 size_t error_capacity) {
+    VgToolBatch *batch = host_begin_edit(host, error, error_capacity);
+    if (batch == NULL)
+        return false;
+    const VgJsonNode *asset = id == NULL ? NULL : host_asset_node(host->document, id);
+    if (asset == NULL || name == NULL || name[0] == '\0' || strlen(name) > 128u) {
+        host_error(error, error_capacity, "Asset o nombre invalido");
+        vg_tool_cancel(batch);
+        return false;
+    }
+    const char *source = vg_json_object_get(asset, "source")->as.string.data;
+    const char *fingerprint = vg_json_object_get(asset, "fingerprint")->as.string.data;
+    char *manifest = host_updated_assets_json(host->document, id, name, source, fingerprint, NULL);
+    VgDocumentDiagnostic diagnostic = {0};
+    bool queued = manifest != NULL && vg_tool_set_assets(batch, manifest, &diagnostic);
+    free(manifest);
+    if (!queued) {
+        host_error(error, error_capacity, diagnostic.message);
+        vg_tool_cancel(batch);
+        return false;
+    }
+    return host_apply_batch(host, batch, NULL, error, error_capacity);
+}
+
+int32_t vg_gpu_host_place_asset(VgGpuHost *host, const char *id, uint32_t node_index, char *uuid,
+                                size_t uuid_capacity, char *error, size_t error_capacity) {
+    VgToolBatch *batch = host_begin_edit(host, error, error_capacity);
+    if (batch == NULL)
+        return false;
+    if (id == NULL || host_asset_node(host->document, id) == NULL || uuid == NULL ||
+        uuid_capacity < 37u) {
+        host_error(error, error_capacity, "Selecciona un asset importado");
+        vg_tool_cancel(batch);
+        return false;
+    }
+    char components[256];
+    (void)snprintf(components, sizeof(components),
+                   "{\"engine.mesh\":{\"version\":1,\"asset\":\"%s\",\"node_index\":%u}}", id,
+                   node_index);
+    VgDocumentTransform transform = {{0.0, -3.0, 1.0}, {0.0, 0.0, 0.0, 1.0}, {1.0, 1.0, 1.0}};
+    VgDocumentDiagnostic diagnostic = {0};
+    if (!vg_tool_create_entity(batch, "$imported-model", NULL, &transform, components,
+                               &diagnostic)) {
+        host_error(error, error_capacity, diagnostic.message);
+        vg_tool_cancel(batch);
+        return false;
+    }
+    VgToolResult result;
+    if (!host_apply_batch(host, batch, &result, error, error_capacity))
+        return false;
+    if (!host_result_id(&result, "$imported-model", uuid, uuid_capacity)) {
+        host_error(error, error_capacity, "No se devolvio el UUID colocado");
+        return false;
+    }
+    (void)vg_gpu_host_select(host, uuid);
+    return true;
+}
+
+int32_t vg_gpu_host_preview_asset(VgGpuHost *host, const char *id, char *error,
+                                  size_t error_capacity) {
+    if (!host_is_current(host) || host->edit == NULL || host->play != NULL) {
+        host_error(error, error_capacity, "Preview requiere modo Editar");
+        return false;
+    }
+    host_clear_preview(host);
+    if (id == NULL || id[0] == '\0') {
+        host_error(error, error_capacity, "");
+        return true;
+    }
+    VgAssetId asset_id;
+    const VgJsonNode *entry = host_asset_node(host->document, id);
+    if (entry == NULL || !host_asset_id_parse(id, &asset_id)) {
+        host_error(error, error_capacity, "Asset no existe");
+        return false;
+    }
+    VgAsset asset = {VG_INVALID_HANDLE_VALUE};
+    VgResult result = host_resolve_asset(host, host->context, asset_id, VG_ASSET_TYPE_MESH, &asset);
+    if (result != VG_OK) {
+        host_error(error, error_capacity, "No se pudo cargar el asset para preview");
+        return false;
+    }
+    VgEntity entity;
+    result = vg_entity_create(host->context, vg_document_instance_world(host->edit), &entity);
+    if (result != VG_OK) {
+        (void)vg_asset_release(host->context, asset);
+        host_error(error, error_capacity, "No se pudo crear preview");
+        return false;
+    }
+    VgMeshRendererDesc mesh = {0};
+    mesh.struct_size = sizeof(mesh);
+    mesh.api_version = VG_API_VERSION;
+    mesh.asset = asset;
+    mesh.mesh_index = VG_RENDER_DEFAULT_INDEX;
+    mesh.material_override = VG_RENDER_DEFAULT_INDEX;
+    mesh.bounds_extent = (VgVec3){0.5f, 0.5f, 0.5f};
+    result = vg_mesh_renderer_set(host->context, entity, &mesh);
+    (void)vg_asset_release(host->context, asset);
+    VgTransform camera;
+    if (result == VG_OK)
+        result = vg_entity_get_world_transform(host->context, host->edit_camera, &camera);
+    if (result == VG_OK) {
+        VgVec3 direction = host_rotate(camera.rotation, (VgVec3){0.0f, 1.0f, 0.0f});
+        VgTransform pose = {0};
+        pose.position =
+            (VgVec3){camera.position.x + direction.x * 3.0f, camera.position.y + direction.y * 3.0f,
+                     camera.position.z + direction.z * 3.0f};
+        pose.rotation = (VgQuat){0.0f, 0.0f, 0.0f, 1.0f};
+        pose.scale = (VgVec3){0.8f, 0.8f, 0.8f};
+        result = vg_entity_set_local_transform(host->context, entity, &pose);
+    }
+    if (result != VG_OK) {
+        (void)vg_entity_destroy(host->context, entity);
+        host_error(error, error_capacity, "No se pudo preparar preview GPU");
+        return false;
+    }
+    host->preview_entity = entity;
+    host->preview_active = true;
+    host_error(error, error_capacity, "");
+    return true;
 }
 
 int32_t vg_gpu_host_add_mesh(VgGpuHost *host, char *uuid, size_t uuid_capacity, char *error,
@@ -1993,6 +2832,291 @@ int32_t vg_gpu_host_entity_label(const VgGpuHost *host, const char *uuid, char *
     return false;
 }
 
+int32_t vg_gpu_host_entity_editor_json(const VgGpuHost *host, const char *uuid, char *json,
+                                       size_t capacity) {
+    if (!host_is_current(host) || host->document == NULL || uuid == NULL || json == NULL ||
+        capacity == 0u)
+        return 0;
+    const VgJsonNode *entity = host_document_entity(host, uuid);
+    if (entity == NULL)
+        return 0;
+    const VgJsonNode *editor = vg_json_object_get(entity, "editor");
+    const VgJsonNode *layer = vg_json_object_get(editor, "layer");
+    const VgJsonNode *group = vg_json_object_get(editor, "group");
+    const VgJsonNode *hidden = vg_json_object_get(editor, "hidden");
+    const VgJsonNode *parent = vg_json_object_get(entity, "parent");
+    const VgJsonNode *mesh =
+        vg_json_object_get(vg_json_object_get(entity, "components"), "engine.mesh");
+    const VgJsonNode *asset = vg_json_object_get(mesh, "asset");
+    char *q_layer = host_json_quote(layer != NULL ? layer->as.string.data : "Default");
+    char *q_group = host_json_quote(group != NULL ? group->as.string.data : "");
+    char *q_parent = host_json_quote(
+        parent != NULL && parent->type == VG_JSON_STRING ? parent->as.string.data : "");
+    char *q_asset = host_json_quote(
+        asset != NULL && asset->type == VG_JSON_STRING ? asset->as.string.data : "");
+    if (q_layer == NULL || q_group == NULL || q_parent == NULL || q_asset == NULL) {
+        free(q_layer);
+        free(q_group);
+        free(q_parent);
+        free(q_asset);
+        return 0;
+    }
+    int written = snprintf(
+        json, capacity, "{\"layer\":%s,\"group\":%s,\"hidden\":%s,\"parent\":%s,\"asset\":%s}",
+        q_layer, q_group,
+        hidden != NULL && hidden->type == VG_JSON_BOOL && hidden->as.boolean ? "true" : "false",
+        q_parent, q_asset);
+    free(q_layer);
+    free(q_group);
+    free(q_parent);
+    free(q_asset);
+    return written > 0 && (size_t)written < capacity ? written : 0;
+}
+
+typedef struct VgHostFieldSpec {
+    const char *path;
+    const char *type;
+    const char *unit;
+    const char *minimum;
+    const char *maximum;
+    const char *component;
+    const char *member;
+    int transform_group;
+    int transform_axis;
+} VgHostFieldSpec;
+
+static const VgHostFieldSpec host_fields[] = {
+    {"transform.position.x", "number", "m", "-10000", "10000", NULL, NULL, 1, 0},
+    {"transform.position.y", "number", "m", "-10000", "10000", NULL, NULL, 1, 1},
+    {"transform.position.z", "number", "m", "-10000", "10000", NULL, NULL, 1, 2},
+    {"transform.scale.x", "number", "factor", "0.001", "10000", NULL, NULL, 2, 0},
+    {"transform.scale.y", "number", "factor", "0.001", "10000", NULL, NULL, 2, 1},
+    {"transform.scale.z", "number", "factor", "0.001", "10000", NULL, NULL, 2, 2},
+    {"engine.mesh.asset", "reference", "", "null", "null", "engine.mesh", "asset", 0, 0},
+    {"engine.mesh.node_index", "integer", "", "0", "4095", "engine.mesh", "node_index", 0, 0},
+    {"editor.layer", "string", "", "null", "null", "editor", "layer", 0, 0},
+    {"editor.group", "string", "", "null", "null", "editor", "group", 0, 0},
+    {"editor.hidden", "boolean", "", "null", "null", "editor", "hidden", 0, 0},
+};
+
+static const VgHostFieldSpec *host_field_spec(const char *path) {
+    for (size_t index = 0u; index < sizeof(host_fields) / sizeof(host_fields[0]); ++index)
+        if (strcmp(host_fields[index].path, path) == 0)
+            return &host_fields[index];
+    return NULL;
+}
+
+static const VgJsonNode *host_field_node(const VgJsonNode *entity, const VgHostFieldSpec *spec) {
+    if (spec->transform_group != 0) {
+        const VgJsonNode *transform = vg_json_object_get(entity, "transform");
+        const VgJsonNode *array =
+            vg_json_object_get(transform, spec->transform_group == 1 ? "position" : "scale");
+        if (array == NULL || array->type != VG_JSON_ARRAY ||
+            array->as.array.count <= (size_t)spec->transform_axis)
+            return NULL;
+        return array->as.array.items[spec->transform_axis];
+    }
+    const VgJsonNode *component =
+        strcmp(spec->component, "editor") == 0
+            ? vg_json_object_get(entity, "editor")
+            : vg_json_object_get(vg_json_object_get(entity, "components"), spec->component);
+    return vg_json_object_get(component, spec->member);
+}
+
+static char *host_field_value(const VgJsonNode *entity, const VgHostFieldSpec *spec) {
+    const VgJsonNode *value = host_field_node(entity, spec);
+    if (value != NULL) {
+        char *json = NULL;
+        size_t length = 0u;
+        return vg_json_write_canonical(value, &json, &length) ? json : NULL;
+    }
+    const char *fallback = strcmp(spec->path, "engine.mesh.node_index") == 0 ? "0"
+                           : strcmp(spec->path, "editor.layer") == 0         ? "\"Default\""
+                           : strcmp(spec->path, "editor.group") == 0         ? "\"\""
+                           : strcmp(spec->path, "editor.hidden") == 0        ? "false"
+                                                                             : "null";
+    char *copy = malloc(strlen(fallback) + 1u);
+    if (copy != NULL)
+        (void)strcpy(copy, fallback);
+    return copy;
+}
+
+int32_t vg_gpu_host_selection_fields_json(const VgGpuHost *host, char *json, size_t capacity) {
+    if (!host_is_current(host) || host->document == NULL || json == NULL || capacity < 14u)
+        return 0;
+    size_t length = 0u;
+    json[0] = '\0';
+    if (!host_json_append(json, capacity, &length, "{\"fields\":["))
+        return 0;
+    bool first = true;
+    for (size_t field = 0u; field < sizeof(host_fields) / sizeof(host_fields[0]); ++field) {
+        const VgHostFieldSpec *spec = &host_fields[field];
+        if (host->selection_count == 0u)
+            break;
+        bool all_have_component = true;
+        char *first_value = NULL;
+        bool mixed = false;
+        for (size_t selected = 0u; selected < host->selection_count; ++selected) {
+            const VgJsonNode *entity = host_document_entity(host, host->selection_uuids[selected]);
+            if (entity == NULL) {
+                all_have_component = false;
+                break;
+            }
+            if (spec->component != NULL && strcmp(spec->component, "editor") != 0 &&
+                vg_json_object_get(vg_json_object_get(entity, "components"), spec->component) ==
+                    NULL) {
+                all_have_component = false;
+                break;
+            }
+            char *value = host_field_value(entity, spec);
+            if (value == NULL) {
+                all_have_component = false;
+                break;
+            }
+            if (first_value == NULL)
+                first_value = value;
+            else {
+                mixed = mixed || strcmp(first_value, value) != 0;
+                free(value);
+            }
+        }
+        if (!all_have_component) {
+            free(first_value);
+            continue;
+        }
+        char field_json[2048];
+        int written = snprintf(field_json, sizeof(field_json),
+                               "%s{\"path\":\"%s\",\"type\":\"%s\",\"unit\":\"%s\",\"min\":%s,"
+                               "\"max\":%s,\"value\":%s,\"mixed\":%s,\"editable\":true}",
+                               first ? "" : ",", spec->path, spec->type, spec->unit, spec->minimum,
+                               spec->maximum, first_value, mixed ? "true" : "false");
+        free(first_value);
+        if (written <= 0 || (size_t)written >= sizeof(field_json) ||
+            !host_json_append(json, capacity, &length, field_json))
+            return 0;
+        first = false;
+    }
+    return host_json_append(json, capacity, &length, "]}") ? (int32_t)length : 0;
+}
+
+static bool host_field_valid(const VgGpuHost *host, const VgHostFieldSpec *spec,
+                             const VgJsonNode *value, char *error, size_t error_capacity) {
+    if (strcmp(spec->type, "number") == 0 || strcmp(spec->type, "integer") == 0) {
+        if (value->type != VG_JSON_NUMBER || !isfinite(value->as.number.value))
+            goto invalid;
+        double minimum = strtod(spec->minimum, NULL);
+        double maximum = strtod(spec->maximum, NULL);
+        if (value->as.number.value < minimum || value->as.number.value > maximum ||
+            (strcmp(spec->type, "integer") == 0 &&
+             floor(value->as.number.value) != value->as.number.value))
+            goto invalid;
+        return true;
+    }
+    if (strcmp(spec->type, "boolean") == 0) {
+        if (value->type != VG_JSON_BOOL)
+            goto invalid;
+        return true;
+    }
+    if (value->type != VG_JSON_STRING || value->as.string.length > 128u)
+        goto invalid;
+    if (strcmp(spec->type, "reference") == 0) {
+        VgAssetId id;
+        if (!host_asset_id_parse(value->as.string.data, &id) ||
+            (host_asset_node(host->document, value->as.string.data) == NULL &&
+             strcmp(value->as.string.data, "4a30312d-6174-7269-756d-2d6d6f64656c") != 0))
+            goto invalid;
+    } else if (strcmp(spec->path, "editor.layer") == 0 && value->as.string.length == 0u) {
+        goto invalid;
+    }
+    return true;
+invalid:
+    (void)snprintf(error, error_capacity, "%s: valor fuera del tipo/rango o referencia ausente",
+                   spec->path);
+    return false;
+}
+
+int32_t vg_gpu_host_set_selection_fields_json(VgGpuHost *host, const char *json, char *error,
+                                              size_t error_capacity) {
+    if (!host_is_current(host) || host->document == NULL || json == NULL ||
+        host->selection_count == 0u || host->play != NULL) {
+        host_error(error, error_capacity, "Selecciona objetos en modo Editar");
+        return false;
+    }
+    VgJsonError parse_error = {0};
+    VgJsonNode *root = vg_json_parse(json, strlen(json), &parse_error);
+    const VgJsonNode *updates = vg_json_object_get(root, "updates");
+    if (root == NULL || root->type != VG_JSON_OBJECT || updates == NULL ||
+        updates->type != VG_JSON_ARRAY || updates->as.array.count == 0u ||
+        updates->as.array.count > 32u) {
+        host_error(error, error_capacity, "Se requiere updates con 1-32 campos");
+        vg_json_destroy(root);
+        return false;
+    }
+    const VgHostFieldSpec *specs[32];
+    char *values[32] = {0};
+    bool valid = true;
+    for (size_t index = 0u; index < updates->as.array.count; ++index) {
+        const VgJsonNode *update = updates->as.array.items[index];
+        const VgJsonNode *path = vg_json_object_get(update, "path");
+        const VgJsonNode *value = vg_json_object_get(update, "value");
+        specs[index] = path != NULL && path->type == VG_JSON_STRING
+                           ? host_field_spec(path->as.string.data)
+                           : NULL;
+        if (specs[index] == NULL || value == NULL ||
+            !host_field_valid(host, specs[index], value, error, error_capacity)) {
+            if (specs[index] == NULL)
+                host_error(error, error_capacity, "Campo de inspector no soportado");
+            valid = false;
+            break;
+        }
+        size_t length = 0u;
+        if (!vg_json_write_canonical(value, &values[index], &length)) {
+            host_error(error, error_capacity, "Sin memoria para campo de inspector");
+            valid = false;
+            break;
+        }
+    }
+    VgToolBatch *batch = valid ? host_begin_edit(host, error, error_capacity) : NULL;
+    valid = valid && batch != NULL;
+    VgDocumentDiagnostic diagnostic = {0};
+    for (size_t selected = 0u; valid && selected < host->selection_count; ++selected) {
+        const char *id = host->selection_uuids[selected];
+        const VgJsonNode *entity = host_document_entity(host, id);
+        VgDocumentTransform transform;
+        if (entity == NULL ||
+            !vg_document_entity_transform(host->document, id, &transform, &diagnostic)) {
+            host_error(error, error_capacity, "Entidad seleccionada no existe");
+            valid = false;
+            break;
+        }
+        bool transform_changed = false;
+        for (size_t index = 0u; valid && index < updates->as.array.count; ++index) {
+            const VgHostFieldSpec *spec = specs[index];
+            const VgJsonNode *value = vg_json_object_get(updates->as.array.items[index], "value");
+            if (spec->transform_group != 0) {
+                double *array = spec->transform_group == 1 ? transform.position : transform.scale;
+                array[spec->transform_axis] = value->as.number.value;
+                transform_changed = true;
+            } else {
+                valid = vg_tool_patch_field(batch, id, spec->component, spec->member, values[index],
+                                            &diagnostic);
+            }
+        }
+        if (valid && transform_changed)
+            valid = vg_tool_set_transform(batch, id, &transform, &diagnostic);
+    }
+    if (!valid) {
+        if (batch != NULL)
+            vg_tool_cancel(batch);
+        if (error != NULL && error_capacity != 0u && error[0] == '\0')
+            host_error(error, error_capacity, diagnostic.message);
+    }
+    for (size_t index = 0u; index < 32u; ++index)
+        free(values[index]);
+    vg_json_destroy(root);
+    return valid && host_apply_batch(host, batch, NULL, error, error_capacity);
+}
+
 int32_t vg_gpu_host_add_room(VgGpuHost *host, char *uuid, size_t uuid_capacity, char *error,
                              size_t error_capacity) {
     if (uuid == NULL || uuid_capacity < 37u) {
@@ -2150,6 +3274,25 @@ int32_t vg_gpu_host_set_selected_transform(VgGpuHost *host, const float position
     return host_apply_batch(host, batch, NULL, error, error_capacity);
 }
 
+typedef struct VgHostSaveCopy {
+    char path[4096];
+    void *previous;
+    uint64_t previous_bytes;
+    bool existed;
+} VgHostSaveCopy;
+
+static bool host_rollback_save_copies(VgHostSaveCopy *copies, size_t count) {
+    bool okay = true;
+    for (size_t index = count; index > 0u; --index) {
+        VgHostSaveCopy *copy = &copies[index - 1u];
+        bool restored = copy->existed ? host_copy_model_file(copy->path, copy->previous,
+                                                             (size_t)copy->previous_bytes)
+                                      : host_remove_file(copy->path);
+        okay = restored && okay;
+    }
+    return okay;
+}
+
 int32_t vg_gpu_host_save_level(VgGpuHost *host, const char *path, char *error,
                                size_t error_capacity) {
     if (!host_is_current(host) || host->document == NULL || host->play != NULL ||
@@ -2158,6 +3301,11 @@ int32_t vg_gpu_host_save_level(VgGpuHost *host, const char *path, char *error,
         return false;
     }
     VgDocumentDiagnostic diagnostic = {0};
+    char target_directory[2048];
+    if (!host_level_directory(path, target_directory)) {
+        host_error(error, error_capacity, "Ruta de guardado invalida");
+        return false;
+    }
     uint64_t revision = vg_document_revision(host->document);
     char *canonical = NULL;
     size_t length = 0u;
@@ -2165,15 +3313,67 @@ int32_t vg_gpu_host_save_level(VgGpuHost *host, const char *path, char *error,
         host_error(error, error_capacity, diagnostic.message);
         return false;
     }
+    VgHostSaveCopy copies[32] = {0};
+    size_t copy_count = 0u;
+    if (strcmp(target_directory, host->level_directory) != 0) {
+        const VgJsonNode *assets = vg_json_object_get(vg_document_root(host->document), "assets");
+        if (assets != NULL && assets->type == VG_JSON_ARRAY) {
+            for (size_t index = 0u; index < assets->as.array.count; ++index) {
+                const VgJsonNode *source =
+                    vg_json_object_get(assets->as.array.items[index], "source");
+                char old_path[4096];
+                void *data = NULL;
+                uint64_t bytes = 0u;
+                VgHostSaveCopy *copy = &copies[copy_count];
+                bool prepared =
+                    source != NULL && source->type == VG_JSON_STRING &&
+                    host_asset_path(host, source->as.string.data, old_path) &&
+                    host_read_model(old_path, &data, &bytes) &&
+                    host_ensure_source_parents(target_directory, source->as.string.data) &&
+                    snprintf(copy->path, sizeof(copy->path), "%s/%s", target_directory,
+                             source->as.string.data) < (int)sizeof(copy->path);
+                if (prepared) {
+                    int state = host_settings_file_state(copy->path);
+                    prepared = state >= 0;
+                    copy->existed = state == 1;
+                    if (copy->existed)
+                        prepared =
+                            host_read_model(copy->path, &copy->previous, &copy->previous_bytes);
+                }
+                if (prepared)
+                    prepared = host_copy_model_file(copy->path, data, (size_t)bytes);
+                free(data);
+                if (!prepared) {
+                    bool rolled_back = host_rollback_save_copies(copies, copy_count);
+                    for (size_t old = 0u; old <= copy_count; ++old)
+                        free(copies[old].previous);
+                    free(canonical);
+                    host_error(error, error_capacity,
+                               rolled_back ? "No se pudieron copiar modelos de Guardar como"
+                                           : "Fallo copia y rollback de modelos de Guardar como");
+                    return false;
+                }
+                ++copy_count;
+            }
+        }
+    }
     if (!vg_document_save_atomic(host->document, path, revision, &diagnostic)) {
         host_error(error, error_capacity, diagnostic.message);
+        if (!host_rollback_save_copies(copies, copy_count))
+            host_error(error, error_capacity,
+                       "Fallo guardado y rollback de modelos de Guardar como");
+        for (size_t index = 0u; index < copy_count; ++index)
+            free(copies[index].previous);
         free(canonical);
         return false;
     }
+    for (size_t index = 0u; index < copy_count; ++index)
+        free(copies[index].previous);
     free(host->saved_json);
     host->saved_json = canonical;
     host->saved_length = length;
     host->saved_revision = revision;
+    (void)snprintf(host->level_directory, sizeof(host->level_directory), "%s", target_directory);
     host_error(error, error_capacity, "");
     return true;
 }
@@ -2215,14 +3415,24 @@ int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path, const 
         return false;
     }
     VgDocumentDiagnostic diagnostic = {0};
+    char previous_directory[2048];
+    (void)snprintf(previous_directory, sizeof(previous_directory), "%s", host->level_directory);
+    if (!host_level_directory(level_path, host->level_directory)) {
+        host_error(error, error_capacity, "Ruta de nivel invalida");
+        return false;
+    }
     VgDocument *document = NULL;
     if (!vg_document_open_file(level_path, &document, &diagnostic)) {
+        (void)snprintf(host->level_directory, sizeof(host->level_directory), "%s",
+                       previous_directory);
         host_error(error, error_capacity, diagnostic.message);
         return false;
     }
     char *canonical = NULL;
     size_t length = 0u;
     if (!vg_document_write_canonical(document, &canonical, &length, &diagnostic)) {
+        (void)snprintf(host->level_directory, sizeof(host->level_directory), "%s",
+                       previous_directory);
         host_error(error, error_capacity, diagnostic.message);
         vg_document_destroy(document);
         return false;
@@ -2230,6 +3440,8 @@ int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path, const 
     VgDocumentInstance *candidate = NULL;
     VgEntity camera;
     if (!host_prepare_instance(host, document, &candidate, &camera, &diagnostic, true)) {
+        (void)snprintf(host->level_directory, sizeof(host->level_directory), "%s",
+                       previous_directory);
         host_error(error, error_capacity, diagnostic.message);
         free(canonical);
         vg_document_destroy(document);

@@ -840,6 +840,193 @@ internal static class Program
         Console.WriteLine("PASS E02 WPF multi, gizmo, gesture cancel/commit, batch, save/reopen GPU");
     }
 
+    private static void VerifyE03Studio(string output, string level, string model)
+    {
+        Directory.CreateDirectory(output);
+        string sourceCopy = Path.Combine(output, "e03-source.level.json");
+        string savedDirectory = Path.Combine(output, "saved");
+        Directory.CreateDirectory(savedDirectory);
+        string saved = Path.Combine(savedDirectory, "e03-edited.level.json");
+        File.Copy(level, sourceCopy, true);
+        byte[] sourceHash = SHA256.HashData(File.ReadAllBytes(sourceCopy));
+        var app = new Application();
+        app.Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("pack://application:,,,/retro_studio;component/Themes/Graphite.xaml")
+        });
+        var window = App.CreateAtriumWindow(["--atrium", "--level", sourceCopy]);
+        var content = (FrameworkElement)window.Content;
+        window.Content = null;
+        using var source = new HwndSource(new HwndSourceParameters("VESTIGIO E03 editor")
+        {
+            Width = 1400, Height = 900, WindowStyle = unchecked((int)0x80000000)
+        });
+        try
+        {
+            source.RootVisual = content;
+            Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            content.Measure(new Size(1400, 900));
+            content.Arrange(new Rect(0, 0, 1400, 900));
+            content.UpdateLayout();
+            var viewport = window.GpuViewport;
+            Check(viewport.IsNativeReady && viewport.RenderForTest(),
+                $"E03 no abrió GPU: {viewport.LastError}");
+            string[] originalAssets = viewport.AssetLibrary()
+                .Select(asset => asset.Id).ToArray();
+            ulong originalRevision = GpuHostNative.vg_gpu_host_document_revision(
+                viewport.NativeHandleForTest);
+            Check(window.ImportAssetForTest(model),
+                $"No se importó GLB en Studio: {viewport.LastError}");
+            var assets = viewport.AssetLibrary();
+            Check(assets.Count == originalAssets.Length + 1,
+                "La biblioteca no añadió exactamente un asset importado.");
+            var imported = assets.Single(asset => !originalAssets.Contains(asset.Id));
+            Check(Guid.TryParse(imported.Id, out _) && imported.Fingerprint.Length > 0,
+                "Importación no expuso identidad y fingerprint.");
+            ulong importedRevision = GpuHostNative.vg_gpu_host_document_revision(
+                viewport.NativeHandleForTest);
+            Check(importedRevision >= originalRevision,
+                "La importación retrocedió revisión del documento.");
+            var assetList = (ListBox)window.FindName("AssetList")!;
+            assetList.SelectedItem = assetList.Items.OfType<ListBoxItem>()
+                .Single(row => (string?)row.Tag == imported.Id);
+            string previewDetails = ((TextBlock)window.FindName("AssetDetails")!).Text;
+            bool previewReady = previewDetails.Contains("GPU temporal");
+            Check(GpuHostNative.vg_gpu_host_document_revision(
+                      viewport.NativeHandleForTest) == importedRevision,
+                "Vista previa cambió revisión del documento.");
+            if (previewReady)
+                Check(viewport.RenderForTest() && viewport.CaptureForTest(
+                          Path.Combine(output, "e03-preview-gpu.png")),
+                    "No se pudo capturar preview GPU.");
+            var place = (Button)window.FindName("PlaceAssetButton")!;
+            Check(place.IsEnabled, "Colocar no está habilitado para un asset listo.");
+            place.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            string first = viewport.SelectedUuid;
+            Check(Guid.TryParse(first, out _), "Colocar no creó entidad estable.");
+            place.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            string second = viewport.SelectedUuid;
+            Check(first != second && Guid.TryParse(second, out _),
+                "Dos colocaciones no crearon entidades independientes.");
+            Check(viewport.TryPreviewAsset("") && viewport.RenderForTest() &&
+                  viewport.CaptureForTest(Path.Combine(output,
+                      "e03-placed-visible-gpu.png")),
+                "No se capturó modelo colocado antes de ocultarlo.");
+            Check(viewport.TrySelectMany([first, second]), "No se logró multiselección.");
+            window.RefreshForTest();
+            Check(window.InspectorInputForTest("transform.position.x") is TextBox xField,
+                "Inspector no expuso posición tipada.");
+            var positionInput = (TextBox)window.InspectorInputForTest("transform.position.x")!;
+            positionInput.Text = "2.25";
+            ulong beforeBatch = GpuHostNative.vg_gpu_host_document_revision(viewport.NativeHandleForTest);
+            ((Button)window.FindName("ApplyFieldsButton")!).RaiseEvent(
+                new RoutedEventArgs(ButtonBase.ClickEvent));
+            Check(GpuHostNative.vg_gpu_host_document_revision(viewport.NativeHandleForTest) ==
+                  beforeBatch + 1, "Multi-edición no creó un solo comando undo.");
+            foreach (string id in new[] { first, second })
+            {
+                Check(viewport.TrySelect(id) && viewport.TryGetSelectedTransform(
+                          out float[] position, out _, out _) &&
+                      Math.Abs(position[0] - 2.25f) < 0.001f,
+                    "Multi-edición no aplicó X a ambos objetos.");
+            }
+            Check(viewport.TryUndo(), "No se pudo deshacer multi-edición.");
+            foreach (string id in new[] { first, second })
+            {
+                Check(viewport.TrySelect(id) && viewport.TryGetSelectedTransform(
+                          out float[] position, out _, out _) &&
+                      Math.Abs(position[0] - 2.25f) > 0.1f,
+                    "Undo no revirtió todo el lote.");
+            }
+            Check(viewport.TryRedo() && viewport.TrySelectMany([first, second]),
+                "Redo de lote falló.");
+            window.RefreshForTest();
+            ((TextBox)window.InspectorInputForTest("transform.scale.x")!).Text = "0";
+            ((Button)window.FindName("ApplyFieldsButton")!).RaiseEvent(
+                new RoutedEventArgs(ButtonBase.ClickEvent));
+            Check(window.InspectorErrorForTest("transform.scale.x").Length > 0 &&
+                  ((ListBox)window.FindName("ProblemsList")!).Items.Count > 0,
+                "Valor fuera de rango no apareció junto al campo y en Problemas.");
+            window.RefreshForTest();
+            ((TextBox)window.FindName("EditorLayer")!).Text = "Arquitectura";
+            ((TextBox)window.FindName("EditorGroup")!).Text = "Hall";
+            ((Button)window.FindName("ApplyOrganizationButton")!).RaiseEvent(
+                new RoutedEventArgs(ButtonBase.ClickEvent));
+            Check(viewport.TryGetEntityEditor(first, out string metadata) &&
+                  metadata.Contains("Arquitectura") && metadata.Contains("Hall"),
+                "Grupo/capa editor no llegó al documento nativo.");
+            var hide = (CheckBox)window.FindName("HideLayer")!;
+            hide.IsChecked = true;
+            Check(viewport.TryGetEntityEditor(first, out metadata) &&
+                  metadata.Contains("\"hidden\":true"),
+                $"Ocultar capa no guardó estado editorial: {metadata}; " +
+                $"UI={hide.IsChecked}, error={viewport.LastError}, " +
+                $"status={((TextBlock)window.FindName("StatusText")!).Text}");
+            Check(viewport.RenderForTest() && viewport.CaptureForTest(
+                      Path.Combine(output, "e03-hidden-editor-gpu.png")) &&
+                  viewport.TrySetPlaying(true) && viewport.RenderForTest() &&
+                  viewport.CaptureForTest(Path.Combine(output, "e03-play-visible-gpu.png")) &&
+                  viewport.TrySetPlaying(false) &&
+                  viewport.TryGetEntityEditor(first, out metadata) &&
+                  metadata.Contains("\"hidden\":true"),
+                "Ocultar capa editorial afectó el modo Probar o perdió metadatos.");
+            Check(viewport.TrySelect(first) && viewport.TrySetSelectedTransform(
+                      [1.5f, 0f, 1f], [0f, 0f, 0f, 1f], [1f, 1f, 1f]),
+                "No se pudo transformar modelo colocado.");
+            Check(window.TrySaveToPath(saved) && window.TryReopen(),
+                $"Save As/Reopen falló: {viewport.LastError}");
+            Check(SHA256.HashData(File.ReadAllBytes(sourceCopy)).AsSpan()
+                .SequenceEqual(sourceHash), "Se alteró el archivo fuente.");
+            using (var json = System.Text.Json.JsonDocument.Parse(File.ReadAllText(saved)))
+            {
+                var root = json.RootElement;
+                var manifest = root.GetProperty("assets").EnumerateArray()
+                    .Single(asset => asset.GetProperty("id").GetString() == imported.Id);
+                Check(manifest.GetProperty("fingerprint").GetString()?.Length > 0,
+                    "Round-trip perdió fingerprint del asset.");
+                string assetSource = manifest.GetProperty("source").GetString() ?? "";
+                string copiedModel = Path.GetFullPath(Path.Combine(
+                    Path.GetDirectoryName(saved)!, assetSource));
+                Check(File.Exists(copiedModel) &&
+                      SHA256.HashData(File.ReadAllBytes(copiedModel)).AsSpan()
+                          .SequenceEqual(SHA256.HashData(File.ReadAllBytes(model))),
+                    "Round-trip perdió bytes de malla/material del GLB importado.");
+                var entities = root.GetProperty("entities").EnumerateArray().ToDictionary(
+                    item => item.GetProperty("id").GetString()!);
+                foreach (string id in new[] { first, second })
+                    Check(entities[id].GetProperty("components").GetProperty("engine.mesh")
+                              .GetProperty("asset").GetString() == imported.Id,
+                        "Round-trip perdió referencia de modelo/material por entidad.");
+            }
+            Check(viewport.AssetLibrary().Any(asset => asset.Id == imported.Id),
+                "Reabrir perdió identidad del asset.");
+            Check(viewport.TryRenameAsset(imported.Id, "Escultura") &&
+                  viewport.TryReimportAsset(imported.Id, model) &&
+                  viewport.AssetLibrary().Any(asset => asset.Id == imported.Id &&
+                      asset.Name == "Escultura"),
+                $"Rename/Reimport perdió identidad: {viewport.LastError}");
+            Check(viewport.RenderForTest() && viewport.CaptureForTest(
+                      Path.Combine(output, "e03-reopened-hidden-gpu.png")),
+                "No se capturó modelo editado en GPU.");
+            content.UpdateLayout();
+            var studioImage = new RenderTargetBitmap(1400, 900, 96, 96,
+                PixelFormats.Pbgra32);
+            studioImage.Render(content);
+            var studioPng = new PngBitmapEncoder();
+            studioPng.Frames.Add(BitmapFrame.Create(studioImage));
+            using (var stream = File.Create(Path.Combine(output, "e03-studio.png")))
+                studioPng.Save(stream);
+            Check(previewReady,
+                $"No se activó preview GPU: {previewDetails}; {viewport.LastError}");
+        }
+        finally
+        {
+            source.RootVisual = null;
+            window.GpuViewport.Dispose();
+        }
+        Console.WriteLine("PASS E03 WPF import/preview/place/inspector/layer/save/reopen/rename GPU");
+    }
+
     private static void VerifyWave9Room(string output, string level)
     {
         Directory.CreateDirectory(output);
@@ -1297,6 +1484,12 @@ internal static class Program
             if (args.Length == 3 && args[0] == "--e02")
             {
                 VerifyE02Editing(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
+                return 0;
+            }
+            if (args.Length == 4 && args[0] == "--e03")
+            {
+                VerifyE03Studio(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]),
+                    Path.GetFullPath(args[3]));
                 return 0;
             }
             if (args.Length == 4 && args[0] == "--e05")

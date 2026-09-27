@@ -369,23 +369,24 @@ static bool vg_content_validate_component(VgContentValidation *validation, const
         double color[3], intensity = 0.0, range = 0.0;
         if (!vg_content_string(vg_json_object_get(node, "type"), &type) ||
             strcmp(type, "point") != 0 ||
-            !vg_content_validate_vec(validation, vg_json_object_get(node, "color_linear"),
-                                     3u, path, id, color) ||
+            !vg_content_validate_vec(validation, vg_json_object_get(node, "color_linear"), 3u, path,
+                                     id, color) ||
             !vg_content_number(vg_json_object_get(node, "intensity"), &intensity) ||
-            !vg_content_number(vg_json_object_get(node, "range"), &range) ||
-            intensity < 0.0 || intensity > 8.0 || range < 0.1 || range > 50.0 ||
-            color[0] < 0.0 || color[0] > 1.0 || color[1] < 0.0 || color[1] > 1.0 ||
-            color[2] < 0.0 || color[2] > 1.0)
+            !vg_content_number(vg_json_object_get(node, "range"), &range) || intensity < 0.0 ||
+            intensity > 8.0 || range < 0.1 || range > 50.0 || color[0] < 0.0 || color[0] > 1.0 ||
+            color[1] < 0.0 || color[1] > 1.0 || color[2] < 0.0 || color[2] > 1.0)
             return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT, path, id,
-                                   "light v1 requires point type, linear RGB in [0,1], intensity in [0,8] and range in [0.1,50] metres");
+                                   "light v1 requires point type, linear RGB in [0,1], intensity "
+                                   "in [0,8] and range in [0.1,50] metres");
     } else if (strcmp(name, "engine.door") == 0) {
         double angle = 0.0, speed = 0.0;
         if (!vg_content_number(vg_json_object_get(node, "open_angle_radians"), &angle) ||
             angle == 0.0 || fabs(angle) > 3.14159265358979323846 ||
             !vg_content_number(vg_json_object_get(node, "speed_radians_per_second"), &speed) ||
             speed <= 0.0 || speed > 8.0)
-            return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT, path, id,
-                                   "door requires nonzero signed open angle up to pi and speed in (0,8]");
+            return vg_content_fail(
+                validation, VG_CONTENT_DIAGNOSTIC_FORMAT, path, id,
+                "door requires nonzero signed open angle up to pi and speed in (0,8]");
     } else {
         const char *shape = NULL;
         const char *motion = NULL;
@@ -510,7 +511,8 @@ static bool vg_content_validate_environment(VgContentValidation *validation,
                 !vg_content_number(vg_json_object_get(fog, "end"), &end) || start < 0.0 ||
                 end <= start || end > 500.0)
                 return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT,
-                                       "$.environment.fog", id, "linear fog requires 0<=start<end<=500 metres");
+                                       "$.environment.fog", id,
+                                       "linear fog requires 0<=start<end<=500 metres");
         } else if (strcmp(mode, "none") != 0) {
             return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT,
                                    "$.environment.fog.mode", id,
@@ -530,6 +532,73 @@ static bool vg_content_find_id(const char *id, const char *const *ids, size_t co
         }
     }
     return false;
+}
+
+static bool vg_content_asset_source_safe(const char *source) {
+    if (source == NULL || source[0] == '\0' || source[0] == '/' || source[0] == '\\' ||
+        strchr(source, '\\') != NULL || strchr(source, ':') != NULL || strlen(source) > 512u)
+        return false;
+    const char *segment = source;
+    for (const char *cursor = source;; ++cursor) {
+        if (*cursor == '/' || *cursor == '\0') {
+            size_t length = (size_t)(cursor - segment);
+            if (length == 0u || (length == 1u && segment[0] == '.') ||
+                (length == 2u && segment[0] == '.' && segment[1] == '.'))
+                return false;
+            if (*cursor == '\0')
+                return true;
+            segment = cursor + 1u;
+        }
+    }
+}
+
+static bool vg_content_validate_assets(VgContentValidation *validation, const VgJsonNode *root,
+                                       const char *level_id) {
+    const VgJsonNode *assets = vg_json_object_get(root, "assets");
+    if (assets == NULL)
+        return true;
+    if (assets->type != VG_JSON_ARRAY || assets->as.array.count > 32u)
+        return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_CAPACITY, "$.assets", level_id,
+                               "assets must be an array with at most 32 entries");
+    for (size_t index = 0u; index < assets->as.array.count; ++index) {
+        const VgJsonNode *asset = assets->as.array.items[index];
+        char path[128];
+        (void)snprintf(path, sizeof(path), "$.assets[%zu]", index);
+        if (asset == NULL || asset->type != VG_JSON_OBJECT)
+            return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_TYPE, path, level_id,
+                                   "asset must be an object");
+        const char *id = NULL, *name = NULL, *source = NULL, *fingerprint = NULL;
+        char member[160];
+        (void)snprintf(member, sizeof(member), "%s.id", path);
+        if (!vg_content_validate_uuid_node(validation, vg_json_object_get(asset, "id"), member,
+                                           level_id, &id))
+            return false;
+        if (strcmp(id, level_id) == 0)
+            return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_DUPLICATE, member, id,
+                                   "asset UUID duplicates level UUID");
+        for (size_t prior = 0u; prior < index; ++prior) {
+            const VgJsonNode *other = vg_json_object_get(assets->as.array.items[prior], "id");
+            if (other != NULL && other->type == VG_JSON_STRING &&
+                strcmp(other->as.string.data, id) == 0)
+                return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_DUPLICATE, member, id,
+                                       "duplicate asset UUID");
+        }
+        if (!vg_content_string(vg_json_object_get(asset, "name"), &name) || name[0] == '\0' ||
+            strlen(name) > 128u ||
+            !vg_content_string(vg_json_object_get(asset, "source"), &source) ||
+            !vg_content_asset_source_safe(source) ||
+            !vg_content_string(vg_json_object_get(asset, "fingerprint"), &fingerprint) ||
+            strlen(fingerprint) != 64u)
+            return vg_content_fail(
+                validation, VG_CONTENT_DIAGNOSTIC_FORMAT, path, id,
+                "asset needs name, safe relative source and SHA-256 fingerprint");
+        for (size_t byte = 0u; byte < 64u; ++byte)
+            if (!((fingerprint[byte] >= '0' && fingerprint[byte] <= '9') ||
+                  (fingerprint[byte] >= 'a' && fingerprint[byte] <= 'f')))
+                return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT, path, id,
+                                       "asset fingerprint must be lowercase SHA-256 hex");
+    }
+    return true;
 }
 
 static bool vg_content_validate_geometry(VgContentValidation *validation,
@@ -649,7 +718,8 @@ static bool vg_content_validate_level(VgContentValidation *validation, const VgJ
     if (!vg_content_validate_capabilities(validation, root, VG_CONTENT_LEVEL) ||
         !vg_content_validate_environment(validation, vg_json_object_get(root, "environment"),
                                          level_id) ||
-        !vg_content_validate_geometry(validation, vg_json_object_get(root, "geometry"), level_id))
+        !vg_content_validate_geometry(validation, vg_json_object_get(root, "geometry"), level_id) ||
+        !vg_content_validate_assets(validation, root, level_id))
         return false;
     const VgJsonNode *entities = vg_json_object_get(root, "entities");
     if (entities == NULL || entities->type != VG_JSON_ARRAY)
@@ -706,19 +776,31 @@ static bool vg_content_validate_level(VgContentValidation *validation, const VgJ
         (void)snprintf(member_path, sizeof(member_path), "%s.components", path);
         if (!vg_content_validate_components(validation, entity, member_path, ids[index]))
             return false;
+        const VgJsonNode *editor = vg_json_object_get(entity, "editor");
+        if (editor != NULL) {
+            const char *layer = NULL, *group = NULL;
+            const VgJsonNode *hidden = vg_json_object_get(editor, "hidden");
+            if (editor->type != VG_JSON_OBJECT ||
+                !vg_content_string(vg_json_object_get(editor, "layer"), &layer) ||
+                !vg_content_string(vg_json_object_get(editor, "group"), &group) ||
+                layer[0] == '\0' || strlen(layer) > 64u || strlen(group) > 64u || hidden == NULL ||
+                hidden->type != VG_JSON_BOOL)
+                return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT, path, ids[index],
+                                       "editor metadata requires layer, group and hidden");
+        }
         const VgJsonNode *components = vg_json_object_get(entity, "components");
         if (vg_json_object_get(components, "engine.light") != NULL && ++light_count > 4u)
             return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_CAPACITY, member_path,
                                    ids[index], "this renderer supports at most four point lights");
         if (vg_json_object_get(components, "engine.door") != NULL) {
             for (size_t prior = 0u; prior < index; ++prior) {
-                const VgJsonNode *prior_components = vg_json_object_get(
-                    entities->as.array.items[prior], "components");
+                const VgJsonNode *prior_components =
+                    vg_json_object_get(entities->as.array.items[prior], "components");
                 if (vg_json_object_get(prior_components, "engine.door") != NULL &&
                     parents[prior] != NULL && strcmp(parents[index], parents[prior]) == 0) {
                     (void)snprintf(member_path, sizeof(member_path), "%s.parent", path);
-                    return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_DUPLICATE,
-                                           member_path, ids[index],
+                    return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_DUPLICATE, member_path,
+                                           ids[index],
                                            "door hinge '%s' is already used by panel '%s'",
                                            parents[index], ids[prior]);
                 }

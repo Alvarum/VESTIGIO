@@ -587,6 +587,135 @@ public sealed class GpuViewportHost : HwndHost
         return true;
     }
 
+    internal IReadOnlyList<GpuAssetInfo> AssetLibrary()
+    {
+        if (!_levelOpen || _nativeHost == 0) return [];
+        byte[] json = new byte[131072];
+        if (GpuHostNative.vg_gpu_host_assets_json(_nativeHost, json,
+                (nuint)json.Length) == 0)
+        {
+            LastError = "No se pudo leer la biblioteca de assets.";
+            return [];
+        }
+        try { return GpuAssetInfo.Parse(GpuHostNative.Error(json)); }
+        catch (System.Text.Json.JsonException exception)
+        {
+            LastError = $"Biblioteca de assets inválida: {exception.Message}";
+            return [];
+        }
+    }
+
+    internal IReadOnlyList<GpuInspectorField> SelectionFields()
+    {
+        if (!_levelOpen || _nativeHost == 0 || IsPlaying) return [];
+        byte[] json = new byte[65536];
+        if (GpuHostNative.vg_gpu_host_selection_fields_json(_nativeHost, json,
+                (nuint)json.Length) == 0)
+        {
+            LastError = "No se pudo leer el esquema del inspector.";
+            return [];
+        }
+        try { return GpuInspectorField.Parse(GpuHostNative.Error(json)); }
+        catch (System.Text.Json.JsonException exception)
+        {
+            LastError = $"Esquema de inspector inválido: {exception.Message}";
+            return [];
+        }
+    }
+
+    internal bool TrySetSelectionFields(IReadOnlyDictionary<string, object?> changes)
+    {
+        if (!_levelOpen || _nativeHost == 0 || IsPlaying || _gestureActive ||
+            changes.Count == 0) return false;
+        string json = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            updates = changes.Select(change => new { path = change.Key,
+                value = change.Value }).ToArray()
+        });
+        byte[] error = new byte[512];
+        if (GpuHostNative.vg_gpu_host_set_selection_fields_json(_nativeHost,
+                json, error, (nuint)error.Length) != 0)
+            return true;
+        LastError = GpuHostNative.Error(error);
+        return false;
+    }
+
+    internal bool TryImportAsset(string path, out string id)
+    {
+        id = "";
+        if (!_levelOpen || _nativeHost == 0 || IsPlaying || _gestureActive)
+            return false;
+        byte[] nativeId = new byte[80], error = new byte[512];
+        if (GpuHostNative.vg_gpu_host_import_asset(_nativeHost, path, nativeId,
+                (nuint)nativeId.Length, error, (nuint)error.Length) == 0)
+        {
+            LastError = GpuHostNative.Error(error);
+            return false;
+        }
+        id = GpuHostNative.Error(nativeId);
+        return true;
+    }
+
+    internal bool TryPlaceAsset(string id, out string entityId)
+    {
+        entityId = "";
+        if (!_levelOpen || _nativeHost == 0 || IsPlaying || _gestureActive)
+            return false;
+        byte[] uuid = new byte[80], error = new byte[512];
+        if (GpuHostNative.vg_gpu_host_place_asset(_nativeHost, id, 0,
+                uuid, (nuint)uuid.Length, error, (nuint)error.Length) == 0)
+        {
+            LastError = GpuHostNative.Error(error);
+            return false;
+        }
+        entityId = GpuHostNative.Error(uuid);
+        SetSelection(entityId);
+        return true;
+    }
+
+    internal bool TryPreviewAsset(string id)
+    {
+        if (!_levelOpen || _nativeHost == 0 || IsPlaying) return false;
+        byte[] error = new byte[512];
+        if (GpuHostNative.vg_gpu_host_preview_asset(_nativeHost, id,
+                error, (nuint)error.Length) != 0)
+            return true;
+        LastError = GpuHostNative.Error(error);
+        return false;
+    }
+
+    internal bool TryReimportAsset(string id, string path) => TryAssetCommand(id,
+        (native, asset, error, length) =>
+            GpuHostNative.vg_gpu_host_reimport_asset(native, asset, path, error, length));
+
+    internal bool TryGetEntityEditor(string id, out string json)
+    {
+        json = "";
+        if (!_levelOpen || _nativeHost == 0) return false;
+        byte[] buffer = new byte[2048];
+        if (GpuHostNative.vg_gpu_host_entity_editor_json(_nativeHost, id,
+                buffer, (nuint)buffer.Length) == 0)
+            return false;
+        json = GpuHostNative.Error(buffer);
+        return true;
+    }
+
+    internal bool TryRenameAsset(string id, string name) => TryAssetCommand(id,
+        (native, asset, error, length) =>
+            GpuHostNative.vg_gpu_host_rename_asset(native, asset, name, error, length));
+
+    private bool TryAssetCommand(string id,
+        Func<nint, string, byte[], nuint, int> command)
+    {
+        if (!_levelOpen || _nativeHost == 0 || IsPlaying || _gestureActive)
+            return false;
+        byte[] error = new byte[512];
+        if (command(_nativeHost, id, error, (nuint)error.Length) != 0)
+            return true;
+        LastError = GpuHostNative.Error(error);
+        return false;
+    }
+
     internal bool TrySaveLevel(string path)
     {
         byte[] error = new byte[512];

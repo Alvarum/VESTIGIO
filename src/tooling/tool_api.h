@@ -59,6 +59,17 @@ bool vg_tool_set_component(VgToolBatch *batch, const char *id_or_temporary,
                            VgDocumentDiagnostic *out_diagnostic);
 bool vg_tool_set_environment(VgToolBatch *batch, const char *environment_json,
                              VgDocumentDiagnostic *out_diagnostic);
+/* Editor metadata is persisted with the level but never changes runtime parenting or visibility. */
+bool vg_tool_set_editor(VgToolBatch *batch, const char *id_or_temporary, const char *editor_json,
+                        VgDocumentDiagnostic *out_diagnostic);
+/* Replaces the level asset manifest atomically with the rest of a batch. */
+bool vg_tool_set_assets(VgToolBatch *batch, const char *assets_json,
+                        VgDocumentDiagnostic *out_diagnostic);
+/* Patch one member of a component or the editor metadata while retaining every
+ * other member. Several patches in one batch create one undo action. */
+bool vg_tool_patch_field(VgToolBatch *batch, const char *id_or_temporary,
+                         const char *component_name, const char *field_name, const char *value_json,
+                         VgDocumentDiagnostic *out_diagnostic);
 
 /* validate and preview are dry runs. commit consumes the batch only after a
  * successful publication; a failed candidate remains cancelable/retryable. */

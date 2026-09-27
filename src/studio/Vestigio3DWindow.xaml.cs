@@ -139,14 +139,27 @@ public partial class Vestigio3DWindow : Window
             ParentTarget.Items.Clear();
             ParentTarget.Items.Add(new ComboBoxItem { Content = "Raíz", Tag = "" });
             IReadOnlyList<string> ids = Viewport.EntityUuids();
-            for (int index = 0; index < ids.Count; ++index)
+            RefreshEditorMetadata(ids);
+            Dictionary<string, string> assetNames = Viewport.AssetLibrary()
+                .ToDictionary(asset => asset.Id, asset => asset.Name,
+                    StringComparer.OrdinalIgnoreCase);
+            foreach (string id in HierarchyOrder(ids))
             {
-                string id = ids[index];
+                _entityEditor.TryGetValue(id, out var editor);
                 string label = Viewport.RoomPieceLabel(id) ??
-                    (_entityLabels.TryGetValue(id, out string? known) ? known : "Objeto");
+                    (_entityLabels.TryGetValue(id, out string? known) ? known :
+                    !string.IsNullOrEmpty(editor.Asset) &&
+                    assetNames.TryGetValue(editor.Asset, out string? assetName)
+                        ? assetName : "Objeto");
+                string organization = !string.IsNullOrEmpty(editor.Layer) ||
+                    !string.IsNullOrEmpty(editor.Group)
+                    ? $"[{editor.Layer}/{editor.Group}] " : "";
+                string depth = new string(' ', 2 * HierarchyDepth(id)) +
+                    (!string.IsNullOrEmpty(editor.Parent) ? "↳ " : "");
                 var row = new ListBoxItem
                 {
-                    Content = $"{label} · {id[^8..]}",
+                    Content = $"{depth}{organization}{label} · {id[^8..]}" +
+                        (editor.Hidden ? " · oculto" : ""),
                     Tag = id,
                     ToolTip = id
                 };
@@ -165,6 +178,8 @@ public partial class Vestigio3DWindow : Window
             _refreshingHierarchy = false;
         }
         RefreshSelectionFields();
+        RefreshAssetLibrary();
+        RefreshSchemaInspector();
         RefreshDirty();
         VisualSummaryText.Text = Viewport.VisualSummary;
         if (Viewport.VisualMode >= 0 && VisualProfile.SelectedIndex != Viewport.VisualMode)
@@ -300,10 +315,23 @@ public partial class Vestigio3DWindow : Window
         ReopenButton.IsEnabled = enabled;
         EntityList.IsEnabled = enabled;
         TransformPanel.IsEnabled = enabled && editableSelection;
+        ImportAssetButton.IsEnabled = enabled;
+        AssetList.IsEnabled = enabled;
+        PlaceAssetButton.IsEnabled = enabled && AssetList.SelectedItem is not null;
+        ReimportAssetButton.IsEnabled = enabled && AssetList.SelectedItem is not null;
+        RenameAssetButton.IsEnabled = enabled && AssetList.SelectedItem is not null;
+        ApplyFieldsButton.IsEnabled = enabled && _fieldViews.Count > 0;
+        ApplyOrganizationButton.IsEnabled = enabled && editableSelection;
+        HideLayer.IsEnabled = enabled && editableSelection;
     }
 
     private void Play_Click(object sender, RoutedEventArgs e)
     {
+        if (_previewedAssetId.Length > 0)
+        {
+            _ = Viewport.TryPreviewAsset("");
+            _previewedAssetId = "";
+        }
         if (!Viewport.TrySetPlaying(true))
         {
             StatusText.Text = "No se pudo iniciar la prueba 3D";
@@ -463,6 +491,7 @@ public partial class Vestigio3DWindow : Window
     internal bool TryReopen()
     {
         if (!Viewport.TryReopenLevel()) return false;
+        _previewedAssetId = "";
         LoadEntityLabels(ActiveLevelPath);
         CameraMode.SelectedIndex = 0;
         RefreshDocument();
@@ -616,6 +645,7 @@ public partial class Vestigio3DWindow : Window
             ? prefix : $"{prefix}: {Viewport.LastError}";
         FieldError.Text = detail;
         StatusText.Text = detail;
+        RecordProblem(detail);
     }
 
     private void ConfirmClose(object? sender, CancelEventArgs e)

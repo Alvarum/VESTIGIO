@@ -71,8 +71,7 @@ VG_GPU_HOST_API int32_t vg_gpu_host_gizmo_config(VgGpuHost *host, int32_t operat
                                                  int32_t pivot);
 VG_GPU_HOST_API int32_t vg_gpu_host_gizmo_hit(VgGpuHost *host, float u, float v);
 VG_GPU_HOST_API int32_t vg_gpu_host_gizmo_drag_direction(VgGpuHost *host, float u, float v,
-                                                         int32_t axis, float *out_x,
-                                                         float *out_y);
+                                                         int32_t axis, float *out_x, float *out_y);
 VG_GPU_HOST_API uint64_t vg_gpu_host_document_revision(const VgGpuHost *host);
 /* Wave 4 document editing. All mutations require Edit mode on the owner thread.
  * Quaternions use XYZW and transforms are local to the entity parent. */
@@ -85,6 +84,30 @@ VG_GPU_HOST_API int32_t vg_gpu_host_add_room(VgGpuHost *host, char *uuid, size_t
 /* Optional stable label for an authored room piece. Returns 0 for other entities. */
 VG_GPU_HOST_API int32_t vg_gpu_host_entity_label(const VgGpuHost *host, const char *uuid,
                                                  char *label, size_t label_capacity);
+/* E03: document-owned model manifest. All strings are UTF-8; JSON queries return
+ * 0 on failure or the written byte count (excluding NUL). Imported sources are
+ * copied beside the level under assets/<stable-id>.glb/.gltf. */
+VG_GPU_HOST_API int32_t vg_gpu_host_assets_json(const VgGpuHost *host, char *json, size_t capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_import_asset(VgGpuHost *host, const char *path, char *id,
+                                                 size_t id_capacity, char *error,
+                                                 size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_reimport_asset(VgGpuHost *host, const char *id,
+                                                   const char *path, char *error,
+                                                   size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_rename_asset(VgGpuHost *host, const char *id, const char *name,
+                                                 char *error, size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_place_asset(VgGpuHost *host, const char *id,
+                                                uint32_t node_index, char *uuid,
+                                                size_t uuid_capacity, char *error,
+                                                size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_preview_asset(VgGpuHost *host, const char *id, char *error,
+                                                  size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_entity_editor_json(const VgGpuHost *host, const char *uuid,
+                                                       char *json, size_t capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_selection_fields_json(const VgGpuHost *host, char *json,
+                                                          size_t capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_set_selection_fields_json(VgGpuHost *host, const char *json,
+                                                              char *error, size_t error_capacity);
 VG_GPU_HOST_API int32_t vg_gpu_host_duplicate_selected(VgGpuHost *host, char *uuid,
                                                        size_t uuid_capacity, char *error,
                                                        size_t error_capacity);

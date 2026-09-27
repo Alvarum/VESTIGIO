@@ -6,6 +6,7 @@ Esta guía es para el **motor VESTIGIO nuevo** y su escena de ejemplo Atrium 3D.
 
 - Windows con controlador gráfico capaz de crear un contexto **OpenGL 3.3**. El Atrium se renderiza en la GPU.
 - SDK de **.NET 10** para Studio (interfaz WPF).
+- **Python 3** para ejecutar la prueba integrada de importación en Player; no hace falta para abrir Studio o la demo.
 - Conexión a Internet durante la primera preparación: el script descarga herramientas y dependencias dentro de `.tools`, `.deps` y `.nuget` del proyecto.
 
 ```powershell
@@ -62,6 +63,16 @@ Para editar varios objetos a la vez, selecciónalos con **Ctrl** o **Mayús** en
 Pulsa **Probar** para jugar una instancia aislada del documento con colisiones, salto y puerta interactiva (**E**); **Detener** vuelve a Editar sin guardar los cambios ocurridos durante la prueba. El selector **Imagen** alterna Limpio/Retro. Los deslizantes de **Audio** ajustan volúmenes; el sonido se reproduce en Probar. Para usar otro archivo de preferencias, inicia Studio con `-Settings ruta.settings` (o el ejecutable directo con `--settings ruta.settings`).
 
 Las dos piezas animadas aparecen sólo en **Probar**; **Editar** muestra el documento guardado sin ellas. Detener destruye esas instancias de juego.
+
+## Importar modelos y organizar la escena (E03)
+
+En **Editar**, abre **Biblioteca de assets** y pulsa **Importar GLB/glTF…**. Elige un `.glb` o un `.gltf` con buffers e imágenes embebidos. Al seleccionar el recurso aparece una vista previa temporal en el viewport GPU; no modifica el nivel. Si no puede cargarse, verás un placeholder y el motivo en **Problemas**. La biblioteca muestra el ID estable, el estado y la huella SHA-256 del archivo.
+
+Pulsa **Colocar** para crear una entidad. Puedes colocar el mismo modelo varias veces: las entidades tienen UUID distintos y comparten un recurso GPU. Selecciónalas en **Jerarquía** con Ctrl/Mayús. El **Inspector** muestra campos tipados, unidades, rangos y referencias; cambia sólo los campos que quieras unificar y pulsa **Aplicar campos**. Los valores no tocados se conservan; el lote se deshace en un solo paso. Un valor inválido se marca junto a su campo y en **Problemas**.
+
+En **Organización del editor** asigna grupo y capa. **Ocultar capa en editor** afecta la vista Editar; en **Probar** y Player esos objetos vuelven a verse. **Renombrar** cambia el nombre del recurso sin cambiar su ID; **Reimportar** actualiza el archivo conservando ese ID. Usa **Guardar como…** en una carpeta de trabajo: Studio copia los modelos importados a `assets/<ID>.glb` o `.gltf` junto al nivel. Después **Reabrir** comprueba el resultado, y puedes jugar el archivo con `tools/run-3d-demo.ps1 -Level "ruta\nivel.level.json"`.
+
+Los `.gltf` que dependen de archivos externos se rechazan con un diagnóstico; para este flujo expórtalos como `.glb` o con datos embebidos. Si modificas un modelo copiado sin reimportarlo, Studio/Player detectan que su huella ya no coincide.
 
 ## Compilar y ejecutar pruebas
 

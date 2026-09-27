@@ -1,6 +1,8 @@
 #include "player/demo_scene.h"
 
+#include "assets/import/sha256.h"
 #include "content/document.h"
+#include "content/document_internal.h"
 #include "content/document_runtime.h"
 #include "gamekit/atrium_animation.h"
 #include "vestigio/controller.h"
@@ -41,10 +43,131 @@ const VgDocumentInstance *vg_demo_scene_document_instance(const VgDemoScene *sce
 static const VgAssetId kAtriumAsset = {{0x4a, 0x30, 0x31, 0x2d, 0x61, 0x74, 0x72, 0x69, 0x75, 0x6d,
                                         0x2d, 0x6d, 0x6f, 0x64, 0x65, 0x6c}};
 
+static int demo_hex_digit(char value) {
+    if (value >= '0' && value <= '9')
+        return value - '0';
+    if (value >= 'a' && value <= 'f')
+        return value - 'a' + 10;
+    return -1;
+}
+
+static bool demo_parse_asset_id(const char *text, VgAssetId *out_id) {
+    if (text == NULL || out_id == NULL || strlen(text) != 36u)
+        return false;
+    size_t byte = 0u;
+    for (size_t index = 0u; index < 36u;) {
+        if (index == 8u || index == 13u || index == 18u || index == 23u) {
+            if (text[index++] != '-')
+                return false;
+            continue;
+        }
+        int high = demo_hex_digit(text[index++]);
+        int low = demo_hex_digit(text[index++]);
+        if (high < 0 || low < 0)
+            return false;
+        out_id->bytes[byte++] = (uint8_t)((high << 4) | low);
+    }
+    return byte == sizeof(out_id->bytes);
+}
+
+static const char *demo_json_text(const VgJsonNode *node) {
+    return node != NULL && node->type == VG_JSON_STRING ? node->as.string.data : NULL;
+}
+
+static bool demo_asset_path(const char *level_path, const char *relative, char *out,
+                            size_t capacity) {
+    const char *slash = strrchr(level_path, '/');
+    const char *backslash = strrchr(level_path, '\\');
+    if (backslash != NULL && (slash == NULL || backslash > slash))
+        slash = backslash;
+    size_t prefix = slash == NULL ? 0u : (size_t)(slash - level_path) + 1u;
+    size_t length = strlen(relative);
+    if (prefix + length + 1u > capacity)
+        return false;
+    memcpy(out, level_path, prefix);
+    memcpy(out + prefix, relative, length + 1u);
+    return true;
+}
+
+static VgResult demo_register_document_assets(VgDemoScene *scene, const char *level_path) {
+    const VgJsonNode *assets = vg_json_object_get(vg_document_root(scene->document), "assets");
+    if (assets == NULL)
+        return VG_OK;
+    if (assets->type != VG_JSON_ARRAY || assets->as.array.count > 32u)
+        return VG_ERROR_INVALID_ARGUMENT;
+    uint64_t source_total = 0u;
+    for (size_t index = 0u; index < assets->as.array.count; ++index) {
+        const VgJsonNode *entry = assets->as.array.items[index];
+        const char *id_text = demo_json_text(vg_json_object_get(entry, "id"));
+        const char *relative = demo_json_text(vg_json_object_get(entry, "source"));
+        const char *fingerprint = demo_json_text(vg_json_object_get(entry, "fingerprint"));
+        VgAssetId id = {{0}};
+        char path[4096];
+        if (!demo_parse_asset_id(id_text, &id) || relative == NULL ||
+            !demo_asset_path(level_path, relative, path, sizeof(path))) {
+            (void)fprintf(stderr, "Asset %zu invalido en el nivel\n", index);
+            return VG_ERROR_INVALID_ARGUMENT;
+        }
+        FILE *file = fopen(path, "rb");
+        if (file == NULL) {
+            (void)fprintf(stderr, "No se pudo abrir asset %s: %s\n", id_text, path);
+            return VG_ERROR_NOT_FOUND;
+        }
+        long length = 0;
+        bool read_ok = fseek(file, 0, SEEK_END) == 0 && (length = ftell(file)) > 0 &&
+                       length <= 16 * 1024 * 1024 &&
+                       source_total + (uint64_t)length <= UINT64_C(128) * 1024u * 1024u &&
+                       fseek(file, 0, SEEK_SET) == 0;
+        void *data = read_ok ? malloc((size_t)length) : NULL;
+        read_ok = data != NULL && fread(data, 1u, (size_t)length, file) == (size_t)length;
+        (void)fclose(file);
+        if (!read_ok) {
+            free(data);
+            (void)fprintf(stderr, "No se pudo leer asset %s: %s\n", id_text, path);
+            return VG_ERROR_INVALID_ARGUMENT;
+        }
+        source_total += (uint64_t)length;
+        VgSha256 hash;
+        uint8_t digest[32];
+        char hex[65];
+        static const char digits[] = "0123456789abcdef";
+        vg_sha256_init(&hash);
+        vg_sha256_update(&hash, data, (size_t)length);
+        vg_sha256_finish(&hash, digest);
+        for (size_t byte = 0u; byte < sizeof(digest); ++byte) {
+            hex[byte * 2u] = digits[digest[byte] >> 4u];
+            hex[byte * 2u + 1u] = digits[digest[byte] & 15u];
+        }
+        hex[64] = '\0';
+        if (fingerprint == NULL || strcmp(hex, fingerprint) != 0) {
+            free(data);
+            (void)fprintf(stderr, "Asset %s cambio desde su importacion: %s\n", id_text, path);
+            return VG_ERROR_INVALID_ARGUMENT;
+        }
+        VgAssetSourceDesc source = {0};
+        source.struct_size = sizeof(source);
+        source.api_version = VG_API_VERSION;
+        source.id = id;
+        source.type = VG_ASSET_TYPE_MESH;
+        source.importer_version = VG_STATIC_MODEL_IMPORTER_VERSION;
+        source.version = 1u;
+        source.source_path = relative;
+        source.source_data = data;
+        source.source_size = (uint64_t)length;
+        VgResult result = vg_asset_catalog_upsert(scene->context, &source);
+        free(data);
+        if (result != VG_OK) {
+            (void)fprintf(stderr, "No se pudo importar asset %s: %s (%d)\n", id_text, path, result);
+            return result;
+        }
+    }
+    return VG_OK;
+}
+
 static VgResult demo_resolve_asset(void *user, VgContext *context, VgAssetId id, VgAssetType type,
                                    VgAsset *out_asset) {
     (void)user;
-    if (type != VG_ASSET_TYPE_MESH || memcmp(id.bytes, kAtriumAsset.bytes, sizeof(id.bytes)) != 0)
+    if (type != VG_ASSET_TYPE_MESH)
         return VG_ERROR_NOT_FOUND;
     VgAssetRequest request = {0};
     request.struct_size = sizeof(request);
@@ -223,6 +346,9 @@ VgResult vg_demo_scene_create(VgContext *context, const char *level_path, const 
         result = VG_ERROR_INVALID_ARGUMENT;
         goto fail;
     }
+    result = demo_register_document_assets(scene, level_path);
+    if (result != VG_OK)
+        goto fail;
     VgDocumentInstanceDesc instance_desc = {demo_resolve_asset, scene, 2u};
     result = vg_document_instantiate(context, scene->document, &instance_desc, &scene->instance,
                                      &diagnostic);

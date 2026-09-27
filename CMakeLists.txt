@@ -288,6 +288,19 @@ if(RETRO_BUILD_APPS)
             set_tests_properties(vestigio_gpu_host_e02 PROPERTIES
                 ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin"
                 LABELS "window;gpu;studio;document;app")
+            add_executable(vestigio_gpu_host_e03_test tests/platform/gpu_host_e03_test.c)
+            retro_target(vestigio_gpu_host_e03_test)
+            target_include_directories(vestigio_gpu_host_e03_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
+            target_link_libraries(vestigio_gpu_host_e03_test PRIVATE vestigio_gpu_host vestigio_tool)
+            file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/e03-host-evidence")
+            add_test(NAME vestigio_gpu_host_e03 COMMAND vestigio_gpu_host_e03_test
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.gltf"
+                "${PROJECT_SOURCE_DIR}/tests/assets/fixtures/static_triangle.glb"
+                "${CMAKE_BINARY_DIR}/e03-host-evidence")
+            set_tests_properties(vestigio_gpu_host_e03 PROPERTIES
+                ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin"
+                LABELS "window;gpu;studio;asset;document;app")
             add_test(NAME retro_studio_authoring COMMAND dotnet
                 "${CMAKE_BINARY_DIR}/bin/RetroForge.Studio.Tests.dll"
                 "${CMAKE_BINARY_DIR}/studio-evidence"
@@ -337,6 +350,13 @@ if(RETRO_BUILD_APPS)
                 "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json")
             set_tests_properties(vestigio_studio_e02 PROPERTIES
                 LABELS "window;gpu;studio;document;app")
+            add_test(NAME vestigio_studio_e03 COMMAND dotnet
+                "${CMAKE_BINARY_DIR}/bin/RetroForge.Studio.Tests.dll"
+                --e03 "${CMAKE_BINARY_DIR}/studio-e03-evidence"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json"
+                "${PROJECT_SOURCE_DIR}/tests/assets/fixtures/static_triangle.glb")
+            set_tests_properties(vestigio_studio_e03 PROPERTIES
+                LABELS "window;gpu;studio;asset;document;app")
         endif()
         add_executable(retro_platform_test tests/platform_test.c)
         retro_target(retro_platform_test)
@@ -389,6 +409,19 @@ if(RETRO_BUILD_APPS)
     add_dependencies(retro_player retro_assets)
     add_dependencies(vestigio_player retro_assets)
     if(BUILD_TESTING)
+        find_package(Python3 COMPONENTS Interpreter QUIET)
+        if(Python3_Interpreter_FOUND)
+            add_test(NAME vestigio_player_e03_import COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/player/e03_imported_level.py"
+                "$<TARGET_FILE:vestigio_player>"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json"
+                "${PROJECT_SOURCE_DIR}/tests/assets/fixtures/static_triangle.glb"
+                "${CMAKE_BINARY_DIR}/e03-player-evidence")
+            set_tests_properties(vestigio_player_e03_import PROPERTIES
+                LABELS "window;gpu;asset;document;app")
+        else()
+            message(WARNING "Python 3 is required to run vestigio_player_e03_import; the application itself does not require Python")
+        endif()
         add_test(NAME vestigio_player_demo COMMAND vestigio_player --smoke 8)
         set_tests_properties(vestigio_player_demo PROPERTIES LABELS "window;gpu;sdk;app")
         add_test(NAME vestigio_player_collision COMMAND vestigio_player --smoke 240)

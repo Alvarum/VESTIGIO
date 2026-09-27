@@ -187,6 +187,51 @@ internal static class GpuHostNative
         [Out] byte[] error, nuint errorCapacity);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_assets_json(nint host, [Out] byte[] json,
+        nuint jsonCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_import_asset(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+        [Out] byte[] id, nuint idCapacity, [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_reimport_asset(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string id,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_rename_asset(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string id,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_place_asset(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string id, uint nodeIndex,
+        [Out] byte[] uuid, nuint uuidCapacity, [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_preview_asset(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string id,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_selection_fields_json(nint host,
+        [Out] byte[] json, nuint jsonCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_entity_editor_json(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string id,
+        [Out] byte[] json, nuint jsonCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_set_selection_fields_json(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int vg_gpu_host_save_level(nint host,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
         [Out] byte[] error, nuint errorCapacity);

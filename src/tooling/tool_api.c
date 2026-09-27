@@ -15,7 +15,10 @@ typedef enum VgToolCommandType {
     VG_TOOL_SET_TRANSFORM,
     VG_TOOL_REPARENT,
     VG_TOOL_SET_COMPONENT,
-    VG_TOOL_SET_ENVIRONMENT
+    VG_TOOL_SET_ENVIRONMENT,
+    VG_TOOL_SET_EDITOR,
+    VG_TOOL_SET_ASSETS,
+    VG_TOOL_PATCH_FIELD
 } VgToolCommandType;
 
 typedef struct VgToolCommand {
@@ -169,6 +172,16 @@ static bool vg_tool_json_object(const char *json) {
     VgJsonError error = {0};
     VgJsonNode *node = vg_json_parse(json, strlen(json), &error);
     bool valid = node != NULL && node->type == VG_JSON_OBJECT;
+    vg_json_destroy(node);
+    return valid;
+}
+
+static bool vg_tool_json_array(const char *json) {
+    if (json == NULL)
+        return false;
+    VgJsonError error = {0};
+    VgJsonNode *node = vg_json_parse(json, strlen(json), &error);
+    bool valid = node != NULL && node->type == VG_JSON_ARRAY;
     vg_json_destroy(node);
     return valid;
 }
@@ -389,6 +402,75 @@ bool vg_tool_set_environment(VgToolBatch *batch, const char *environment_json,
         --batch->command_count;
         return false;
     }
+    return true;
+}
+
+bool vg_tool_set_editor(VgToolBatch *batch, const char *id_or_temporary, const char *editor_json,
+                        VgDocumentDiagnostic *out_diagnostic) {
+    if (batch == NULL || !vg_tool_reference(id_or_temporary))
+        return vg_tool_fail(out_diagnostic, VG_DOCUMENT_INVALID_ARGUMENT, "queue", "$.editor",
+                            id_or_temporary, batch, "editor requires an entity reference");
+    VgToolCommand *command = vg_tool_queue(batch, out_diagnostic);
+    if (command == NULL)
+        return false;
+    command->type = VG_TOOL_SET_EDITOR;
+    (void)snprintf(command->primary, sizeof(command->primary), "%s", id_or_temporary);
+    if (!vg_tool_copy_json(&command->json, editor_json, batch, "$.editor", id_or_temporary,
+                           out_diagnostic)) {
+        --batch->command_count;
+        return false;
+    }
+    return true;
+}
+
+bool vg_tool_set_assets(VgToolBatch *batch, const char *assets_json,
+                        VgDocumentDiagnostic *out_diagnostic) {
+    if (batch == NULL || !vg_tool_json_array(assets_json))
+        return vg_tool_fail(out_diagnostic, VG_DOCUMENT_INVALID_ARGUMENT, "queue", "$.assets", NULL,
+                            batch, "assets must be one JSON array");
+    VgToolCommand *command = vg_tool_queue(batch, out_diagnostic);
+    if (command == NULL)
+        return false;
+    command->type = VG_TOOL_SET_ASSETS;
+    command->json = malloc(strlen(assets_json) + 1u);
+    if (command->json == NULL) {
+        --batch->command_count;
+        return vg_tool_fail(out_diagnostic, VG_DOCUMENT_OUT_OF_MEMORY, "queue", "$.assets", NULL,
+                            batch, "cannot copy asset manifest");
+    }
+    (void)strcpy(command->json, assets_json);
+    return true;
+}
+
+bool vg_tool_patch_field(VgToolBatch *batch, const char *id_or_temporary,
+                         const char *component_name, const char *field_name, const char *value_json,
+                         VgDocumentDiagnostic *out_diagnostic) {
+    if (batch == NULL || !vg_tool_reference(id_or_temporary) || component_name == NULL ||
+        field_name == NULL || value_json == NULL || component_name[0] == '\0' ||
+        field_name[0] == '\0' || strlen(component_name) >= sizeof(batch->commands[0].component) ||
+        strlen(field_name) >= sizeof(batch->commands[0].secondary))
+        return vg_tool_fail(out_diagnostic, VG_DOCUMENT_INVALID_ARGUMENT, "queue", "$.field",
+                            id_or_temporary, batch, "patch requires entity, component and field");
+    VgJsonError parse_error = {0};
+    VgJsonNode *value = vg_json_parse(value_json, strlen(value_json), &parse_error);
+    if (value == NULL)
+        return vg_tool_fail(out_diagnostic, VG_DOCUMENT_INVALID_ARGUMENT, "queue", "$.field",
+                            id_or_temporary, batch, "patch value is not valid JSON");
+    vg_json_destroy(value);
+    VgToolCommand *command = vg_tool_queue(batch, out_diagnostic);
+    if (command == NULL)
+        return false;
+    command->type = VG_TOOL_PATCH_FIELD;
+    (void)snprintf(command->primary, sizeof(command->primary), "%s", id_or_temporary);
+    (void)snprintf(command->component, sizeof(command->component), "%s", component_name);
+    (void)snprintf(command->secondary, sizeof(command->secondary), "%s", field_name);
+    command->json = malloc(strlen(value_json) + 1u);
+    if (command->json == NULL) {
+        --batch->command_count;
+        return vg_tool_fail(out_diagnostic, VG_DOCUMENT_OUT_OF_MEMORY, "queue", "$.field",
+                            id_or_temporary, batch, "cannot copy patch value");
+    }
+    (void)strcpy(command->json, value_json);
     return true;
 }
 
@@ -747,6 +829,16 @@ static bool vg_tool_apply_command(VgDocument *document, const VgToolBatch *batch
         }
         return true;
     }
+    if (command->type == VG_TOOL_SET_ASSETS) {
+        VgJsonError error = {0};
+        VgJsonNode *assets = vg_json_parse(command->json, strlen(command->json), &error);
+        if (assets == NULL || !vg_tool_object_set(document, root, "assets", assets)) {
+            vg_json_destroy(assets);
+            return vg_tool_fail(diagnostic, VG_DOCUMENT_OUT_OF_MEMORY, "apply", "$.assets", NULL,
+                                batch, "cannot set asset manifest");
+        }
+        return true;
+    }
     const char *id = vg_tool_resolve(batch, command->primary);
     size_t index = 0u;
     VgJsonNode *entity = id == NULL ? NULL : vg_tool_find_entity(root, id, &index);
@@ -779,6 +871,45 @@ static bool vg_tool_apply_command(VgDocument *document, const VgToolBatch *batch
         if (!vg_tool_set_parent_node(document, entity, parent))
             return vg_tool_fail(diagnostic, VG_DOCUMENT_OUT_OF_MEMORY, "apply", "$.parent", id,
                                 batch, "cannot set parent");
+        return true;
+    }
+    if (command->type == VG_TOOL_SET_EDITOR) {
+        VgJsonNode *editor = vg_tool_parse_object(command->json);
+        if (editor == NULL || !vg_tool_object_set(document, entity, "editor", editor)) {
+            vg_json_destroy(editor);
+            return vg_tool_fail(diagnostic, VG_DOCUMENT_OUT_OF_MEMORY, "apply", "$.editor", id,
+                                batch, "cannot set editor metadata");
+        }
+        return true;
+    }
+    if (command->type == VG_TOOL_PATCH_FIELD) {
+        VgJsonNode *target = NULL;
+        if (strcmp(command->component, "editor") == 0) {
+            target = (VgJsonNode *)(uintptr_t)vg_json_object_get(entity, "editor");
+            if (target == NULL) {
+                target =
+                    vg_tool_parse_object("{\"layer\":\"Default\",\"group\":\"\",\"hidden\":false}");
+                if (target == NULL || !vg_tool_object_set(document, entity, "editor", target)) {
+                    vg_json_destroy(target);
+                    return vg_tool_fail(diagnostic, VG_DOCUMENT_OUT_OF_MEMORY, "apply", "$.editor",
+                                        id, batch, "cannot create editor metadata");
+                }
+            }
+        } else {
+            VgJsonNode *components =
+                (VgJsonNode *)(uintptr_t)vg_json_object_get(entity, "components");
+            target = (VgJsonNode *)(uintptr_t)vg_json_object_get(components, command->component);
+        }
+        if (target == NULL || target->type != VG_JSON_OBJECT)
+            return vg_tool_fail(diagnostic, VG_DOCUMENT_NOT_FOUND, "apply", "$.components", id,
+                                batch, "component to patch does not exist");
+        VgJsonError parse_error = {0};
+        VgJsonNode *value = vg_json_parse(command->json, strlen(command->json), &parse_error);
+        if (value == NULL || !vg_tool_object_set(document, target, command->secondary, value)) {
+            vg_json_destroy(value);
+            return vg_tool_fail(diagnostic, VG_DOCUMENT_OUT_OF_MEMORY, "apply", "$.field", id,
+                                batch, "cannot patch field");
+        }
         return true;
     }
     VgJsonNode *components = (VgJsonNode *)(uintptr_t)vg_json_object_get(entity, "components");
