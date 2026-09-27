@@ -1,6 +1,8 @@
 # Investigación arquitectónica de VESTIGIO
 
-Investigación realizada el 2026-09-20. **VESTIGIO debería ser un runtime retro 3D en C con render principal en GPU, SDK público y Studio como editor sobre el mismo runtime.** FPS/horror son especializaciones opcionales; Neo-PSX es un perfil gráfico. Editor-first y code-first deben producir contenido equivalente.
+**Ampliación 2026-09-27:** [auditoría integral de `js-game`](13-js-game-full-audit.md) e [inventario de 276 fuentes](14-js-game-inventory.md) (90 módulos, 18 archivos de juego, 63 documentos y 105 GLB). Esta actualización complementa la investigación histórica de abajo y alimenta los tickets de `docs/implementation/`; no sustituye sus baselines anteriores ni afirma que la demo antigua se haya ejecutado.
+
+Investigación realizada el 2026-09-20. **VESTIGIO debería ser un runtime retro 3D en C con render principal en GPU, SDK público y Studio como editor sobre el mismo runtime.** La ampliación de 2026-09-27 sitúa las especializaciones FPS/horror en módulos del núcleo activables por proyecto; Neo-PSX es un perfil gráfico. Editor-first y code-first deben producir contenido equivalente.
 
 La propuesta incorpora la aclaración explícita de usar GPU. Preserva el valor del motor/editor existentes y sitúa el renderer CPU como laboratorio/regresión, sin limitar las capacidades GPU.
 

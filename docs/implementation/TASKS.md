@@ -2,13 +2,15 @@
 
 Generado desde [backlog.json](backlog.json). Editar el JSON y ejecutar `python docs/implementation/validate-plan.py --render`; no mantener dos versiones manuales.
 
+Z01 cierra el alcance original de 30 tickets. ZA1 cierra la ampliación derivada de `js-game`. Los tickets nuevos siguen siendo propuestas individuales; su presencia no autoriza ejecutarlos en bloque.
+
 Los paths son puntos de entrada; directorios nuevos son propuestas hasta F01. Antes de escribir se reclama una lista exacta de archivos. Los perfiles se definen en [VALIDATION.md](VALIDATION.md).
 
 ## F00 — Reconciliar baseline y obtener evidencia inicial
 
 Fase: **P0** · Rol: **integrator** · Estado: **INTEGRATED**.
 
-Dependencias integradas: ninguna; inicio del plan.
+Dependencias: ninguna; inicio del plan.
 
 Locks: `integration`.
 
@@ -38,7 +40,7 @@ Commit integrado: `fe43b83de2f8579ecad715991de5c04252d61dd0`.
 
 Fase: **P0** · Rol: **integrator** · Estado: **INTEGRATED**.
 
-Dependencias integradas: F00.
+Dependencias: F00.
 
 Locks: `public-api`, `build`, `contracts`.
 
@@ -68,7 +70,7 @@ Commit integrado: `2052e5b4d69f8ae169df073f3ed8a761b80c62dc`.
 
 Fase: **P1** · Rol: **gpu** · Estado: **INTEGRATED**.
 
-Dependencias integradas: F01.
+Dependencias: F01.
 
 Locks: `gpu-backend`, `platform-window`.
 
@@ -98,7 +100,7 @@ Commit integrado: `a13fb8beb89691d842709773abadb0b755d8f9a6`.
 
 Fase: **P2** · Rol: **runtime** · Estado: **INTEGRATED**.
 
-Dependencias integradas: F01.
+Dependencias: F01.
 
 Locks: `runtime-core`, `public-api`.
 
@@ -128,7 +130,7 @@ Commit integrado: `9ed4d5e`.
 
 Fase: **P1** · Rol: **gpu** · Estado: **INTEGRATED**.
 
-Dependencias integradas: G01.
+Dependencias: G01.
 
 Locks: `gpu-backend`, `platform-window`, `wpf-viewport`.
 
@@ -158,7 +160,7 @@ Commit integrado: `9811b03`.
 
 Fase: **P2** · Rol: **runtime** · Estado: **INTEGRATED**.
 
-Dependencias integradas: R01.
+Dependencias: R01.
 
 Locks: `asset-core`, `public-api`.
 
@@ -188,7 +190,7 @@ Commit integrado: `9ed4d5e`.
 
 Fase: **P2** · Rol: **runtime** · Estado: **INTEGRATED**.
 
-Dependencias integradas: R02.
+Dependencias: R02.
 
 Locks: `runtime-core`, `public-api`, `session-bridge`, `build`.
 
@@ -218,7 +220,7 @@ Commit integrado: `df05608`.
 
 Fase: **P2** · Rol: **runtime** · Estado: **INTEGRATED**.
 
-Dependencias integradas: R03.
+Dependencias: R03.
 
 Locks: `input-settings`, `session-bridge`, `public-api`, `platform-window`, `wpf-viewport`.
 
@@ -248,7 +250,7 @@ Commit integrado: `683ad2d`.
 
 Fase: **P4** · Rol: **content** · Estado: **INTEGRATED**.
 
-Dependencias integradas: R01.
+Dependencias: R01.
 
 Locks: `document-schema`.
 
@@ -278,7 +280,7 @@ Commit integrado: `1acbd03`.
 
 Fase: **P3** · Rol: **content** · Estado: **INTEGRATED**.
 
-Dependencias integradas: R02.
+Dependencias: R02.
 
 Locks: `asset-import`.
 
@@ -308,7 +310,7 @@ Commit integrado: `656fda7`.
 
 Fase: **P3** · Rol: **gpu** · Estado: **INTEGRATED**.
 
-Dependencias integradas: G01, R03, M01.
+Dependencias: G01, R03, M01.
 
 Locks: `gpu-backend`, `asset-gpu`, `public-api`.
 
@@ -338,7 +340,7 @@ Commit integrado: `50ece2a`.
 
 Fase: **P3** · Rol: **runtime** · Estado: **INTEGRATED**.
 
-Dependencias integradas: G03, I01, D02.
+Dependencias: G03, I01, D02.
 
 Locks: `platform-window`, `session-bridge`, `public-api`.
 
@@ -368,7 +370,7 @@ Commit integrado: `7efc54c`.
 
 Fase: **P4** · Rol: **content** · Estado: **INTEGRATED**.
 
-Dependencias integradas: D01, R02.
+Dependencias: D01, R02.
 
 Locks: `document-core`, `tool-api`.
 
@@ -398,7 +400,7 @@ Commit integrado: `2e15e5e`.
 
 Fase: **P5** · Rol: **editor** · Estado: **INTEGRATED**.
 
-Dependencias integradas: G02, G03, D02, I01.
+Dependencias: G02, G03, D02, I01.
 
 Locks: `wpf-viewport`, `tool-api`.
 
@@ -428,7 +430,7 @@ Commit integrado: `73fe637`.
 
 Fase: **P5** · Rol: **editor** · Estado: **INTEGRATED**.
 
-Dependencias integradas: E01.
+Dependencias: E01.
 
 Locks: `wpf-viewport`, `document-commands`.
 
@@ -458,7 +460,7 @@ Commit integrado: `c3f475206f9c770f79b074037dc28690b05df387`.
 
 Fase: **P5** · Rol: **editor** · Estado: **INTEGRATED**.
 
-Dependencias integradas: E02, M01.
+Dependencias: E02, M01.
 
 Locks: `wpf-inspector`, `document-commands`.
 
@@ -475,6 +477,7 @@ Puntos de entrada: `src/studio/ViewModels/StudioViewModel.cs`, `src/studio/Model
 - Importar→colocar→transformar→guardar→reabrir recupera modelo/material/IDs sin duplicar recursos.
 - Renombrar/reimportar recursos mantiene identidad prevista; errores se muestran junto al campo y en Problems/log.
 - Ocultar capa de editor no altera visibilidad de juego; propiedades soportadas tienen round-trip y una acción undo por lote.
+- El catalogo conserva referencias estables al archivo GLB; el objeto colocado mantiene transform y material tras guardar, cerrar, abrir y jugar. La seleccion de nodos/submodelos corresponde a H02.
 
 Verificación: V-APP, V-ASSET, V-DATA, V-WPF.
 
@@ -486,9 +489,9 @@ Commit integrado: `69f9e81`.
 
 ## E04 — Herramientas de habitaciones, aberturas y organización
 
-Fase: **P5** · Rol: **editor** · Estado: **PLANNED**.
+Fase: **P5** · Rol: **editor** · Estado: **INTEGRATED**.
 
-Dependencias integradas: E03, S01.
+Dependencias: E03, S01.
 
 Locks: `wpf-viewport`, `document-commands`.
 
@@ -510,11 +513,15 @@ Verificación: V-CORE, V-DATA, V-WPF, V-GPU.
 
 Desbloquea: World building recuperado de js-game sin portar sus errores.
 
+Evidencia: docs/implementation/evidence/E04.md.
+
+Commit integrado: `7048a59e0d79f6f34a34828bd3d98fc945c43a77`.
+
 ## S01 — Consultas espaciales 3D y colliders compartidos
 
 Fase: **P6** · Rol: **runtime** · Estado: **INTEGRATED**.
 
-Dependencias integradas: G03, D02.
+Dependencias: G03, D02.
 
 Locks: `spatial-core`, `public-api`.
 
@@ -544,7 +551,7 @@ Commit integrado: `22e937a2d589e256f38ff7268603c26723343cae`.
 
 Fase: **P6** · Rol: **runtime** · Estado: **INTEGRATED**.
 
-Dependencias integradas: S01, I01.
+Dependencias: S01, I01.
 
 Locks: `spatial-core`, `gamekit`, `session-bridge`.
 
@@ -574,7 +581,7 @@ Commit integrado: `22e937a2d589e256f38ff7268603c26723343cae`.
 
 Fase: **P6** · Rol: **runtime** · Estado: **IN_PROGRESS**.
 
-Dependencias integradas: S02, D02, R03.
+Dependencias: S02, D02, R03.
 
 Locks: `gamekit`, `document-schema`.
 
@@ -591,6 +598,7 @@ Puntos de entrada: `src/gamekit/`, `src/gameplay/interaction.c`, `src/content/`,
 - Puerta gira en ambos sentidos y con padre rotado; cierre sobre cuerpo bloquea/revierte sin aplastar por defecto ni tunneling dentro de límites probados.
 - Raycast/visión/proyectil/movimiento coinciden con panel y collider abierto sigue sólido.
 - Definición de puerta/triggers sobrevive round-trip; estado mutable serializable queda listo para P01. Sonido sólo se acepta como conectado después de A01/E05.
+- Acciones, puerta y volumen trigger tienen IDs/eventos persistentes; entrar/salir y abrir/cerrar producen feedback visible y collider concordante en Play.
 
 Verificación: V-CORE, V-DATA, V-SPATIAL.
 
@@ -600,7 +608,7 @@ Desbloquea: Interacción física de horror/exploración.
 
 Fase: **P7** · Rol: **gpu** · Estado: **IN_PROGRESS**.
 
-Dependencias integradas: G03, I01, D02.
+Dependencias: G03, I01, D02.
 
 Locks: `gpu-backend`, `shader-schema`.
 
@@ -617,6 +625,7 @@ Puntos de entrada: `src/render/`, `src/assets/`, `src/content/`, `assets/shaders
 - Shader inválido conserva el anterior; primer fallo tiene error material/diagnóstico explícito y no mata sesión.
 - Luces/fog se ejecutan en GPU y sus parámetros sobreviven save/load; no se atribuyen sombras geométricas inexistentes.
 - Entradas/espacio de color/unidades y límites son probados; no se incorpora PBR/volumétricos como dependencia del hito.
+- Luces y fog de distancia no sustituyen niebla por capas ni volumen con depth; los presets de niebla locales se validan por separado en V03/V04.
 
 Verificación: V-APP, V-GPU, V-ASSET, V-DATA.
 
@@ -626,7 +635,7 @@ Desbloquea: Estilo visual editable sin bifurcar renderer.
 
 Fase: **P7** · Rol: **gpu** · Estado: **PLANNED**.
 
-Dependencias integradas: V01.
+Dependencias: V01.
 
 Locks: `gpu-backend`, `input-settings`, `shader-schema`.
 
@@ -643,6 +652,7 @@ Puntos de entrada: `src/render/`, `src/config/`, `assets/shaders/`, `tests/gpu/`
 - Cambiar perfil en el mismo nivel funciona; snapping cerca del near plane no rompe clipping y affine no es un efecto de ruido de pantalla.
 - 320x180/426x240/640x360 conservan aspecto en resize/DPI; barras y dither permanecen ligados a píxel interno.
 - Settings persisten con overrides correctos, targets viejos se liberan y efectos pueden desactivarse sin editar assets.
+- El orden de passes, perfil PSX y resize quedan medidos en GPU; V05 cubre la pila adicional de efectos.
 
 Verificación: V-CORE, V-APP, V-GPU, V-DATA.
 
@@ -652,7 +662,7 @@ Desbloquea: Neo-PSX como perfil del mismo runtime.
 
 Fase: **P7** · Rol: **runtime** · Estado: **IN_PROGRESS**.
 
-Dependencias integradas: R02, I01, D02.
+Dependencias: R02, I01, D02.
 
 Locks: `audio-core`, `public-api`.
 
@@ -669,6 +679,7 @@ Puntos de entrada: `src/audio/`, `src/assets/`, `src/platform/raylib_platform.c`
 - Dos emisores comparten Sound pero tienen voces independientes; descargar mundo detiene sus voces sin invalidar otros usuarios.
 - Música se actualiza sin cargar todo como PCM y buses persisten; dispositivo ausente/fallo se comunica sin crash.
 - Escucha real confirma posición/volumen/evento y pausa; pruebas automatizadas cubren ownership y límites, no sustituyen audición.
+- Emisores posicionales, pasos, reverberacion y musica adaptable se separan en A03-A06 con audicion real.
 
 Verificación: V-CORE, V-APP, V-ASSET, V-AUDIO, V-DATA.
 
@@ -678,7 +689,7 @@ Desbloquea: Puertas audibles, ambiente y música de juego.
 
 Fase: **P7** · Rol: **content** · Estado: **IN_PROGRESS**.
 
-Dependencias integradas: G03, D02.
+Dependencias: G03, D02.
 
 Locks: `asset-import`, `gpu-skinning`, `gpu-backend`, `document-schema`.
 
@@ -695,6 +706,7 @@ Puntos de entrada: `src/assets/import/`, `src/world/`, `src/render/`, `src/conte
 - Dos instancias del mismo asset animan con tiempos diferentes sin duplicar mesh ni pose compartida accidental.
 - Pose de reposo/ejes/normales y jerarquía coinciden con fixtures numéricas/visuales; error de skin inválido no publica recurso parcial.
 - GPU ejecuta skinning en perfil soportado, recursos se liberan y clip/velocidad/default persisten; morph targets no se anuncian si no se implementan.
+- Se prueba clip glTF importado por instancia y skin/skeleton con pausa, crossfade, evento de fin y round-trip de referencia; el movimiento rigido hardcoded no lo satisface.
 
 Verificación: V-CORE, V-ASSET, V-GPU, V-DATA.
 
@@ -704,7 +716,7 @@ Desbloquea: Personajes/modelos animados reales.
 
 Fase: **P5-P7** · Rol: **editor** · Estado: **PLANNED**.
 
-Dependencias integradas: E04, S03, V02, A01, A02.
+Dependencias: E04, S03, V02, A01, A02.
 
 Locks: `wpf-inspector`, `wpf-viewport`, `tool-api`.
 
@@ -730,7 +742,7 @@ Desbloquea: Creator 3D completo según alcance confirmado.
 
 Fase: **P7-P8** · Rol: **gpu** · Estado: **PLANNED**.
 
-Dependencias integradas: E05.
+Dependencias: E05.
 
 Locks: `profiling`, `gpu-backend`.
 
@@ -747,6 +759,7 @@ Puntos de entrada: `src/debug/`, `src/render/`, `src/runtime/`, `tests/perf/`, `
 - Reportes distinguen estimación de memoria de medición driver y coste CPU de GPU; queries de tiempo no bloquean cada frame.
 - Recargar mundo/shader/assets repetidamente no presenta crecimiento sostenido de recursos propios; capturas no contaminan cifras del frame normal.
 - Presupuesto aceptado y limitaciones quedan documentados para hardware realmente probado; ausencia de otro equipo queda pendiente explícita.
+- Medir costes de niebla, postprocesado, particulas, audio, instancing y escena guiada en hardware documentado.
 
 Verificación: V-APP, V-GPU, V-PERF.
 
@@ -756,7 +769,7 @@ Desbloquea: Criterio de rendimiento de producto con evidencia.
 
 Fase: **P8** · Rol: **content** · Estado: **PLANNED**.
 
-Dependencias integradas: S03, A01, A02, R03, D02.
+Dependencias: S03, A01, A02, R03, D02.
 
 Locks: `savegame`, `document-core`, `gamekit`.
 
@@ -773,6 +786,7 @@ Puntos de entrada: `src/content/`, `src/gamekit/`, `src/gameplay/interaction.c`,
 - Guardar a mitad de apertura y restaurar conserva ángulo/lock/timer admitidos; actores/variables y transitorios siguen política declarada.
 - Save corrupto/incompatible no aplica estado a otras entidades ni destruye partida anterior.
 - Juego C puede aportar estado versionado sin modificar core; lifecycle de recursos/voces tras restore queda verificado.
+- Estado de escenas, interacciones, puzzles, secuencias, inventario y vitals usa esquema versionado por componente y lectura posterior completa.
 
 Verificación: V-CORE, V-APP, V-DATA, V-SPATIAL, V-AUDIO.
 
@@ -782,7 +796,7 @@ Desbloquea: Persistencia de partida y entrega independiente.
 
 Fase: **P8** · Rol: **integrator** · Estado: **PLANNED**.
 
-Dependencias integradas: E05, P01, Q01, J01.
+Dependencias: E05, P01, Q01, J01.
 
 Locks: `integration`, `build`, `public-api`, `packaging`.
 
@@ -808,7 +822,7 @@ Desbloquea: Prueba de engine/SDK utilizable por dos juegos distintos.
 
 Fase: **P8** · Rol: **content** · Estado: **PLANNED**.
 
-Dependencias integradas: P02.
+Dependencias: P02.
 
 Locks: `tool-api`, `cli`.
 
@@ -834,7 +848,7 @@ Desbloquea: Automatización por agentes sobre un contrato estable.
 
 Fase: **P8** · Rol: **integrator** · Estado: **PLANNED**.
 
-Dependencias integradas: P02, T01.
+Dependencias: P02, T01.
 
 Locks: `integration`, `build`, `packaging`.
 
@@ -855,3 +869,1613 @@ Puntos de entrada: `docs/implementation/STATE.md`, `docs/implementation/evidence
 Verificación: V-CORE, V-APP, V-SDK, V-GPU, V-WPF, V-ASSET, V-DATA, V-SPATIAL, V-AUDIO, V-PERF, V-DELIVERY.
 
 Desbloquea: Cierre verificable del alcance; extensiones futuras quedan fuera.
+
+## H01 — Colocacion directa en viewport Studio
+
+Fase: **P9** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: E03.
+
+Locks: `document-core`, `wpf-viewport`.
+
+Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Crear, seleccionar y mover un objeto en la escena viva sin modificar Play al volver a Editar.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Crear, seleccionar y mover un objeto en la escena viva sin modificar Play al volver a Editar.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-WPF, V-DATA, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/SceneEditor.js`.
+
+## H02 — Catalogo GLB y seleccion de submodelos
+
+Fase: **P9** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: E03, M01.
+
+Locks: `document-core`, `wpf-viewport`.
+
+Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Elegir un GLB y un nodo o submodelo identificable y conservar su referencia al reabrir.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Elegir un GLB y un nodo o submodelo identificable y conservar su referencia al reabrir.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-WPF, V-DATA, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/SceneEditor.js`, `assets/models/manifest.json`.
+
+## H03 — Props procedurales editables
+
+Fase: **P9** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: E03.
+
+Locks: `document-core`, `wpf-viewport`.
+
+Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Crear un prop parametrico desde Studio y regenerarlo sin perder materiales ni colision.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Crear un prop parametrico desde Studio y regenerarlo sin perder materiales ni colision.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-WPF, V-DATA, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/PropFactory.js`.
+
+## H04 — Colocacion visual de luces y patrones
+
+Fase: **P9** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: E03, V01.
+
+Locks: `document-core`, `wpf-viewport`.
+
+Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Colocar point spot y directional con color intensidad alcance sombra y parpadeo reproducible.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Colocar point spot y directional con color intensidad alcance sombra y parpadeo reproducible.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-WPF, V-DATA, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/LightPlacer.js`, `engine/effects/FlickerLight.js`.
+
+## H05 — Ventanas marcos y vidrio en huecos
+
+Fase: **P9** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: E04, S03.
+
+Locks: `document-core`, `wpf-viewport`.
+
+Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Insertar una ventana editable en un muro y mantener vano marco vidrio y collider alineados.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Insertar una ventana editable en un muro y mantener vano marco vidrio y collider alineados.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-WPF, V-DATA, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/WallHoleTool.js`.
+
+## H06 — Plantas y conectores entre pisos
+
+Fase: **P9** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: E04, S02.
+
+Locks: `document-core`, `wpf-viewport`.
+
+Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Crear pisos y escalera o escalera vertical con navegacion y luces asignadas por piso.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Crear pisos y escalera o escalera vertical con navegacion y luces asignadas por piso.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-WPF, V-DATA, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/FloorManager.js`.
+
+## H07 — Zonas trigger dibujadas en Studio
+
+Fase: **P9** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: E04, S03.
+
+Locks: `document-core`, `wpf-viewport`.
+
+Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Dibujar volumen enter exit once cooldown y evento con vista previa en Play.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Dibujar volumen enter exit once cooldown y evento con vista previa en Play.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-WPF, V-DATA, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/TriggerZonePainter.js`, `engine/TriggerZone.js`.
+
+## H08 — Gestion de escenas y transicion segura
+
+Fase: **P9** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: E05.
+
+Locks: `document-core`, `wpf-viewport`.
+
+Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Cargar escena candidata y cambiar solo tras validarla conservando la escena previa ante error.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Cargar escena candidata y cambiar solo tras validarla conservando la escena previa ante error.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-WPF, V-DATA, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/SceneManager.js`, `engine/SceneLoader.js`.
+
+## H09 — Recetas de salas poligonales
+
+Fase: **P9** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: E04.
+
+Locks: `document-core`, `wpf-viewport`.
+
+Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Editar perimetro irregular con suelo techo paredes UV y colliders derivados del mismo poligono.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Editar perimetro irregular con suelo techo paredes UV y colliders derivados del mismo poligono.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-WPF, V-DATA, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/RoomBuilder.js`.
+
+## H10 — Huecos verticales entre pisos
+
+Fase: **P9** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: H06, H09.
+
+Locks: `document-core`, `wpf-viewport`.
+
+Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Editar hueco de piso persistente con geometria collider y paso vertical coherentes.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Editar hueco de piso persistente con geometria collider y paso vertical coherentes.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-WPF, V-DATA, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `.planning/requirements/v6.0-REQUIREMENTS.md`.
+
+## V03 — Niebla local por capas y ruido animado
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V01.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Reproducir capas filamentos viento y densidad espacial con parametros de escena persistentes.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Reproducir capas filamentos viento y densidad espacial con parametros de escena persistentes.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/effects/ExteriorFog.js`, `engine/effects/FogShaders.js`.
+
+## V04 — Niebla volumetrica con profundidad real
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V01.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Muestrear depth valido y componer raymarch antes del perfil retro con oclusion verificable.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Muestrear depth valido y componer raymarch antes del perfil retro con oclusion verificable.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/effects/VolumetricFog.js`.
+
+## V05 — Pila de postprocesado configurable
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V02.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Configurar passes y orden incluido PSX bloom glitch y aberracion sin degradar resize.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Configurar passes y orden incluido PSX bloom glitch y aberracion sin degradar resize.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/PostProcessor.js`, `engine/shaders/HorrorFXShader.js`.
+
+## V06 — Materiales especiales editables
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V01.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Asignar presets fluid neon organico charco TV y holograma con parametros por material.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Asignar presets fluid neon organico charco TV y holograma con parametros por material.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/shaders/FluidShader.js`, `engine/shaders/NeonShader.js`, `engine/shaders/OrganicShader.js`.
+
+## V07 — Emisor de particulas reutilizable
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V01.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Emitir y reciclar particulas con limite medible y estado claro al cambiar escena.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Emitir y reciclar particulas con limite medible y estado claro al cambiar escena.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/effects/ParticleSystem.js`.
+
+## V08 — Fuego con humo y luz
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V07, V01.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Instanciar fuego con emisor humo y luz vinculada y liberar recursos al retirar entidad.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Instanciar fuego con emisor humo y luz vinculada y liberar recursos al retirar entidad.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/effects/FireSystem.js`.
+
+## V09 — Decals y vidrio rompible
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V07, S03.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Proyectar decals limitados y romper vidrio sincronizando visual colision y evento.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Proyectar decals limitados y romper vidrio sincronizando visual colision y evento.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/DecalSystem.js`, `engine/effects/BreakableGlass.js`.
+
+## V10 — Agua y estado submarino
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V06, S02.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Crear superficie animada y entrada salida del agua con render audio y movimiento coherentes.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Crear superficie animada y entrada salida del agua con render audio y movimiento coherentes.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/effects/WaterSystem.js`.
+
+## V11 — Cielo y ciclo de iluminacion
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V01.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Configurar cielo sol estrellas y hora persistente con lectura visible en Play.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Configurar cielo sol estrellas y hora persistente con lectura visible en Play.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/effects/SkySystem.js`.
+
+## V12 — Clima y precipitacion
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V07, V11.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Activar lluvia truenos viento y niebla ambiental con limites y configuracion de nivel.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Activar lluvia truenos viento y niebla ambiental con limites y configuracion de nivel.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/effects/Weather.js`.
+
+## V13 — Vegetacion instanciada
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V07.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Pintar vegetacion con viento y contador de instancias y liberar lote al descargar.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Pintar vegetacion con viento y contador de instancias y liberar lote al descargar.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/effects/VegetationSystem.js`.
+
+## V14 — Espejos de escena
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V01.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Reflejar escena con camara y target controlados tras resize y descarga.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Reflejar escena con camara y target controlados tras resize y descarga.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/MirrorSystem.js`.
+
+## V15 — Destellos de lente con oclusion
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V01.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Mostrar destello solo con fuente visible y presupuesto de coste medido.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Mostrar destello solo con fuente visible y presupuesto de coste medido.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/effects/LensFlare.js`.
+
+## V16 — Video sobre superficies
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V01.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Reproducir pausar y liberar video texturizado en una entidad de nivel.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Reproducir pausar y liberar video texturizado en una entidad de nivel.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/VideoPlayer.js`.
+
+## V17 — Superficies organicas y efecto corporal
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V06, V07.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `src/content/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Instanciar capa organica compartiendo material y sincronizar shader y estado de juego.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Instanciar capa organica compartiendo material y sincronizar shader y estado de juego.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-GPU, V-APP, V-PERF.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/effects/FleshInfestation.js`.
+
+## K01 — Acciones contextuales con condiciones
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: S03.
+
+Locks: `runtime-core`.
+
+Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+
+**Trabajo:**
+
+1. Mostrar acciones disponibles bloqueo y respuesta visible desde distancia y foco correctos.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Mostrar acciones disponibles bloqueo y respuesta visible desde distancia y foco correctos.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-CORE, V-APP, V-DATA.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/InteractionSystem.js`, `engine/ui/ContextMenu.js`.
+
+## K02 — Eventos y maquina de estados de juego
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: K01.
+
+Locks: `runtime-core`.
+
+Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+
+**Trabajo:**
+
+1. Definir eventos tipados y transiciones deterministas sin perder estado al guardar.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Definir eventos tipados y transiciones deterministas sin perder estado al guardar.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-CORE, V-APP, V-DATA.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/EventBus.js`, `engine/StateMachine.js`.
+
+## K03 — Secuencias narrativas de juego
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: K02.
+
+Locks: `runtime-core`.
+
+Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+
+**Trabajo:**
+
+1. Ejecutar dialogo espera flag audio y eleccion con pausa cancelacion y restauracion definidas.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Ejecutar dialogo espera flag audio y eleccion con pausa cancelacion y restauracion definidas.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-CORE, V-APP, V-DATA.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/ScriptEngine.js`, `game/apartment/Day1Script.js`.
+
+## K04 — Timeline y camara cinematica
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: K03, A02.
+
+Locks: `runtime-core`.
+
+Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+
+**Trabajo:**
+
+1. Editar keyframes y curva de camara con eventos sincronizados y salida limpia a control del jugador.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Editar keyframes y curva de camara con eventos sincronizados y salida limpia a control del jugador.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-CORE, V-APP, V-DATA.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/Timeline.js`, `engine/CameraDolly.js`.
+
+## K05 — Puzzles reutilizables
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: K01, K02.
+
+Locks: `runtime-core`.
+
+Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+
+**Trabajo:**
+
+1. Resolver combinacion terminal cables o sliders mediante estado y eventos guardables.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Resolver combinacion terminal cables o sliders mediante estado y eventos guardables.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-CORE, V-APP, V-DATA.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/PuzzleManager.js`, `engine/ui/PuzzleHelpers.js`.
+
+## K06 — Transporte de objetos
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: K05, S02.
+
+Locks: `runtime-core`.
+
+Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+
+**Trabajo:**
+
+1. Recoger sostener soltar y depositar objeto con colision foco y estado reproducible.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Recoger sostener soltar y depositar objeto con colision foco y estado reproducible.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-CORE, V-APP, V-DATA.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/CarrySystem.js`.
+
+## K07 — IA basica de NPC
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: K02, S02.
+
+Locks: `runtime-core`.
+
+Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+
+**Trabajo:**
+
+1. Ejecutar idle investigate chase lost con percepcion y transiciones visibles.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Ejecutar idle investigate chase lost con percepcion y transiciones visibles.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-CORE, V-APP, V-DATA.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/AIController.js`.
+
+## K08 — Estado y movimiento del jugador
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: S02.
+
+Locks: `runtime-core`.
+
+Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+
+**Trabajo:**
+
+1. Exponer salud oxigeno hambre cordura stamina y estados de movimiento con guardado.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Exponer salud oxigeno hambre cordura stamina y estados de movimiento con guardado.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-CORE, V-APP, V-DATA.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/FPSController.js`, `engine/PlayerVitals.js`.
+
+## K09 — Linterna con bateria
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: K08, V01.
+
+Locks: `runtime-core`.
+
+Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+
+**Trabajo:**
+
+1. Iluminar desde jugador con bateria parpadeo y cono consistente con fog.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Iluminar desde jugador con bateria parpadeo y cono consistente con fog.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-CORE, V-APP, V-DATA.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/Flashlight.js`.
+
+## K10 — Armas e impactos
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: K07, K08.
+
+Locks: `runtime-core`.
+
+Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+
+**Trabajo:**
+
+1. Equipar disparar recargar y emitir impacto con municion y estado guardables.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Equipar disparar recargar y emitir impacto con municion y estado guardables.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-CORE, V-APP, V-DATA.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/Weapon.js`.
+
+## K11 — Ragdoll acotado
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: K10, A02.
+
+Locks: `runtime-core`.
+
+Puntos de entrada: `src/runtime/`, `src/gameplay/`, `tests/runtime/`.
+
+**Trabajo:**
+
+1. Activar cuerpo fisico temporal con limite y limpieza sin fugas.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Activar cuerpo fisico temporal con limite y limpieza sin fugas.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-CORE, V-APP, V-DATA.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/Ragdoll.js`.
+
+## A03 — Audio posicional 3D
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: A01.
+
+Locks: `audio-core`.
+
+Puntos de entrada: `src/audio/`, `tests/audio/`.
+
+**Trabajo:**
+
+1. Oir emisor con distancia y orientacion correctas en Player y escena.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Oir emisor con distancia y orientacion correctas en Player y escena.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-AUDIO, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/AudioWorld.js`.
+
+## A04 — Zonas de reverberacion
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: A03.
+
+Locks: `audio-core`.
+
+Puntos de entrada: `src/audio/`, `tests/audio/`.
+
+**Trabajo:**
+
+1. Cruzar zona y cambiar envio de reverb sin recrear voces ni acumular nodos.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Cruzar zona y cambiar envio de reverb sin recrear voces ni acumular nodos.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-AUDIO, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/ReverbZones.js`.
+
+## A05 — Pasos por superficie
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: A03, S02.
+
+Locks: `audio-core`.
+
+Puntos de entrada: `src/audio/`, `tests/audio/`.
+
+**Trabajo:**
+
+1. Escuchar pasos segun material velocidad y estado de movimiento.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Escuchar pasos segun material velocidad y estado de movimiento.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-AUDIO, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/FootstepSystem.js`.
+
+## A06 — Musica adaptable
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: A01, K02.
+
+Locks: `audio-core`.
+
+Puntos de entrada: `src/audio/`, `tests/audio/`.
+
+**Trabajo:**
+
+1. Cambiar stems o capas por tension con crossfade y pausa estable.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Cambiar stems o capas por tension con crossfade y pausa estable.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-AUDIO, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/MusicDirector.js`.
+
+## U01 — Dialogo y subtitulos
+
+Fase: **P11** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: K03.
+
+Locks: `ui-core`.
+
+Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Mostrar dialogo y subtitulos sincronizados con avance pausa y accesibilidad.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Mostrar dialogo y subtitulos sincronizados con avance pausa y accesibilidad.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-WPF, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/ui/DialogManager.js`, `engine/ui/SubtitleUI.js`.
+
+## U02 — Elecciones y menu contextual
+
+Fase: **P11** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: K01, K03.
+
+Locks: `ui-core`.
+
+Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Elegir accion narrativa y devolver control sin conflicto de pointer lock.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Elegir accion narrativa y devolver control sin conflicto de pointer lock.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-WPF, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/ui/ChoiceUI.js`, `engine/ui/ContextMenu.js`.
+
+## U03 — Inventario de objetos
+
+Fase: **P11** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: K05.
+
+Locks: `ui-core`.
+
+Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Recoger usar y quitar item con estado guardado y feedback.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Recoger usar y quitar item con estado guardado y feedback.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-WPF, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/ui/InventoryUI.js`.
+
+## U04 — Inspeccion y revelacion de items
+
+Fase: **P11** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: U03, H02.
+
+Locks: `ui-core`.
+
+Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Examinar objeto 3D y volver al juego liberando recursos y foco.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Examinar objeto 3D y volver al juego liberando recursos y foco.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-WPF, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/ui/ItemInspectUI.js`, `engine/ui/ItemRevealUI.js`.
+
+## U05 — Documentos y codex
+
+Fase: **P11** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: U03.
+
+Locks: `ui-core`.
+
+Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Abrir nota y registro persistente con texto subtitulado.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Abrir nota y registro persistente con texto subtitulado.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- Crear -> guardar -> cerrar -> abrir -> jugar conserva parametros, referencias y comportamiento; undo/redo se prueba si hay autoria.
+
+Verificación: V-WPF, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/ui/DocumentUI.js`, `engine/ui/CodexUI.js`.
+
+## U06 — HUD y HUD diegetico
+
+Fase: **P11** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: K08.
+
+Locks: `ui-core`.
+
+Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Mostrar estado con modo plano o diegetico y actualizacion sin duplicados.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Mostrar estado con modo plano o diegetico y actualizacion sin duplicados.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-WPF, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/ui/HUD.js`, `engine/ui/DiegeticHUD.js`.
+
+## U07 — Telefono interactivo
+
+Fase: **P11** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: K03.
+
+Locks: `ui-core`.
+
+Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Recibir y responder evento telefonico dentro de secuencia guardable.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Recibir y responder evento telefonico dentro de secuencia guardable.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-WPF, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/ui/PhoneUI.js`.
+
+## U08 — Temas e idiomas
+
+Fase: **P11** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: U01.
+
+Locks: `ui-core`.
+
+Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Cambiar tema e idioma en runtime con cadenas externas y fallback.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Cambiar tema e idioma en runtime con cadenas externas y fallback.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-WPF, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/Theme.js`, `engine/i18n.js`.
+
+## U09 — Ajustes foco y pantallas
+
+Fase: **P11** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: I01, U08.
+
+Locks: `ui-core`.
+
+Puntos de entrada: `src/studio/`, `src/runtime/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Persistir ajustes y transiciones sin acciones pegadas ni pointer lock perdido.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Persistir ajustes y transiciones sin acciones pegadas ni pointer lock perdido.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-WPF, V-APP.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `engine/ui/SettingsMenu.js`, `engine/UIFocusManager.js`, `engine/ui/ScreenManager.js`.
+
+## X02 — Procedencia y permisos de assets candidatos
+
+Fase: **P12** · Rol: **content** · Estado: **PLANNED**.
+
+Dependencias: H02.
+
+Locks: `asset-import`.
+
+Puntos de entrada: `src/assets/`, `docs/research/`, `THIRD_PARTY.md`.
+
+**Trabajo:**
+
+1. Registrar fuente autor licencia y uso permitido de cada GLB antes de incorporarlo.
+2. Definir componente y contrato del documento/runtime/Studio antes de cablear la escena de prueba; evitar copiar el acoplamiento Three.js/DOM.
+
+**Aceptación:**
+
+- Registrar fuente autor licencia y uso permitido de cada GLB antes de incorporarlo.
+- La prueba dirigida registra comportamiento real en Player y/o Studio, errores y limpieza de recursos; codigo presente por si solo no cuenta.
+- La funcion se activa por proyecto mediante contrato del nucleo y no impone su uso a otros juegos.
+
+Verificación: V-ASSET, V-DELIVERY.
+
+Desbloquea: Capacidad heredada verificable e independiente.
+
+Origen: `assets/models/README.md`, `assets/models/manifest.json`.
+
+## H11 — Elevador y transicion entre pisos
+
+Fase: **P9** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: H06, H08, S03.
+
+Locks: `document-core`.
+
+Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Crear cabina y puertas con destino de piso, guardar y reabrir; Player cambia piso sin perder estado.
+2. Definir contrato de datos, componente del nucleo y activacion por proyecto; integrar Studio y Player cuando aplique.
+
+**Aceptación:**
+
+- Crear cabina y puertas con destino de piso, guardar y reabrir; Player cambia piso sin perder estado.
+- Prueba dirigida de uso y cierre de recursos; guardar -> cerrar -> abrir -> jugar si hay estado autorable o de partida.
+
+Verificación: V-WPF, V-APP, V-DATA.
+
+Desbloquea: Idea heredada con entrega independiente.
+
+Origen: `.planning/research/FEATURES.md`.
+
+## H12 — Prefab interactivo de pod y contenedor
+
+Fase: **P9** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: H02, H05, K01.
+
+Locks: `document-core`.
+
+Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Instanciar pod configurable con vidrio, apertura y eventos sin geometria fija de juego.
+2. Definir contrato de datos, componente del nucleo y activacion por proyecto; integrar Studio y Player cuando aplique.
+
+**Aceptación:**
+
+- Instanciar pod configurable con vidrio, apertura y eventos sin geometria fija de juego.
+- Prueba dirigida de uso y cierre de recursos; guardar -> cerrar -> abrir -> jugar si hay estado autorable o de partida.
+
+Verificación: V-WPF, V-APP, V-DATA.
+
+Desbloquea: Idea heredada con entrega independiente.
+
+Origen: `.planning/requirements/v6.0-REQUIREMENTS.md`.
+
+## K12 — Presets de criaturas sobre IA y animacion
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: K07, A02.
+
+Locks: `runtime-core`.
+
+Puntos de entrada: `src/runtime/`, `src/input/`, `tests/runtime/`.
+
+**Trabajo:**
+
+1. Crear criatura con percepcion, animacion y perfil de conducta configurable por proyecto.
+2. Definir contrato de datos, componente del nucleo y activacion por proyecto; integrar Studio y Player cuando aplique.
+
+**Aceptación:**
+
+- Crear criatura con percepcion, animacion y perfil de conducta configurable por proyecto.
+- Prueba dirigida de uso y cierre de recursos; guardar -> cerrar -> abrir -> jugar si hay estado autorable o de partida.
+
+Verificación: V-CORE, V-APP.
+
+Desbloquea: Idea heredada con entrega independiente.
+
+Origen: `.planning/research/FEATURES.md`.
+
+## K13 — Golpes por parte y desmembramiento
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: K10, K12, V09.
+
+Locks: `runtime-core`.
+
+Puntos de entrada: `src/runtime/`, `src/input/`, `tests/runtime/`.
+
+**Trabajo:**
+
+1. Impactos por hitbox cambian malla y estado de IA con evidencia visual y guardado.
+2. Definir contrato de datos, componente del nucleo y activacion por proyecto; integrar Studio y Player cuando aplique.
+
+**Aceptación:**
+
+- Impactos por hitbox cambian malla y estado de IA con evidencia visual y guardado.
+- Prueba dirigida de uso y cierre de recursos; guardar -> cerrar -> abrir -> jugar si hay estado autorable o de partida.
+
+Verificación: V-CORE, V-APP.
+
+Desbloquea: Idea heredada con entrega independiente.
+
+Origen: `.planning/research/FEATURES.md`.
+
+## U10 — Inventario espacial de cuadricula
+
+Fase: **P11** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: U03.
+
+Locks: `document-core`.
+
+Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Mover y rotar items con reglas de espacio, apilado y persistencia reproducible.
+2. Definir contrato de datos, componente del nucleo y activacion por proyecto; integrar Studio y Player cuando aplique.
+
+**Aceptación:**
+
+- Mover y rotar items con reglas de espacio, apilado y persistencia reproducible.
+- Prueba dirigida de uso y cierre de recursos; guardar -> cerrar -> abrir -> jugar si hay estado autorable o de partida.
+
+Verificación: V-WPF, V-APP, V-DATA.
+
+Desbloquea: Idea heredada con entrega independiente.
+
+Origen: `.planning/research/FEATURES.md`.
+
+## U11 — Inventario holografico diegetico
+
+Fase: **P11** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: U03, U06, V06.
+
+Locks: `document-core`.
+
+Puntos de entrada: `src/studio/`, `src/content/`, `tests/studio/`.
+
+**Trabajo:**
+
+1. Abrir inventario proyectado con seleccion y foco correctos sin segunda escena permanente.
+2. Definir contrato de datos, componente del nucleo y activacion por proyecto; integrar Studio y Player cuando aplique.
+
+**Aceptación:**
+
+- Abrir inventario proyectado con seleccion y foco correctos sin segunda escena permanente.
+- Prueba dirigida de uso y cierre de recursos; guardar -> cerrar -> abrir -> jugar si hay estado autorable o de partida.
+
+Verificación: V-WPF, V-APP, V-DATA.
+
+Desbloquea: Idea heredada con entrega independiente.
+
+Origen: `.planning/research/FEATURES.md`.
+
+## X03 — Modo foto y captura reproducible
+
+Fase: **P10** · Rol: **gpu** · Estado: **PLANNED**.
+
+Dependencias: V05, K04.
+
+Locks: `gpu-backend`.
+
+Puntos de entrada: `src/render/`, `tests/gpu/`.
+
+**Trabajo:**
+
+1. Pausar juego, mover camara libre y exportar captura sin alterar estado ni recursos residentes.
+2. Definir contrato de datos, componente del nucleo y activacion por proyecto; integrar Studio y Player cuando aplique.
+
+**Aceptación:**
+
+- Pausar juego, mover camara libre y exportar captura sin alterar estado ni recursos residentes.
+- Prueba dirigida de uso y cierre de recursos; guardar -> cerrar -> abrir -> jugar si hay estado autorable o de partida.
+
+Verificación: V-GPU, V-APP.
+
+Desbloquea: Idea heredada con entrega independiente.
+
+Origen: `.planning/research/FEATURES.md`.
+
+## I02 — Control tactil y viewport movil
+
+Fase: **P11** · Rol: **runtime** · Estado: **PLANNED**.
+
+Dependencias: I01, U09.
+
+Locks: `runtime-core`.
+
+Puntos de entrada: `src/runtime/`, `src/input/`, `tests/runtime/`.
+
+**Trabajo:**
+
+1. Usar acciones equivalentes en interfaz tactil y validar layout, foco y rendimiento en dispositivo objetivo.
+2. Definir contrato de datos, componente del nucleo y activacion por proyecto; integrar Studio y Player cuando aplique.
+
+**Aceptación:**
+
+- Usar acciones equivalentes en interfaz tactil y validar layout, foco y rendimiento en dispositivo objetivo.
+- Prueba dirigida de uso y cierre de recursos; guardar -> cerrar -> abrir -> jugar si hay estado autorable o de partida.
+
+Verificación: V-CORE, V-APP.
+
+Desbloquea: Idea heredada con entrega independiente.
+
+Origen: `engine/TouchInput.js`, `.planning/ROADMAP.md`.
+
+## X01 — Demo guiada y QA visual de las capacidades heredadas
+
+Fase: **P12** · Rol: **integrator** · Estado: **PLANNED**.
+
+Dependencias: H01, H02, H03, H04, H05, H06, H07, H08, H09, H10, V03, V04, V05, V06, V07, V08, V09, V10, V11, V12, V13, V14, V15, V16, V17, K01, K02, K03, K04, K05, K06, K07, K08, K09, K10, K11, A03, A04, A05, A06, U01, U02, U03, U04, U05, U06, U07, U08, U09, H11, H12, K12, K13, U10, U11, X03, I02.
+
+Locks: `integration`, `build`, `packaging`.
+
+Puntos de entrada: `examples/`, `tests/`, `docs/implementation/evidence/`.
+
+**Trabajo:**
+
+1. Construir recorrido guiado con estaciones que ejerzan cada capacidad heredada y registren proyecto, hardware, captura y consola.
+2. Probar crear -> guardar -> cerrar -> abrir -> jugar en tipos autorables y recorridos de juego en Player/Studio.
+
+**Aceptación:**
+
+- Cada estacion tiene prueba reproducible y resultado PASS, FAIL o NOT_RUN; captura y consola se revisan en navegador real.
+- Ninguna ausencia de navegador o aceptacion humana se transforma en PASS.
+
+Verificación: V-APP, V-GPU, V-WPF, V-DELIVERY.
+
+Desbloquea: Candidato expandido observable.
+
+Origen: `game/sandbox/main.js`, `game/sandbox/SandboxLevel.js`, `.planning/phases/36-engine-showcase-guided-qa-and-fps-horror-systems-polish/36-QA-CHECKLIST.md`.
+
+## ZA1 — Aceptacion integrada de la ampliacion js-game
+
+Fase: **P12** · Rol: **integrator** · Estado: **PLANNED**.
+
+Dependencias: Z01, X01, X02.
+
+Locks: `integration`, `build`, `packaging`.
+
+Puntos de entrada: `docs/implementation/`, `docs/research/`, `tests/`.
+
+**Trabajo:**
+
+1. Integrar evidencia de Z01, demo X01 y procedencia X02 en un unico candidato.
+2. Auditar matriz de capacidades y tickets contra implementacion, limitaciones y aprobacion visual humana.
+
+**Aceptación:**
+
+- Todas las capacidades marcadas para traslado tienen evidencia en el candidato o estado incompleto explicito.
+- Plan, pruebas y aprobacion humana se reportan por separado; cero PASS inferidos de documentos historicos.
+
+Verificación: V-CORE, V-APP, V-GPU, V-WPF, V-ASSET, V-DATA, V-AUDIO, V-PERF, V-DELIVERY.
+
+Desbloquea: Cierre verificable del alcance ampliado.
+
+Origen: `docs/research/13-js-game-full-audit.md`.

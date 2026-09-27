@@ -42,7 +42,7 @@ Formato con versiones project/level/componente/importer/save separadas. Optional
 
 Host produce acciones pressed/held/released, no lógica de personaje. Simulación fija; dt/pacing/render distintos. Callbacks init/world_ready/fixed_update/event/draw_ui/shutdown con orden, errores y reentrancia definida. Input acumulado se consume por tick y limpia en pérdida de foco.
 
-Eventos son datos copiados con límites/source/target; spawns/destrucciones/transiciones se difieren si iteración lo exige. Núcleo no requiere armas/enemigos: juego registra tipos/acciones y esquema; gamekit es opcional. Cambiar nivel carga candidato y conserva anterior si falla.
+Eventos son datos copiados con límites/source/target; spawns/destrucciones/transiciones se difieren si iteración lo exige. La ampliación derivada de `js-game` sitúa interacción, puzzles, inventario, secuencias, estado del jugador, IA, combate y UI reutilizable en módulos del núcleo con contratos comunes de documento/runtime/Studio. Cada proyecto registra y activa sólo los módulos que usa; ningún juego necesita armas o enemigos para arrancar. Cambiar nivel carga candidato y conserva anterior si falla. Los datos narrativos de La Casa son ejemplos, no contratos de compatibilidad.
 
 ## C07 — Colisión, puertas y audio
 

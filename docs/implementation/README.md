@@ -2,7 +2,9 @@
 
 **Paquete de implementación para agentes.** Este paquete convierte el [roadmap de investigación](../research/12-roadmap.md) en tickets con dependencias, alcance, responsabilidades, pruebas y criterios de cierre.
 
-**Actualización 2026-09-27:** hay **17 de 30 tickets integrados**. La entrega avanza por [oleadas o tickets revisables](ENTREGABLES-HOBBY.md), uno a la vez salvo encargo explícito de varios. El usuario revisó J01 y S01/S02. E01 abrió el Atrium en Studio; las oleadas 4–9 añadieron funciones jugables parciales. Tras ellas, el usuario pidió cerrar un ticket completo: [E02](evidence/E02.md) cumple ahora todos sus criterios. E03 es el siguiente ticket editorial elegible, pero requiere un nuevo encargo. Se retiraron los tickets de compatibilidad y migración de proyectos anteriores.
+**Actualización 2026-09-27:** hay **19 de 90 tickets integrados**. La entrega avanza por [oleadas o tickets revisables](ENTREGABLES-HOBBY.md), uno a la vez salvo encargo explícito de varios. El usuario revisó J01 y S01/S02. E01 abrió el Atrium en Studio; las oleadas 4–9 añadieron funciones jugables parciales. Después se cerraron [E02](evidence/E02.md), [E03](evidence/E03.md) y [E04](evidence/E04.md) con sus criterios formales. E04 queda para revisión interactiva antes del siguiente ticket. Se retiraron los tickets de compatibilidad y migración de proyectos anteriores.
+
+**Ampliación de investigación 2026-09-27:** la [auditoría integral de `js-game`](../research/13-js-game-full-audit.md) y su [inventario por archivo](../research/14-js-game-inventory.md) añaden 60 tickets `PLANNED`, sin ejecutar esas funciones. El backlog tiene ahora **90 tickets: 19 INTEGRATED, 4 IN_PROGRESS y 67 PLANNED**. `Z01` conserva el cierre original de 30 tickets; `ZA1` cierra la ampliación. La demo antigua sigue `NOT_RUN` en navegador. Cada ticket añadido requiere una entrega propia.
 
 La prioridad confirmada es **render de geometría, materiales y efectos en GPU**. SDK C y Studio deben usar el mismo runtime. El renderer CPU previo no es requisito de compatibilidad para los entregables nuevos.
 

@@ -9,6 +9,11 @@ import sys
 
 ROOT = Path(__file__).resolve().parent
 STATES = {"PLANNED", "IN_PROGRESS", "IMPLEMENTED", "VERIFIED", "INTEGRATED", "BLOCKED"}
+ORIGINAL_IDS = (
+    "F00", "F01", "G01", "R01", "G02", "R02", "R03", "I01", "D01", "M01",
+    "G03", "J01", "D02", "E01", "E02", "E03", "E04", "S01", "S02", "S03",
+    "V01", "V02", "A01", "A02", "E05", "Q01", "P01", "P02", "T01", "Z01",
+)
 
 
 def inspect(data):
@@ -83,8 +88,18 @@ def inspect(data):
             for dependency in by_id[ticket]["dependencies"]:
                 ancestors[ticket].add(dependency)
                 ancestors[ticket].update(ancestors[dependency])
-    if "Z01" not in ancestors or ancestors["Z01"] != set(ids) - {"Z01"}:
-        errors.append("Final gate Z01 must transitively depend on every other task")
+    original = set(ORIGINAL_IDS)
+    if not original <= set(ids):
+        errors.append("Original 30-ticket scope must remain present")
+    elif ancestors["Z01"] != original - {"Z01"}:
+        errors.append("Original gate Z01 must cover exactly the original 30-ticket scope")
+    if "ZA1" not in ancestors or ancestors["ZA1"] != set(ids) - {"ZA1"}:
+        errors.append("Expanded gate ZA1 must transitively depend on every other task")
+    for task in tasks:
+        if task["id"] not in original:
+            origin = task.get("origin")
+            if not isinstance(origin, list) or not origin or not all(isinstance(value, str) and value.strip() for value in origin):
+                errors.append(f"{task['id']}: expanded ticket requires origin references")
     return errors, waves
 
 
@@ -92,12 +107,13 @@ def task_markdown(data):
     lines = [
         "# Tickets de implementación", "",
         "Generado desde [backlog.json](backlog.json). Editar el JSON y ejecutar `python docs/implementation/validate-plan.py --render`; no mantener dos versiones manuales.", "",
+        "Z01 cierra el alcance original de 30 tickets. ZA1 cierra la ampliación derivada de `js-game`. Los tickets nuevos siguen siendo propuestas individuales; su presencia no autoriza ejecutarlos en bloque.", "",
         "Los paths son puntos de entrada; directorios nuevos son propuestas hasta F01. Antes de escribir se reclama una lista exacta de archivos. Los perfiles se definen en [VALIDATION.md](VALIDATION.md).", "",
     ]
     for task in data["tasks"]:
         lines += [f"## {task['id']} — {task['title']}", "",
                   f"Fase: **{task['phase']}** · Rol: **{task['role']}** · Estado: **{task['status']}**.", "",
-                  "Dependencias integradas: " + (", ".join(task["dependencies"]) or "ninguna; inicio del plan") + ".", "",
+                  "Dependencias: " + (", ".join(task["dependencies"]) or "ninguna; inicio del plan") + ".", "",
                   "Locks: " + ", ".join(f"`{value}`" for value in task["locks"]) + ".", "",
                   "Puntos de entrada: " + ", ".join(f"`{value}`" for value in task["paths"]) + ".", "",
                   "**Trabajo:**", ""]
@@ -112,6 +128,8 @@ def task_markdown(data):
             lines += [f"Commit integrado: `{task['integrated_commit']}`.", ""]
         if task.get("blocked_reason"):
             lines += ["Bloqueo: " + task["blocked_reason"], ""]
+        if task.get("origin"):
+            lines += ["Origen: " + ", ".join(f"`{value}`" for value in task["origin"]) + ".", ""]
     return "\n".join(lines)
 
 
@@ -119,7 +137,7 @@ def wave_markdown(data, waves):
     by_id = {task["id"]: task for task in data["tasks"]}
     lines = ["# Oleadas y dependencias", "",
              "Generado de [backlog.json](backlog.json). Una oleada expresa profundidad de dependencias, no una barrera obligatoria ni autorización para escribir simultáneamente. Se puede adelantar un ticket cuando sus dependencias estén INTEGRATED y sus locks/archivos estén libres.", "",
-             "El coordinador puede usar menos workers que tickets. Además de locks se revisa el solapamiento real de archivos; ver [PLAN.md](PLAN.md).", "",
+             "Z01 es el hito original; ZA1 integra la ampliación. El coordinador puede usar menos workers que tickets. Además de locks se revisa el solapamiento real de archivos; ver [PLAN.md](PLAN.md).", "",
              "| Oleada teórica | Tickets | Conflictos de locks dentro de la oleada |", "|---|---|---|"]
     for index, wave in enumerate(waves):
         conflicts = []
@@ -170,7 +188,8 @@ def main():
     print(json.dumps({"result": "PASS", "tickets": len(data["tasks"]), "waves": len(waves),
                       "dependency_edges": sum(len(task["dependencies"]) for task in data["tasks"]),
                       "default_scope_tickets": len(data["default_scope"]),
-                      "all_tasks_reach_final_gate": True, "engine_tests_run": False}, indent=2))
+                      "original_gate": "Z01", "expanded_gate": "ZA1",
+                      "all_tasks_reach_expanded_gate": True, "engine_tests_run": False}, indent=2))
     return 0
 
 
