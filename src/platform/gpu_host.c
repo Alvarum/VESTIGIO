@@ -10,6 +10,7 @@
 #include "tooling/tool_api.h"
 #include "vestigio/controller.h"
 #include "vestigio/door.h"
+#include "world/transform_internal.h"
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
@@ -54,9 +55,30 @@ struct VgGpuHost {
     VgEntity selected_entity;
     bool has_selection;
     char selected_uuid[37];
+    size_t selection_count;
+    char selection_uuids[VG_TOOL_MAX_COMMANDS][37];
+    struct {
+        bool active;
+        bool has_preview;
+        int32_t op, space, pivot, axis;
+        float snap, amount;
+        uint64_t revision;
+        size_t count;
+        size_t active_index;
+        char ids[VG_TOOL_MAX_COMMANDS][37];
+        char parent_ids[VG_TOOL_MAX_COMMANDS][37];
+        VgDocumentTransform local[VG_TOOL_MAX_COMMANDS];
+        VgTransform world[VG_TOOL_MAX_COMMANDS];
+        VgMatrix parent_matrix[VG_TOOL_MAX_COMMANDS];
+        VgDocumentInstance *original_edit;
+        VgEntity original_camera;
+    } gesture;
     VgVec3 selected_center;
     VgVec3 selected_extent;
     uint32_t pick_mask;
+    int32_t gizmo_operation;
+    int32_t gizmo_space;
+    int32_t gizmo_pivot;
     VgVec3 orbit_target;
     float orbit_distance;
     double accumulator;
@@ -84,6 +106,8 @@ static void host_error(char *out, size_t capacity, const char *message) {
     if (out && capacity)
         (void)snprintf(out, capacity, "%s", message);
 }
+
+static size_t host_collect_gizmos(const VgGpuHost *host, VgGpuGizmo *out, size_t capacity);
 
 /* 1 exists, 0 missing, -1 invalid/inaccessible. Settings paths are UTF-8. */
 static int host_settings_file_state(const char *path) {
@@ -165,6 +189,9 @@ static void host_release_play(VgGpuHost *host) {
 
 static void host_release_level(VgGpuHost *host) {
     host_release_play(host);
+    if (host->gesture.has_preview)
+        vg_document_instance_destroy(host->gesture.original_edit);
+    memset(&host->gesture, 0, sizeof(host->gesture));
     vg_document_instance_destroy(host->edit);
     host->edit = NULL;
     vg_document_destroy(host->document);
@@ -189,6 +216,7 @@ static void host_release_level(VgGpuHost *host) {
     host->jump_pending = false;
     host->has_selection = false;
     host->selected_uuid[0] = '\0';
+    host->selection_count = 0u;
     host->edit_camera_mode = 0;
     host->saved_revision = 0u;
     free(host->saved_json);
@@ -304,6 +332,7 @@ VgGpuHost *vg_gpu_host_create(void *parent_window, unsigned int width, unsigned 
         host->audio_gain[bus] = 1.0f;
     host->pick_mask =
         VG_GPU_PICK_MESH | VG_GPU_PICK_CAMERA | VG_GPU_PICK_LIGHT | VG_GPU_PICK_TRIGGER;
+    host->gizmo_operation = -1;
     VgGpuHost *expected = NULL;
     if (!atomic_compare_exchange_strong_explicit(&active_host, &expected, host,
                                                  memory_order_acq_rel, memory_order_acquire)) {
@@ -358,6 +387,12 @@ int32_t vg_gpu_host_render(VgGpuHost *host) {
         if (vg_gpu_renderer_draw_world(host->renderer, host->context,
                                        vg_document_instance_world(instance)) != VG_OK)
             return false;
+        if (host->play == NULL && host->gizmo_operation >= 0) {
+            VgGpuGizmo gizmos[VG_TOOL_MAX_COMMANDS];
+            size_t count = host_collect_gizmos(host, gizmos, VG_TOOL_MAX_COMMANDS);
+            if (count != 0u && !vg_gpu_renderer_draw_gizmos(host->renderer, gizmos, count))
+                return false;
+        }
     } else if (!vg_gpu_renderer_draw_demo(host->renderer)) {
         return false;
     }
@@ -632,7 +667,8 @@ fail:
 }
 
 int32_t vg_gpu_host_set_mode(VgGpuHost *host, int32_t play) {
-    if (!host_is_current(host) || host->edit == NULL || (play != 0 && play != 1))
+    if (!host_is_current(host) || host->edit == NULL || host->gesture.active ||
+        (play != 0 && play != 1))
         return false;
     if (play == 0) {
         host_release_play(host);
@@ -913,6 +949,134 @@ static void host_format_uuid(VgUuid id, char out[37]) {
                    id.bytes[12], id.bytes[13], id.bytes[14], id.bytes[15]);
 }
 
+static size_t host_collect_gizmos(const VgGpuHost *host, VgGpuGizmo *out, size_t capacity) {
+    if (host == NULL || host->edit == NULL || host->play != NULL || host->gizmo_operation < 0 ||
+        host->selection_count == 0u || capacity == 0u)
+        return 0u;
+    const VgJsonNode *document_entities =
+        vg_json_object_get(vg_document_root(host->document), "entities");
+    if (document_entities == NULL || document_entities->type != VG_JSON_ARRAY)
+        return 0u;
+    for (size_t item = 0u; item < host->selection_count; ++item) {
+        for (size_t index = 0u; index < document_entities->as.array.count; ++index) {
+            const VgJsonNode *entity = document_entities->as.array.items[index];
+            const VgJsonNode *id = vg_json_object_get(entity, "id");
+            if (id == NULL || id->type != VG_JSON_STRING ||
+                strcmp(id->as.string.data, host->selection_uuids[item]) != 0)
+                continue;
+            const VgJsonNode *components = vg_json_object_get(entity, "components");
+            if (vg_json_object_get(components, "vestigio.room_piece") != NULL)
+                return 0u;
+            break;
+        }
+    }
+    VgGpuGizmo selected[VG_TOOL_MAX_COMMANDS];
+    size_t count = 0u;
+    size_t entity_count = vg_document_instance_entity_count(host->edit);
+    for (size_t item = 0u; item < host->selection_count && count < VG_TOOL_MAX_COMMANDS; ++item) {
+        for (size_t index = 0u; index < entity_count; ++index) {
+            VgUuid id;
+            VgEntity entity;
+            char uuid[37];
+            VgTransform transform;
+            if (!vg_document_instance_entity_at(host->edit, index, &id, &entity))
+                continue;
+            host_format_uuid(id, uuid);
+            if (strcmp(uuid, host->selection_uuids[item]) != 0)
+                continue;
+            if (vg_entity_get_world_transform(host->context, entity, &transform) != VG_OK)
+                break;
+            selected[count++] =
+                (VgGpuGizmo){.position = transform.position,
+                             .rotation = host->gizmo_space == 1 ? transform.rotation
+                                                                : (VgQuat){0.0f, 0.0f, 0.0f, 1.0f},
+                             .operation = host->gizmo_operation};
+            break;
+        }
+    }
+    if (count == 0u)
+        return 0u;
+    if (host->gizmo_pivot == 2) {
+        size_t total = count < capacity ? count : capacity;
+        memcpy(out, selected, total * sizeof(*out));
+        return total;
+    }
+    VgGpuGizmo gizmo = selected[count - 1u];
+    if (host->gizmo_pivot == 0) {
+        VgVec3 center = {0};
+        for (size_t index = 0u; index < count; ++index) {
+            center.x += selected[index].position.x;
+            center.y += selected[index].position.y;
+            center.z += selected[index].position.z;
+        }
+        gizmo.position =
+            (VgVec3){center.x / (float)count, center.y / (float)count, center.z / (float)count};
+    }
+    out[0] = gizmo;
+    return 1u;
+}
+
+int32_t vg_gpu_host_gizmo_config(VgGpuHost *host, int32_t operation, int32_t space, int32_t pivot) {
+    if (!host_is_current(host) || host->play != NULL || operation < -1 || operation > 2 ||
+        space < 0 || space > 1 || pivot < 0 || pivot > 2)
+        return false;
+    host->gizmo_operation = operation;
+    host->gizmo_space = space;
+    host->gizmo_pivot = pivot;
+    return true;
+}
+
+int32_t vg_gpu_host_gizmo_hit(VgGpuHost *host, float u, float v) {
+    if (!host_is_current(host) || host->edit == NULL || host->play != NULL ||
+        host->gizmo_operation < 0 || !isfinite(u) || !isfinite(v) || u < 0.0f || u > 1.0f ||
+        v < 0.0f || v > 1.0f)
+        return 0;
+    unsigned int width = 0u, height = 0u;
+    if (!vg_win32_embedded_size(host->window, &width, &height) || width == 0u || height == 0u)
+        return 0;
+    float scale = fminf((float)width / 320.0f, (float)height / 180.0f);
+    if (scale >= 1.0f)
+        scale = floorf(scale);
+    if (scale <= 0.0f)
+        return 0;
+    float draw_width = 320.0f * scale, draw_height = 180.0f * scale;
+    float x = u * (float)width - ((float)width - draw_width) * 0.5f;
+    float y = v * (float)height - ((float)height - draw_height) * 0.5f;
+    if (x < 0.0f || x > draw_width || y < 0.0f || y > draw_height)
+        return 0;
+    VgGpuGizmo gizmos[VG_TOOL_MAX_COMMANDS];
+    size_t count = host_collect_gizmos(host, gizmos, VG_TOOL_MAX_COMMANDS);
+    return count == 0u ? 0
+                       : vg_gpu_renderer_gizmo_hit(host->renderer, gizmos, count, x / draw_width,
+                                                   y / draw_height);
+}
+
+int32_t vg_gpu_host_gizmo_drag_direction(VgGpuHost *host, float u, float v, int32_t axis,
+                                         float *out_x, float *out_y) {
+    if (!host_is_current(host) || host->edit == NULL || host->play != NULL ||
+        host->gizmo_operation < 0 || axis < 0 || axis > 2 || out_x == NULL || out_y == NULL ||
+        !isfinite(u) || !isfinite(v) || u < 0.0f || u > 1.0f || v < 0.0f || v > 1.0f)
+        return false;
+    unsigned int width = 0u, height = 0u;
+    if (!vg_win32_embedded_size(host->window, &width, &height) || width == 0u || height == 0u)
+        return false;
+    float scale = fminf((float)width / 320.0f, (float)height / 180.0f);
+    if (scale >= 1.0f)
+        scale = floorf(scale);
+    if (scale <= 0.0f)
+        return false;
+    float draw_width = 320.0f * scale, draw_height = 180.0f * scale;
+    float x = u * (float)width - ((float)width - draw_width) * 0.5f;
+    float y = v * (float)height - ((float)height - draw_height) * 0.5f;
+    if (x < 0.0f || x > draw_width || y < 0.0f || y > draw_height)
+        return false;
+    VgGpuGizmo gizmos[VG_TOOL_MAX_COMMANDS];
+    size_t count = host_collect_gizmos(host, gizmos, VG_TOOL_MAX_COMMANDS);
+    return count != 0u && vg_gpu_renderer_gizmo_drag_direction(host->renderer, gizmos, count,
+                                                                x / draw_width, y / draw_height,
+                                                                axis, out_x, out_y);
+}
+
 static bool host_entity_has_mesh(const VgGpuHost *host, size_t index) {
     const VgJsonNode *entities = vg_json_object_get(vg_document_root(host->document), "entities");
     if (entities == NULL || entities->type != VG_JSON_ARRAY || index >= entities->as.array.count)
@@ -953,11 +1117,13 @@ int32_t vg_gpu_host_entity_at(const VgGpuHost *host, size_t index, char *uuid,
 }
 
 int32_t vg_gpu_host_select(VgGpuHost *host, const char *uuid) {
-    if (!host_is_current(host) || host->edit == NULL || host->play != NULL || uuid == NULL)
+    if (!host_is_current(host) || host->edit == NULL || host->play != NULL ||
+        host->gesture.active || uuid == NULL)
         return false;
     if (uuid[0] == '\0') {
         host->has_selection = false;
         host->selected_uuid[0] = '\0';
+        host->selection_count = 0u;
         return true;
     }
     char current[37];
@@ -980,11 +1146,80 @@ int32_t vg_gpu_host_select(VgGpuHost *host, const char *uuid) {
         host->selected_extent = has_mesh ? mesh.bounds_extent : (VgVec3){0.25f, 0.25f, 0.25f};
         host->has_selection = true;
         (void)snprintf(host->selected_uuid, sizeof(host->selected_uuid), "%s", current);
+        host->selection_count = 1u;
+        (void)snprintf(host->selection_uuids[0], sizeof(host->selection_uuids[0]), "%s", current);
         if (has_mesh)
             (void)vg_asset_release(host->context, mesh.asset);
         return true;
     }
     return false;
+}
+
+int32_t vg_gpu_host_select_add(VgGpuHost *host, const char *uuid, int32_t additive,
+                               int32_t toggle) {
+    if (!host_is_current(host) || host->play != NULL || host->gesture.active || uuid == NULL)
+        return false;
+    if (uuid[0] == '\0')
+        return additive ? false : vg_gpu_host_select(host, uuid);
+    if (!additive)
+        return vg_gpu_host_select(host, uuid);
+    size_t existing = host->selection_count;
+    size_t found = existing;
+    for (size_t i = 0u; i < existing; ++i) {
+        if (strcmp(host->selection_uuids[i], uuid) == 0) {
+            found = i;
+            break;
+        }
+    }
+    if (found != existing) {
+        if (!toggle) {
+            char previous[VG_TOOL_MAX_COMMANDS][37];
+            memcpy(previous, host->selection_uuids, existing * 37u);
+            if (!vg_gpu_host_select(host, uuid))
+                return false;
+            memcpy(host->selection_uuids, previous, existing * 37u);
+            host->selection_count = existing;
+            return true;
+        }
+        for (size_t i = found + 1u; i < existing; ++i)
+            memcpy(host->selection_uuids[i - 1u], host->selection_uuids[i], 37u);
+        host->selection_count = existing - 1u;
+        if (host->selection_count == 0u)
+            return vg_gpu_host_select(host, "");
+        if (strcmp(host->selected_uuid, uuid) == 0) {
+            char remaining[VG_TOOL_MAX_COMMANDS][37];
+            size_t count = host->selection_count;
+            memcpy(remaining, host->selection_uuids, count * 37u);
+            if (!vg_gpu_host_select(host, remaining[count - 1u]))
+                return false;
+            memcpy(host->selection_uuids, remaining, count * 37u);
+            host->selection_count = count;
+        }
+        return true;
+    }
+    if (existing >= VG_TOOL_MAX_COMMANDS)
+        return false;
+    char previous[VG_TOOL_MAX_COMMANDS][37];
+    memcpy(previous, host->selection_uuids, existing * 37u);
+    if (!vg_gpu_host_select(host, uuid))
+        return false;
+    memcpy(host->selection_uuids, previous, existing * 37u);
+    (void)snprintf(host->selection_uuids[existing], 37u, "%s", uuid);
+    host->selection_count = existing + 1u;
+    return true;
+}
+
+size_t vg_gpu_host_selection_count(const VgGpuHost *host) {
+    return host_is_current(host) && host->play == NULL ? host->selection_count : 0u;
+}
+
+int32_t vg_gpu_host_selection_at(const VgGpuHost *host, size_t index, char *uuid,
+                                 size_t uuid_capacity) {
+    if (!host_is_current(host) || host->play != NULL || index >= host->selection_count ||
+        uuid == NULL || uuid_capacity < 37u)
+        return false;
+    (void)snprintf(uuid, uuid_capacity, "%s", host->selection_uuids[index]);
+    return true;
 }
 
 int32_t vg_gpu_host_selected_uuid(const VgGpuHost *host, char *uuid, size_t uuid_capacity) {
@@ -1047,15 +1282,20 @@ static bool host_prepare_instance(VgGpuHost *host, const VgDocument *document,
 }
 
 static void host_swap_edit(VgGpuHost *host, VgDocumentInstance *candidate, VgEntity camera) {
-    char selected[37];
-    (void)snprintf(selected, sizeof(selected), "%s", host->selected_uuid);
+    char selected[VG_TOOL_MAX_COMMANDS][37];
+    size_t selected_count = host->selection_count;
+    memcpy(selected, host->selection_uuids, selected_count * 37u);
     vg_document_instance_destroy(host->edit);
     host->edit = candidate;
     host->edit_camera = camera;
     host->has_selection = false;
     host->selected_uuid[0] = '\0';
-    if (selected[0] != '\0')
-        (void)vg_gpu_host_select(host, selected);
+    host->selection_count = 0u;
+    bool gesture_active = host->gesture.active;
+    host->gesture.active = false;
+    for (size_t i = 0u; i < selected_count; ++i)
+        (void)vg_gpu_host_select_add(host, selected[i], i != 0u, false);
+    host->gesture.active = gesture_active;
 }
 
 static bool host_apply_batch(VgGpuHost *host, VgToolBatch *batch, VgToolResult *out_result,
@@ -1102,7 +1342,7 @@ static bool host_apply_batch(VgGpuHost *host, VgToolBatch *batch, VgToolResult *
 
 static VgToolBatch *host_begin_edit(VgGpuHost *host, char *error, size_t error_capacity) {
     if (!host_is_current(host) || host->document == NULL || host->edit == NULL ||
-        host->play != NULL) {
+        host->play != NULL || host->gesture.active) {
         host_error(error, error_capacity, "La edicion requiere el modo Editar");
         return NULL;
     }
@@ -1203,6 +1443,527 @@ static bool host_selected_room_piece(const VgGpuHost *host) {
             return host_room_part(entity) != NULL;
     }
     return false;
+}
+
+static const VgJsonNode *host_document_entity(const VgGpuHost *host, const char *uuid) {
+    if (host == NULL || host->document == NULL || uuid == NULL)
+        return NULL;
+    const VgJsonNode *entities = vg_json_object_get(vg_document_root(host->document), "entities");
+    if (entities == NULL || entities->type != VG_JSON_ARRAY)
+        return NULL;
+    for (size_t i = 0u; i < entities->as.array.count; ++i) {
+        const VgJsonNode *entity = entities->as.array.items[i];
+        const VgJsonNode *id = vg_json_object_get(entity, "id");
+        if (id != NULL && id->type == VG_JSON_STRING && strcmp(id->as.string.data, uuid) == 0)
+            return entity;
+    }
+    return NULL;
+}
+
+static bool host_find_instance_uuid(const VgGpuHost *host, const char *uuid, VgEntity *out_entity) {
+    if (host == NULL || host->edit == NULL || uuid == NULL)
+        return false;
+    for (size_t i = 0u; i < vg_document_instance_entity_count(host->edit); ++i) {
+        VgUuid id;
+        VgEntity entity;
+        char text[37];
+        if (!vg_document_instance_entity_at(host->edit, i, &id, &entity))
+            return false;
+        host_format_uuid(id, text);
+        if (strcmp(text, uuid) == 0) {
+            *out_entity = entity;
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool host_selection_editable(const VgGpuHost *host, bool structural, char *error,
+                                    size_t error_capacity) {
+    if (host->selection_count == 0u) {
+        host_error(error, error_capacity, "Selecciona al menos un objeto");
+        return false;
+    }
+    for (size_t i = 0u; i < host->selection_count; ++i) {
+        const char *uuid = host->selection_uuids[i];
+        const VgJsonNode *entity = host_document_entity(host, uuid);
+        if (entity == NULL || host_room_part(entity) != NULL) {
+            host_error(error, error_capacity,
+                       "La seleccion contiene una pieza de sala fija o un objeto ausente");
+            return false;
+        }
+        if (!structural)
+            continue;
+        VgEntity selected;
+        if (!host_find_instance_uuid(host, uuid, &selected))
+            return false;
+        for (size_t door = 0u; door < vg_document_instance_door_count(host->edit); ++door) {
+            VgDocumentDoorBinding binding;
+            if (!vg_document_instance_door_at(host->edit, door, &binding))
+                return false;
+            if (binding.panel.value != selected.value)
+                continue;
+            bool hinge_selected = false;
+            for (size_t other = 0u; other < host->selection_count; ++other) {
+                VgEntity parent;
+                if (host_find_instance_uuid(host, host->selection_uuids[other], &parent) &&
+                    parent.value == binding.hinge.value) {
+                    hinge_selected = true;
+                    break;
+                }
+            }
+            if (!hinge_selected) {
+                host_error(error, error_capacity,
+                           "Selecciona tambien la bisagra para editar la puerta en lote");
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+static VgMatrix host_identity_matrix(void) {
+    VgMatrix result = {{1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+                        0.0f, 0.0f, 0.0f, 1.0f}};
+    return result;
+}
+
+static VgVec3 host_gesture_axis(const VgGpuHost *host, size_t index) {
+    VgVec3 axis = {0.0f, 0.0f, 0.0f};
+    ((float *)&axis)[host->gesture.axis] = 1.0f;
+    if (host->gesture.space == 0)
+        return axis;
+    size_t basis = host->gesture.pivot == 2 ? index : host->gesture.active_index;
+    VgQuat q = host->gesture.world[basis].rotation;
+    VgVec3 t = {2.0f * (q.y * axis.z - q.z * axis.y), 2.0f * (q.z * axis.x - q.x * axis.z),
+                2.0f * (q.x * axis.y - q.y * axis.x)};
+    return (VgVec3){axis.x + q.w * t.x + q.y * t.z - q.z * t.y,
+                    axis.y + q.w * t.y + q.z * t.x - q.x * t.z,
+                    axis.z + q.w * t.z + q.x * t.y - q.y * t.x};
+}
+
+static VgMatrix host_gesture_operation(const VgGpuHost *host, size_t index, float amount,
+                                       VgVec3 pivot) {
+    VgVec3 axis = host_gesture_axis(host, index);
+    VgMatrix operation = host_identity_matrix();
+    if (host->gesture.op == 0) {
+        operation.m[3] = axis.x * amount;
+        operation.m[7] = axis.y * amount;
+        operation.m[11] = axis.z * amount;
+        return operation;
+    }
+    if (host->gesture.op == 1) {
+        float sine = sinf(amount * 0.5f), cosine = cosf(amount * 0.5f);
+        VgTransform rotation = {
+            {0}, {axis.x * sine, axis.y * sine, axis.z * sine, cosine}, {1.0f, 1.0f, 1.0f}};
+        operation = vg_transform_matrix(rotation);
+    } else {
+        float vector[3] = {axis.x, axis.y, axis.z};
+        for (size_t row = 0u; row < 3u; ++row)
+            for (size_t column = 0u; column < 3u; ++column)
+                operation.m[row * 4u + column] += amount * vector[row] * vector[column];
+    }
+    VgMatrix to_pivot = host_identity_matrix(), from_pivot = host_identity_matrix();
+    to_pivot.m[3] = pivot.x;
+    to_pivot.m[7] = pivot.y;
+    to_pivot.m[11] = pivot.z;
+    from_pivot.m[3] = -pivot.x;
+    from_pivot.m[7] = -pivot.y;
+    from_pivot.m[11] = -pivot.z;
+    return vg_matrix_multiply(vg_matrix_multiply(to_pivot, operation), from_pivot);
+}
+
+static bool host_gesture_batch(VgGpuHost *host, float amount, VgToolBatch **out_batch, char *error,
+                               size_t error_capacity) {
+    VgDocumentDiagnostic diagnostic = {0};
+    VgToolBatch *batch = NULL;
+    if (!vg_tool_begin(host->document, host->gesture.revision, &batch, &diagnostic)) {
+        host_error(error, error_capacity, diagnostic.message);
+        return false;
+    }
+    VgVec3 pivot = {0};
+    for (size_t i = 0u; i < host->gesture.count; ++i) {
+        pivot.x += host->gesture.world[i].position.x;
+        pivot.y += host->gesture.world[i].position.y;
+        pivot.z += host->gesture.world[i].position.z;
+    }
+    if (host->gesture.pivot == 1) {
+        pivot = host->gesture.world[host->gesture.active_index].position;
+    } else {
+        float denominator = (float)host->gesture.count;
+        pivot.x /= denominator;
+        pivot.y /= denominator;
+        pivot.z /= denominator;
+    }
+    VgMatrix desired[VG_TOOL_MAX_COMMANDS];
+    for (size_t i = 0u; i < host->gesture.count; ++i) {
+        VgVec3 center = host->gesture.pivot == 2 ? host->gesture.world[i].position : pivot;
+        VgMatrix operation = host_gesture_operation(host, i, amount, center);
+        desired[i] = vg_matrix_multiply(operation, vg_transform_matrix(host->gesture.world[i]));
+    }
+    for (size_t i = 0u; i < host->gesture.count; ++i) {
+        VgMatrix parent = host->gesture.parent_matrix[i];
+        for (size_t j = 0u; j < host->gesture.count; ++j) {
+            if (host->gesture.parent_ids[i][0] != '\0' &&
+                strcmp(host->gesture.parent_ids[i], host->gesture.ids[j]) == 0) {
+                parent = desired[j];
+                break;
+            }
+        }
+        VgMatrix inverse;
+        VgTransform local;
+        if (!vg_matrix_inverse_affine(parent, &inverse) ||
+            !vg_matrix_to_transform(vg_matrix_multiply(inverse, desired[i]), &local)) {
+            host_error(error, error_capacity,
+                       "El gesto produciria shear o escala no representable en la jerarquia");
+            vg_tool_cancel(batch);
+            return false;
+        }
+        VgDocumentTransform transform = {0};
+        const float position[] = {local.position.x, local.position.y, local.position.z};
+        const float rotation[] = {local.rotation.x, local.rotation.y, local.rotation.z,
+                                  local.rotation.w};
+        const float scale[] = {local.scale.x, local.scale.y, local.scale.z};
+        for (size_t k = 0u; k < 3u; ++k) {
+            transform.position[k] = position[k];
+            transform.scale[k] = scale[k];
+        }
+        for (size_t k = 0u; k < 4u; ++k)
+            transform.rotation[k] = rotation[k];
+        if (!vg_tool_set_transform(batch, host->gesture.ids[i], &transform, &diagnostic)) {
+            host_error(error, error_capacity, diagnostic.message);
+            vg_tool_cancel(batch);
+            return false;
+        }
+    }
+    *out_batch = batch;
+    return true;
+}
+
+int32_t vg_gpu_host_begin_gesture(VgGpuHost *host, int32_t op, int32_t space, int32_t pivot,
+                                  int32_t axis, float snap, char *error, size_t error_capacity) {
+    if (!host_is_current(host) || host->document == NULL || host->edit == NULL ||
+        host->play != NULL || host->gesture.active || op < 0 || op > 2 || space < 0 || space > 1 ||
+        pivot < 0 || pivot > 2 || axis < 0 || axis > 2 || !isfinite(snap) || snap < 0.0f) {
+        host_error(error, error_capacity, "Gesto o seleccion invalida");
+        return false;
+    }
+    if (!host_selection_editable(host, false, error, error_capacity))
+        return false;
+    memset(&host->gesture, 0, sizeof(host->gesture));
+    host->gesture.op = op;
+    host->gesture.space = space;
+    host->gesture.pivot = pivot;
+    host->gesture.axis = axis;
+    host->gesture.snap = snap;
+    host->gesture.revision = vg_document_revision(host->document);
+    host->gesture.count = host->selection_count;
+    for (size_t i = 0u; i < host->selection_count; ++i) {
+        if (strcmp(host->selected_uuid, host->selection_uuids[i]) == 0)
+            host->gesture.active_index = i;
+    }
+    host->gesture.original_edit = host->edit;
+    host->gesture.original_camera = host->edit_camera;
+    for (size_t i = 0u; i < host->gesture.count; ++i) {
+        const char *uuid = host->selection_uuids[i];
+        VgEntity entity;
+        const VgJsonNode *node = host_document_entity(host, uuid);
+        const VgJsonNode *parent = vg_json_object_get(node, "parent");
+        if (node == NULL || !host_find_instance_uuid(host, uuid, &entity) ||
+            !vg_document_entity_transform(host->document, uuid, &host->gesture.local[i], NULL) ||
+            vg_entity_get_world_transform(host->context, entity, &host->gesture.world[i]) !=
+                VG_OK) {
+            memset(&host->gesture, 0, sizeof(host->gesture));
+            host_error(error, error_capacity, "No se pudo leer la pose original");
+            return false;
+        }
+        (void)snprintf(host->gesture.ids[i], 37u, "%s", uuid);
+        host->gesture.parent_matrix[i] = host_identity_matrix();
+        if (parent != NULL && parent->type == VG_JSON_STRING) {
+            VgEntity parent_entity;
+            VgTransform parent_world;
+            (void)snprintf(host->gesture.parent_ids[i], 37u, "%s", parent->as.string.data);
+            if (!host_find_instance_uuid(host, parent->as.string.data, &parent_entity) ||
+                vg_entity_get_world_transform(host->context, parent_entity, &parent_world) !=
+                    VG_OK) {
+                memset(&host->gesture, 0, sizeof(host->gesture));
+                host_error(error, error_capacity, "No se pudo leer la jerarquia original");
+                return false;
+            }
+            host->gesture.parent_matrix[i] = vg_transform_matrix(parent_world);
+        }
+    }
+    host->gesture.active = true;
+    host_error(error, error_capacity, "");
+    return true;
+}
+
+int32_t vg_gpu_host_update_gesture(VgGpuHost *host, float amount, char *error,
+                                   size_t error_capacity) {
+    if (!host_is_current(host) || !host->gesture.active || !isfinite(amount)) {
+        host_error(error, error_capacity, "No hay gesto activo o desplazamiento valido");
+        return false;
+    }
+    if (vg_document_revision(host->document) != host->gesture.revision) {
+        host_error(error, error_capacity, "El documento cambio durante el gesto");
+        return false;
+    }
+    if (host->gesture.snap > 0.0f)
+        amount = roundf(amount / host->gesture.snap) * host->gesture.snap;
+    if (!isfinite(amount) || (host->gesture.op == 2 && amount <= -1.0f)) {
+        host_error(error, error_capacity, "La escala resultante debe ser positiva");
+        return false;
+    }
+    VgToolBatch *batch = NULL;
+    if (!host_gesture_batch(host, amount, &batch, error, error_capacity))
+        return false;
+    VgDocumentDiagnostic diagnostic = {0};
+    char *json = NULL;
+    size_t length = 0u;
+    if (!vg_tool_preview(batch, &json, &length, NULL, &diagnostic)) {
+        host_error(error, error_capacity, diagnostic.message);
+        vg_tool_cancel(batch);
+        return false;
+    }
+    vg_tool_cancel(batch);
+    VgDocument *preview = NULL;
+    bool opened = vg_document_open_memory("<gesture-preview>", json, length, &preview, &diagnostic);
+    free(json);
+    if (!opened) {
+        host_error(error, error_capacity, diagnostic.message);
+        return false;
+    }
+    VgDocumentInstance *candidate = NULL;
+    VgEntity camera;
+    bool prepared = host_prepare_instance(host, preview, &candidate, &camera, &diagnostic, true);
+    vg_document_destroy(preview);
+    if (!prepared) {
+        host_error(error, error_capacity, diagnostic.message);
+        return false;
+    }
+    if (!host->gesture.has_preview)
+        host->edit = NULL; /* Keep the committed instance for Escape. */
+    host_swap_edit(host, candidate, camera);
+    host->gesture.has_preview = true;
+    host->gesture.amount = amount;
+    host_error(error, error_capacity, "");
+    return true;
+}
+
+int32_t vg_gpu_host_end_gesture(VgGpuHost *host, int32_t commit, char *error,
+                                size_t error_capacity) {
+    if (!host_is_current(host) || !host->gesture.active) {
+        host_error(error, error_capacity, "No hay gesto activo");
+        return false;
+    }
+    if (commit && vg_document_revision(host->document) != host->gesture.revision) {
+        if (host->gesture.has_preview)
+            host_swap_edit(host, host->gesture.original_edit, host->gesture.original_camera);
+        memset(&host->gesture, 0, sizeof(host->gesture));
+        host_error(error, error_capacity, "El documento cambio durante el gesto");
+        return false;
+    }
+    if (commit && host->gesture.has_preview && host->gesture.amount != 0.0f) {
+        VgToolBatch *batch = NULL;
+        if (!host_gesture_batch(host, host->gesture.amount, &batch, error, error_capacity) ||
+            !host_apply_batch(host, batch, NULL, error, error_capacity)) {
+            char failure[256];
+            (void)snprintf(failure, sizeof(failure), "%s",
+                           error != NULL ? error : "Fallo del gesto");
+            host_swap_edit(host, host->gesture.original_edit, host->gesture.original_camera);
+            memset(&host->gesture, 0, sizeof(host->gesture));
+            host_error(error, error_capacity, failure);
+            return false;
+        }
+        vg_document_instance_destroy(host->gesture.original_edit);
+    } else if (host->gesture.has_preview) {
+        VgDocumentInstance *original = host->gesture.original_edit;
+        VgEntity camera = host->gesture.original_camera;
+        host_swap_edit(host, original, camera);
+    }
+    memset(&host->gesture, 0, sizeof(host->gesture));
+    host_error(error, error_capacity, "");
+    return true;
+}
+
+static bool host_can_structure(VgGpuHost *host, char *error, size_t error_capacity) {
+    if (!host_is_current(host) || host->document == NULL || host->edit == NULL ||
+        host->play != NULL || host->gesture.active) {
+        host_error(error, error_capacity, "La operacion requiere el modo Editar sin gesto activo");
+        return false;
+    }
+    return host_selection_editable(host, true, error, error_capacity);
+}
+
+int32_t vg_gpu_host_duplicate_selection(VgGpuHost *host, char *error, size_t error_capacity) {
+    if (!host_can_structure(host, error, error_capacity))
+        return false;
+    if (host->selection_count > VG_TOOL_MAX_COMMANDS / 2u) {
+        host_error(error, error_capacity, "Demasiados objetos para duplicar en un lote");
+        return false;
+    }
+    VgToolBatch *batch = host_begin_edit(host, error, error_capacity);
+    if (batch == NULL)
+        return false;
+    VgDocumentDiagnostic diagnostic = {0};
+    size_t count = host->selection_count;
+    char ids[VG_TOOL_MAX_COMMANDS][37];
+    memcpy(ids, host->selection_uuids, count * 37u);
+    for (size_t i = 0u; i < count; ++i) {
+        char temporary[32];
+        (void)snprintf(temporary, sizeof(temporary), "$copy%zu", i);
+        if (!vg_tool_duplicate_entity(batch, ids[i], temporary, NULL, &diagnostic)) {
+            host_error(error, error_capacity, diagnostic.message);
+            vg_tool_cancel(batch);
+            return false;
+        }
+        const VgJsonNode *entity = host_document_entity(host, ids[i]);
+        const VgJsonNode *parent = vg_json_object_get(entity, "parent");
+        bool parent_selected = false;
+        if (parent != NULL && parent->type == VG_JSON_STRING) {
+            for (size_t j = 0u; j < count; ++j)
+                parent_selected |= strcmp(parent->as.string.data, ids[j]) == 0;
+        }
+        if (!parent_selected) {
+            VgDocumentTransform transform;
+            if (!vg_document_entity_transform(host->document, ids[i], &transform, &diagnostic)) {
+                host_error(error, error_capacity, diagnostic.message);
+                vg_tool_cancel(batch);
+                return false;
+            }
+            transform.position[0] += 1.5;
+            if (!vg_tool_set_transform(batch, temporary, &transform, &diagnostic)) {
+                host_error(error, error_capacity, diagnostic.message);
+                vg_tool_cancel(batch);
+                return false;
+            }
+        }
+    }
+    VgToolResult result;
+    if (!host_apply_batch(host, batch, &result, error, error_capacity))
+        return false;
+    (void)vg_gpu_host_select(host, "");
+    for (size_t i = 0u; i < count; ++i) {
+        char temporary[32], duplicated[37];
+        (void)snprintf(temporary, sizeof(temporary), "$copy%zu", i);
+        if (host_result_id(&result, temporary, duplicated, sizeof(duplicated)))
+            (void)vg_gpu_host_select_add(host, duplicated, i != 0u, false);
+    }
+    return true;
+}
+
+static bool host_descends_from(const VgGpuHost *host, const char *candidate, const char *ancestor) {
+    const VgJsonNode *node = host_document_entity(host, candidate);
+    for (size_t depth = 0u; node != NULL && depth < VG_CONTENT_MAX_ENTITIES; ++depth) {
+        const VgJsonNode *parent = vg_json_object_get(node, "parent");
+        if (parent == NULL || parent->type != VG_JSON_STRING)
+            return false;
+        if (strcmp(parent->as.string.data, ancestor) == 0)
+            return true;
+        node = host_document_entity(host, parent->as.string.data);
+    }
+    return false;
+}
+
+int32_t vg_gpu_host_delete_selection(VgGpuHost *host, char *error, size_t error_capacity) {
+    if (!host_can_structure(host, error, error_capacity))
+        return false;
+    const VgJsonNode *entities = vg_json_object_get(vg_document_root(host->document), "entities");
+    if (entities == NULL || entities->type != VG_JSON_ARRAY)
+        return false;
+    char deletion[VG_TOOL_MAX_COMMANDS][37];
+    size_t count = 0u;
+    for (size_t i = 0u; i < entities->as.array.count; ++i) {
+        const VgJsonNode *entity = entities->as.array.items[i];
+        const VgJsonNode *id = vg_json_object_get(entity, "id");
+        if (id == NULL || id->type != VG_JSON_STRING)
+            return false;
+        bool included = false;
+        for (size_t j = 0u; j < host->selection_count; ++j)
+            included |= strcmp(id->as.string.data, host->selection_uuids[j]) == 0 ||
+                        host_descends_from(host, id->as.string.data, host->selection_uuids[j]);
+        if (!included)
+            continue;
+        if (host_room_part(entity) != NULL || count >= VG_TOOL_MAX_COMMANDS) {
+            host_error(error, error_capacity,
+                       "La seleccion incluye una sala fija o supera el limite del lote");
+            return false;
+        }
+        (void)snprintf(deletion[count++], 37u, "%s", id->as.string.data);
+    }
+    VgToolBatch *batch = host_begin_edit(host, error, error_capacity);
+    if (batch == NULL)
+        return false;
+    VgDocumentDiagnostic diagnostic = {0};
+    for (size_t i = count; i > 0u; --i) {
+        if (!vg_tool_delete_entity(batch, deletion[i - 1u], &diagnostic)) {
+            host_error(error, error_capacity, diagnostic.message);
+            vg_tool_cancel(batch);
+            return false;
+        }
+    }
+    if (!host_apply_batch(host, batch, NULL, error, error_capacity))
+        return false;
+    (void)vg_gpu_host_select(host, "");
+    return true;
+}
+
+int32_t vg_gpu_host_reparent_selection(VgGpuHost *host, const char *parent_uuid, char *error,
+                                       size_t error_capacity) {
+    if (!host_can_structure(host, error, error_capacity))
+        return false;
+    if (parent_uuid != NULL && parent_uuid[0] != '\0' &&
+        host_document_entity(host, parent_uuid) == NULL) {
+        host_error(error, error_capacity, "El nuevo padre no existe");
+        return false;
+    }
+    VgMatrix parent = host_identity_matrix();
+    if (parent_uuid != NULL && parent_uuid[0] != '\0') {
+        VgEntity parent_entity;
+        VgTransform parent_world;
+        if (!host_find_instance_uuid(host, parent_uuid, &parent_entity) ||
+            vg_entity_get_world_transform(host->context, parent_entity, &parent_world) != VG_OK) {
+            host_error(error, error_capacity, "No se pudo leer el nuevo padre");
+            return false;
+        }
+        parent = vg_transform_matrix(parent_world);
+    }
+    VgMatrix inverse;
+    if (!vg_matrix_inverse_affine(parent, &inverse)) {
+        host_error(error, error_capacity, "El nuevo padre tiene transformacion singular");
+        return false;
+    }
+    VgToolBatch *batch = host_begin_edit(host, error, error_capacity);
+    if (batch == NULL)
+        return false;
+    VgDocumentDiagnostic diagnostic = {0};
+    for (size_t i = 0u; i < host->selection_count; ++i) {
+        const char *uuid = host->selection_uuids[i];
+        VgEntity entity;
+        VgTransform world, local;
+        if (!host_find_instance_uuid(host, uuid, &entity) ||
+            vg_entity_get_world_transform(host->context, entity, &world) != VG_OK ||
+            !vg_matrix_to_transform(vg_matrix_multiply(inverse, vg_transform_matrix(world)),
+                                    &local)) {
+            host_error(error, error_capacity,
+                       "El nuevo padre produciria shear o escala no representable");
+            vg_tool_cancel(batch);
+            return false;
+        }
+        VgDocumentTransform transform = {
+            {local.position.x, local.position.y, local.position.z},
+            {local.rotation.x, local.rotation.y, local.rotation.z, local.rotation.w},
+            {local.scale.x, local.scale.y, local.scale.z}};
+        if (!vg_tool_reparent(batch, uuid,
+                              parent_uuid == NULL || parent_uuid[0] == '\0' ? NULL : parent_uuid,
+                              &diagnostic) ||
+            !vg_tool_set_transform(batch, uuid, &transform, &diagnostic)) {
+            host_error(error, error_capacity, diagnostic.message);
+            vg_tool_cancel(batch);
+            return false;
+        }
+    }
+    return host_apply_batch(host, batch, NULL, error, error_capacity);
 }
 
 int32_t vg_gpu_host_entity_label(const VgGpuHost *host, const char *uuid, char *label,
@@ -1391,8 +2152,8 @@ int32_t vg_gpu_host_set_selected_transform(VgGpuHost *host, const float position
 
 int32_t vg_gpu_host_save_level(VgGpuHost *host, const char *path, char *error,
                                size_t error_capacity) {
-    if (!host_is_current(host) || host->document == NULL || host->play != NULL || path == NULL ||
-        path[0] == '\0') {
+    if (!host_is_current(host) || host->document == NULL || host->play != NULL ||
+        host->gesture.active || path == NULL || path[0] == '\0') {
         host_error(error, error_capacity, "Guardar requiere una ruta y el modo Editar");
         return false;
     }
@@ -1434,8 +2195,9 @@ int32_t vg_gpu_host_is_dirty(const VgGpuHost *host) {
 
 int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path, const char *model_path,
                                  char *error, size_t error_capacity) {
-    if (!host_is_current(host) || host->edit == NULL || host->play != NULL || level_path == NULL ||
-        level_path[0] == '\0' || model_path == NULL || model_path[0] == '\0') {
+    if (!host_is_current(host) || host->edit == NULL || host->play != NULL ||
+        host->gesture.active || level_path == NULL || level_path[0] == '\0' || model_path == NULL ||
+        model_path[0] == '\0') {
         host_error(error, error_capacity, "Reabrir requiere rutas y el modo Editar");
         return false;
     }
@@ -1485,7 +2247,8 @@ int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path, const 
 }
 
 static int32_t host_history(VgGpuHost *host, bool undo, char *error, size_t error_capacity) {
-    if (!host_is_current(host) || host->edit == NULL || host->play != NULL) {
+    if (!host_is_current(host) || host->edit == NULL || host->play != NULL ||
+        host->gesture.active) {
         host_error(error, error_capacity, "Historial requiere el modo Editar");
         return false;
     }
@@ -1579,14 +2342,18 @@ static bool host_ray_bounds(VgVec3 origin, VgVec3 direction, VgVec3 center, VgVe
     return true;
 }
 
-int32_t vg_gpu_host_pick(VgGpuHost *host, float u, float v, char *uuid, size_t uuid_capacity) {
+static int32_t host_pick_impl(VgGpuHost *host, float u, float v, char *uuid, size_t uuid_capacity,
+                              bool update_selection) {
     if (!host_is_current(host) || host->edit == NULL || host->play != NULL || uuid == NULL ||
-        uuid_capacity < 37u || !isfinite(u) || !isfinite(v) || u < 0.0f || u > 1.0f || v < 0.0f ||
-        v > 1.0f)
+        (update_selection && host->gesture.active) || uuid_capacity < 37u || !isfinite(u) ||
+        !isfinite(v) || u < 0.0f || u > 1.0f || v < 0.0f || v > 1.0f)
         return false;
     uuid[0] = '\0';
-    host->has_selection = false;
-    host->selected_uuid[0] = '\0';
+    if (update_selection) {
+        host->has_selection = false;
+        host->selected_uuid[0] = '\0';
+        host->selection_count = 0u;
+    }
     unsigned int width = 0u, height = 0u;
     if (!vg_win32_embedded_size(host->window, &width, &height) || height == 0u)
         return false;
@@ -1700,18 +2467,32 @@ int32_t vg_gpu_host_pick(VgGpuHost *host, float u, float v, char *uuid, size_t u
     }
     if (!found)
         return false;
-    host->selected_entity = chosen_entity;
-    host->has_selection = true;
-    host->selected_center = chosen_center;
-    host->selected_extent = chosen_extent;
+    if (update_selection) {
+        host->selected_entity = chosen_entity;
+        host->has_selection = true;
+        host->selected_center = chosen_center;
+        host->selected_extent = chosen_extent;
+    }
     (void)snprintf(uuid, uuid_capacity,
                    "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
                    chosen.bytes[0], chosen.bytes[1], chosen.bytes[2], chosen.bytes[3],
                    chosen.bytes[4], chosen.bytes[5], chosen.bytes[6], chosen.bytes[7],
                    chosen.bytes[8], chosen.bytes[9], chosen.bytes[10], chosen.bytes[11],
                    chosen.bytes[12], chosen.bytes[13], chosen.bytes[14], chosen.bytes[15]);
-    (void)snprintf(host->selected_uuid, sizeof(host->selected_uuid), "%s", uuid);
+    if (update_selection) {
+        (void)snprintf(host->selected_uuid, sizeof(host->selected_uuid), "%s", uuid);
+        host->selection_count = 1u;
+        (void)snprintf(host->selection_uuids[0], sizeof(host->selection_uuids[0]), "%s", uuid);
+    }
     return true;
+}
+
+int32_t vg_gpu_host_pick(VgGpuHost *host, float u, float v, char *uuid, size_t uuid_capacity) {
+    return host_pick_impl(host, u, v, uuid, uuid_capacity, true);
+}
+
+int32_t vg_gpu_host_peek(VgGpuHost *host, float u, float v, char *uuid, size_t uuid_capacity) {
+    return host_pick_impl(host, u, v, uuid, uuid_capacity, false);
 }
 
 int32_t vg_gpu_host_frame_selection(VgGpuHost *host) {

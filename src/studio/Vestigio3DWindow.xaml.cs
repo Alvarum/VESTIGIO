@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using Microsoft.Win32;
 
 namespace RetroForge.Studio;
@@ -38,6 +39,12 @@ public partial class Vestigio3DWindow : Window
         Viewport.VisualSettingsPath = visualSettingsPath;
         Viewport.EnableAudio = enableAudio;
         Viewport.SelectionChanged += (_, _) => RefreshSelection();
+        Viewport.GestureFinished += (_, _) =>
+        {
+            RefreshDocument();
+            StatusText.Text = Viewport.LastGestureCommitted
+                ? "Gesto aplicado · Deshacer disponible" : "Gesto cancelado";
+        };
         LevelTitle.Text = DocumentName(levelPath);
         LevelPathText.Text = _sourceLevelPath;
         LevelPathText.ToolTip = _sourceLevelPath;
@@ -124,10 +131,13 @@ public partial class Vestigio3DWindow : Window
     {
         if (!Viewport.IsNativeReady) return;
         _refreshingHierarchy = true;
+        HashSet<string> selected = Viewport.SelectedUuids().ToHashSet(
+            StringComparer.OrdinalIgnoreCase);
         try
         {
-            string selected = Viewport.SelectedUuid;
             EntityList.Items.Clear();
+            ParentTarget.Items.Clear();
+            ParentTarget.Items.Add(new ComboBoxItem { Content = "Raíz", Tag = "" });
             IReadOnlyList<string> ids = Viewport.EntityUuids();
             for (int index = 0; index < ids.Count; ++index)
             {
@@ -141,9 +151,14 @@ public partial class Vestigio3DWindow : Window
                     ToolTip = id
                 };
                 EntityList.Items.Add(row);
-                if (id == selected)
-                    EntityList.SelectedItem = row;
+                ParentTarget.Items.Add(new ComboBoxItem
+                {
+                    Content = $"{label} · {id[^8..]}", Tag = id
+                });
+                if (selected.Contains(id))
+                    EntityList.SelectedItems.Add(row);
             }
+            ParentTarget.SelectedIndex = 0;
         }
         finally
         {
@@ -200,21 +215,28 @@ public partial class Vestigio3DWindow : Window
     {
         if (!Viewport.IsNativeReady) return;
         RefreshDocument();
+        ConfigureGizmo();
     }
 
     private void RefreshSelectionFields()
     {
+        IReadOnlyList<string> selection = Viewport.SelectedUuids();
         string selected = Viewport.SelectedUuid;
         string? roomPiece = selected == "Ninguno" ? null : Viewport.RoomPieceLabel(selected);
-        SelectedLabel.Text = selected == "Ninguno"
+        bool editable = selection.Count > 0 && selection.All(id =>
+            Viewport.RoomPieceLabel(id) is null);
+        SelectedLabel.Text = selection.Count > 1
+            ? $"{selection.Count} objetos seleccionados" : selected == "Ninguno"
             ? "Ningún objeto seleccionado" : roomPiece is null
                 ? $"UUID {selected}" : $"{roomPiece} · plantilla fija";
         SelectedLabel.ToolTip = roomPiece is null ? null : selected;
         float[] position = [], rotation = [], scale = [];
-        bool hasTransform = selected != "Ninguno" &&
+        bool hasTransform = selection.Count == 1 && selected != "Ninguno" &&
             Viewport.TryGetSelectedTransform(out position, out rotation, out scale);
-        TransformPanel.IsEnabled = hasTransform && roomPiece is null && !Viewport.IsPlaying;
-        DuplicateButton.IsEnabled = hasTransform && roomPiece is null && !Viewport.IsPlaying;
+        TransformPanel.IsEnabled = hasTransform && editable && !Viewport.IsPlaying;
+        DuplicateButton.IsEnabled = editable && !Viewport.IsPlaying;
+        DeleteButton.IsEnabled = editable && !Viewport.IsPlaying;
+        ReparentButton.IsEnabled = editable && !Viewport.IsPlaying;
         if (!hasTransform)
         {
             PositionX.Text = PositionY.Text = PositionZ.Text = string.Empty;
@@ -254,8 +276,9 @@ public partial class Vestigio3DWindow : Window
 
     private void SetEditingEnabled(bool enabled)
     {
-        bool editableSelection = Viewport.SelectedUuid != "Ninguno" &&
-            Viewport.RoomPieceLabel(Viewport.SelectedUuid) is null;
+        IReadOnlyList<string> selection = Viewport.SelectedUuids();
+        bool editableSelection = selection.Count > 0 && selection.All(id =>
+            Viewport.RoomPieceLabel(id) is null);
         PlayButton.IsEnabled = enabled;
         StopButton.IsEnabled = !enabled;
         CameraMode.IsEnabled = enabled;
@@ -263,6 +286,14 @@ public partial class Vestigio3DWindow : Window
         AddButton.IsEnabled = enabled;
         AddRoomButton.IsEnabled = enabled;
         DuplicateButton.IsEnabled = enabled && editableSelection;
+        DeleteButton.IsEnabled = enabled && editableSelection;
+        ReparentButton.IsEnabled = enabled && editableSelection;
+        ParentTarget.IsEnabled = enabled;
+        GizmoTool.IsEnabled = enabled;
+        GizmoAxis.IsEnabled = enabled;
+        GizmoSpace.IsEnabled = enabled;
+        GizmoPivot.IsEnabled = enabled;
+        GizmoSnap.IsEnabled = enabled;
         UndoButton.IsEnabled = enabled;
         RedoButton.IsEnabled = enabled;
         SaveButton.IsEnabled = enabled;
@@ -322,14 +353,36 @@ public partial class Vestigio3DWindow : Window
 
     private void Duplicate_Click(object sender, RoutedEventArgs e)
     {
-        if (!Viewport.TryDuplicateSelected())
+        if (!Viewport.TryDuplicateSelection())
         {
-            ShowNativeError("No se pudo duplicar el objeto");
+            ShowNativeError("No se pudo duplicar la selección");
             return;
         }
-        _entityLabels[Viewport.SelectedUuid] = "Copia de objeto";
         RefreshDocument();
-        StatusText.Text = "Objeto duplicado";
+        StatusText.Text = "Selección duplicada · Deshacer disponible";
+    }
+
+    private void Delete_Click(object sender, RoutedEventArgs e)
+    {
+        if (!Viewport.TryDeleteSelection())
+        {
+            ShowNativeError("No se pudo borrar la selección");
+            return;
+        }
+        RefreshDocument();
+        StatusText.Text = "Selección borrada · Deshacer disponible";
+    }
+
+    private void Reparent_Click(object sender, RoutedEventArgs e)
+    {
+        string parent = (ParentTarget.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+        if (!Viewport.TryReparentSelection(parent))
+        {
+            ShowNativeError("No se pudo cambiar el padre");
+            return;
+        }
+        RefreshDocument();
+        StatusText.Text = "Jerarquía actualizada · Deshacer disponible";
     }
 
     private void Undo_Click(object sender, RoutedEventArgs e)
@@ -418,15 +471,59 @@ public partial class Vestigio3DWindow : Window
 
     private void EntityList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_refreshingHierarchy || EntityList.SelectedItem is not ListBoxItem
-            { Tag: string uuid })
+        if (_refreshingHierarchy)
             return;
-        if (!Viewport.TrySelect(uuid))
+        List<string> uuids = EntityList.SelectedItems.OfType<ListBoxItem>()
+            .Select(item => item.Tag as string).OfType<string>().ToList();
+        // El último elemento pulsado es el activo para pivot "Activo".
+        if (e.AddedItems.OfType<ListBoxItem>().LastOrDefault()?.Tag is string active)
         {
-            ShowNativeError("No se pudo seleccionar el objeto");
+            uuids.Remove(active);
+            uuids.Add(active);
+        }
+        if (!Viewport.TrySelectMany(uuids))
+        {
+            ShowNativeError("No se pudo seleccionar los objetos");
             return;
         }
         RefreshSelectionFields();
+        ConfigureGizmo();
+    }
+
+    private void GizmoOptions_Changed(object sender, SelectionChangedEventArgs e) =>
+        ConfigureGizmo();
+
+    private void GizmoSnap_LostFocus(object sender, RoutedEventArgs e) =>
+        ConfigureGizmo();
+
+    private void ConfigureGizmo()
+    {
+        if (Viewport is null || !Viewport.IsNativeReady || Viewport.IsPlaying ||
+            GizmoTool is null || GizmoAxis is null || GizmoSpace is null ||
+            GizmoPivot is null || GizmoSnap is null)
+            return;
+        string raw = GizmoSnap.Text.Trim();
+        if ((!float.TryParse(raw, NumberStyles.Float, CultureInfo.CurrentCulture,
+                 out float snap) &&
+             !float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture,
+                 out snap)) || !float.IsFinite(snap) || snap < 0)
+        {
+            FieldError.Text = "Paso: introduce un número positivo o 0 para desactivar el ajuste.";
+            return;
+        }
+        if (Viewport.TrySetGizmoOptions(GizmoTool.SelectedIndex,
+                GizmoAxis.SelectedIndex, GizmoSpace.SelectedIndex,
+                GizmoPivot.SelectedIndex, snap))
+            FieldError.Text = string.Empty;
+    }
+
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && Viewport.IsGestureActive)
+        {
+            Viewport.TryEndGesture(false);
+            e.Handled = true;
+        }
     }
 
     private void ApplyTransform_Click(object sender, RoutedEventArgs e)

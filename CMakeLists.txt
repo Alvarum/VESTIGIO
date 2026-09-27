@@ -277,6 +277,17 @@ if(RETRO_BUILD_APPS)
             set_tests_properties(vestigio_gpu_host_room PROPERTIES
                 ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin"
                 LABELS "window;gpu;studio;document;spatial;app")
+            add_executable(vestigio_gpu_host_e02_test tests/platform/gpu_host_e02_test.c)
+            retro_target(vestigio_gpu_host_e02_test)
+            target_include_directories(vestigio_gpu_host_e02_test PRIVATE "${PROJECT_SOURCE_DIR}/src")
+            target_link_libraries(vestigio_gpu_host_e02_test PRIVATE vestigio_gpu_host vestigio_tool)
+            add_test(NAME vestigio_gpu_host_e02 COMMAND vestigio_gpu_host_e02_test
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.gltf"
+                "${CMAKE_BINARY_DIR}/e02-copy.level.json")
+            set_tests_properties(vestigio_gpu_host_e02 PROPERTIES
+                ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin"
+                LABELS "window;gpu;studio;document;app")
             add_test(NAME retro_studio_authoring COMMAND dotnet
                 "${CMAKE_BINARY_DIR}/bin/RetroForge.Studio.Tests.dll"
                 "${CMAKE_BINARY_DIR}/studio-evidence"
@@ -320,6 +331,12 @@ if(RETRO_BUILD_APPS)
                 "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json")
             set_tests_properties(vestigio_studio_room PROPERTIES
                 LABELS "window;gpu;studio;document;spatial;app")
+            add_test(NAME vestigio_studio_e02 COMMAND dotnet
+                "${CMAKE_BINARY_DIR}/bin/RetroForge.Studio.Tests.dll"
+                --e02 "${CMAKE_BINARY_DIR}/studio-e02-evidence"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json")
+            set_tests_properties(vestigio_studio_e02 PROPERTIES
+                LABELS "window;gpu;studio;document;app")
         endif()
         add_executable(retro_platform_test tests/platform_test.c)
         retro_target(retro_platform_test)

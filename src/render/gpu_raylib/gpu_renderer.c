@@ -1791,6 +1791,209 @@ VgResult vg_gpu_renderer_draw_spatial_debug(VgGpuRenderer *renderer,
     return result == VG_OK ? context.error : result;
 }
 
+static Vector3 gizmo_position(const VgGpuGizmo *gizmo) {
+    return (Vector3){gizmo->position.x, gizmo->position.y, gizmo->position.z};
+}
+
+static Vector3 gizmo_axis(const VgGpuGizmo *gizmo, int axis) {
+    Vector3 basis[3] = {{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+    Quaternion rotation = {gizmo->rotation.x, gizmo->rotation.y, gizmo->rotation.z,
+                           gizmo->rotation.w};
+    return Vector3Normalize(Vector3RotateByQuaternion(basis[axis], rotation));
+}
+
+static float gizmo_length(const VgGpuRenderer *renderer, Vector3 position) {
+    float height = renderer->camera.projection == CAMERA_ORTHOGRAPHIC
+                       ? renderer->camera.fovy
+                       : 2.0f * Vector3Distance(renderer->camera.position, position) *
+                             tanf(renderer->camera.fovy * DEG2RAD * 0.5f);
+    return fmaxf(0.05f, fminf(height * (50.0f / (float)renderer->height), 100.0f));
+}
+
+static bool gizmo_in_front(const VgGpuRenderer *renderer, Vector3 position) {
+    Vector3 forward =
+        Vector3Normalize(Vector3Subtract(renderer->camera.target, renderer->camera.position));
+    return Vector3DotProduct(Vector3Subtract(position, renderer->camera.position), forward) > 0.02f;
+}
+
+static Vector3 gizmo_ring_point(Vector3 center, Vector3 normal, float radius, int segment) {
+    Vector3 guide =
+        fabsf(normal.z) < 0.9f ? (Vector3){0.0f, 0.0f, 1.0f} : (Vector3){0.0f, 1.0f, 0.0f};
+    Vector3 tangent = Vector3Normalize(Vector3CrossProduct(normal, guide));
+    Vector3 bitangent = Vector3CrossProduct(normal, tangent);
+    float angle = (float)segment * (2.0f * PI / 48.0f);
+    return Vector3Add(center, Vector3Scale(Vector3Add(Vector3Scale(tangent, cosf(angle)),
+                                                      Vector3Scale(bitangent, sinf(angle))),
+                                           radius));
+}
+
+bool vg_gpu_renderer_draw_gizmos(VgGpuRenderer *renderer, const VgGpuGizmo *gizmos, size_t count) {
+    if (renderer == NULL || !renderer_require_owner(renderer) || renderer->target.id == 0u ||
+        (count != 0u && gizmos == NULL))
+        return false;
+    if (count == 0u)
+        return true;
+    const Color colors[3] = {{255, 88, 92, 255}, {97, 255, 129, 255}, {82, 166, 255, 255}};
+    BeginTextureMode(renderer->target);
+    BeginMode3D(renderer->camera);
+    rlDisableDepthTest();
+    for (size_t index = 0u; index < count; ++index) {
+        const VgGpuGizmo *gizmo = &gizmos[index];
+        Vector3 center = gizmo_position(gizmo);
+        if (!gizmo_in_front(renderer, center))
+            continue;
+        float length = gizmo_length(renderer, center);
+        DrawSphere(center, length * 0.045f, (Color){245, 245, 229, 255});
+        for (int axis = 0; axis < 3; ++axis) {
+            Vector3 direction = gizmo_axis(gizmo, axis);
+            if (gizmo->operation == 1) {
+                for (int segment = 0; segment < 48; ++segment)
+                    DrawLine3D(gizmo_ring_point(center, direction, length * 0.8f, segment),
+                               gizmo_ring_point(center, direction, length * 0.8f, segment + 1),
+                               colors[axis]);
+            } else {
+                Vector3 endpoint = Vector3Add(center, Vector3Scale(direction, length));
+                DrawCylinderEx(center, endpoint, length * 0.016f, length * 0.016f, 6, colors[axis]);
+                if (gizmo->operation == 2)
+                    DrawCube(endpoint, length * 0.13f, length * 0.13f, length * 0.13f,
+                             colors[axis]);
+                else
+                    DrawCylinderEx(
+                        Vector3Subtract(endpoint, Vector3Scale(direction, length * 0.17f)),
+                        endpoint, length * 0.065f, 0.0f, 8, colors[axis]);
+            }
+        }
+    }
+    rlEnableDepthTest();
+    EndMode3D();
+    const char *labels[3] = {"X", "Y", "Z"};
+    for (size_t index = 0u; index < count; ++index) {
+        const VgGpuGizmo *gizmo = &gizmos[index];
+        Vector3 center = gizmo_position(gizmo);
+        if (!gizmo_in_front(renderer, center))
+            continue;
+        float length = gizmo_length(renderer, center);
+        Vector2 center_screen = GetWorldToScreenEx(center, renderer->camera, (int)renderer->width,
+                                                   (int)renderer->height);
+        for (int axis = 0; axis < 3; ++axis) {
+            Vector3 direction = gizmo_axis(gizmo, axis);
+            Vector3 endpoint = gizmo->operation == 1
+                                   ? gizmo_ring_point(center, direction, length * 0.8f, 0)
+                                   : Vector3Add(center, Vector3Scale(direction, length));
+            Vector2 screen = GetWorldToScreenEx(endpoint, renderer->camera, (int)renderer->width,
+                                                (int)renderer->height);
+            if (Vector2Distance(screen, center_screen) < 9.0f) {
+                screen.x += (float)(axis - 1) * 10.0f;
+                screen.y -= 10.0f;
+            }
+            if (screen.x < 0.0f || screen.y < 0.0f || screen.x >= (float)renderer->width ||
+                screen.y >= (float)renderer->height)
+                continue;
+            DrawCircleV(screen, 3.0f, colors[axis]);
+            DrawText(labels[axis], (int)screen.x + 4, (int)screen.y - 5, 9, colors[axis]);
+        }
+    }
+    EndTextureMode();
+    renderer->stats.draw_calls += (uint32_t)(count * 4u);
+    return true;
+}
+
+static float gizmo_segment_distance_squared(Vector2 point, Vector2 a, Vector2 b) {
+    Vector2 delta = Vector2Subtract(b, a);
+    float length_squared = Vector2DotProduct(delta, delta);
+    float t = length_squared > 0.0001f
+                  ? fmaxf(0.0f, fminf(1.0f, Vector2DotProduct(Vector2Subtract(point, a), delta) /
+                                                length_squared))
+                  : 0.0f;
+    Vector2 nearest = Vector2Add(a, Vector2Scale(delta, t));
+    Vector2 offset = Vector2Subtract(point, nearest);
+    return Vector2DotProduct(offset, offset);
+}
+
+int32_t vg_gpu_renderer_gizmo_hit(const VgGpuRenderer *renderer, const VgGpuGizmo *gizmos,
+                                  size_t count, float u, float v) {
+    if (renderer == NULL || !renderer_require_owner(renderer) || gizmos == NULL || !isfinite(u) ||
+        !isfinite(v) || u < 0.0f || u > 1.0f || v < 0.0f || v > 1.0f)
+        return 0;
+    Vector2 point = {u * (float)renderer->width, v * (float)renderer->height};
+    float closest = 8.0f * 8.0f;
+    int32_t chosen = 0;
+    for (size_t index = 0u; index < count; ++index) {
+        const VgGpuGizmo *gizmo = &gizmos[index];
+        Vector3 center = gizmo_position(gizmo);
+        if (!gizmo_in_front(renderer, center))
+            continue;
+        float length = gizmo_length(renderer, center);
+        for (int axis = 0; axis < 3; ++axis) {
+            Vector3 direction = gizmo_axis(gizmo, axis);
+            int segments = gizmo->operation == 1 ? 48 : 1;
+            for (int segment = 0; segment < segments; ++segment) {
+                Vector3 first = gizmo->operation == 1
+                                    ? gizmo_ring_point(center, direction, length * 0.8f, segment)
+                                    : center;
+                Vector3 second =
+                    gizmo->operation == 1
+                        ? gizmo_ring_point(center, direction, length * 0.8f, segment + 1)
+                        : Vector3Add(center, Vector3Scale(direction, length));
+                Vector2 a = GetWorldToScreenEx(first, renderer->camera, (int)renderer->width,
+                                               (int)renderer->height);
+                Vector2 b = GetWorldToScreenEx(second, renderer->camera, (int)renderer->width,
+                                               (int)renderer->height);
+                float distance = gizmo_segment_distance_squared(point, a, b);
+                if (distance < closest) {
+                    closest = distance;
+                    chosen = axis + 1;
+                }
+            }
+        }
+    }
+    return chosen;
+}
+
+bool vg_gpu_renderer_gizmo_drag_direction(const VgGpuRenderer *renderer, const VgGpuGizmo *gizmos,
+                                          size_t count, float u, float v, int32_t axis,
+                                          float *out_x, float *out_y) {
+    if (renderer == NULL || !renderer_require_owner(renderer) || gizmos == NULL || out_x == NULL ||
+        out_y == NULL || axis < 0 || axis > 2 || !isfinite(u) || !isfinite(v) || u < 0.0f ||
+        u > 1.0f || v < 0.0f || v > 1.0f)
+        return false;
+    Vector2 point = {u * (float)renderer->width, v * (float)renderer->height};
+    float closest = 10.0f * 10.0f;
+    Vector2 direction = {0};
+    for (size_t index = 0u; index < count; ++index) {
+        const VgGpuGizmo *gizmo = &gizmos[index];
+        Vector3 center = gizmo_position(gizmo);
+        if (!gizmo_in_front(renderer, center))
+            continue;
+        float length = gizmo_length(renderer, center);
+        Vector3 normal = gizmo_axis(gizmo, axis);
+        int segments = gizmo->operation == 1 ? 48 : 1;
+        for (int segment = 0; segment < segments; ++segment) {
+            Vector3 first = gizmo->operation == 1
+                                ? gizmo_ring_point(center, normal, length * 0.8f, segment)
+                                : center;
+            Vector3 second = gizmo->operation == 1
+                                 ? gizmo_ring_point(center, normal, length * 0.8f, segment + 1)
+                                 : Vector3Add(center, Vector3Scale(normal, length));
+            Vector2 a = GetWorldToScreenEx(first, renderer->camera, (int)renderer->width,
+                                           (int)renderer->height);
+            Vector2 b = GetWorldToScreenEx(second, renderer->camera, (int)renderer->width,
+                                           (int)renderer->height);
+            float distance = gizmo_segment_distance_squared(point, a, b);
+            if (distance < closest) {
+                closest = distance;
+                direction = Vector2Subtract(b, a);
+            }
+        }
+    }
+    float magnitude = Vector2Length(direction);
+    if (magnitude < 2.0f)
+        return false;
+    *out_x = direction.x / magnitude;
+    *out_y = direction.y / magnitude;
+    return true;
+}
+
 VgFrameStats vg_gpu_renderer_stats(const VgGpuRenderer *renderer) {
     if (!renderer_is_owner(renderer))
         return (VgFrameStats){0};

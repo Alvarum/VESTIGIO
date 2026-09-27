@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:RetroForge.Studio"
         Title="VESTIGIO Studio — Atrium 3D" Width="1320" Height="820"
-        MinWidth="940" MinHeight="560" WindowStartupLocation="CenterScreen">
+        MinWidth="940" MinHeight="560" WindowStartupLocation="CenterScreen"
+        PreviewKeyDown="Window_PreviewKeyDown">
   <Grid Background="{StaticResource WindowBrush}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
@@ -42,6 +43,8 @@
               ToolTip="Crea una habitación junto al punto inicial con una abertura transitable. Una por nivel."/>
       <Button x:Name="DuplicateButton" Content="Duplicar" Margin="6,0,0,0"
               IsEnabled="False" Click="Duplicate_Click"/>
+      <Button x:Name="DeleteButton" Content="Borrar" Margin="6,0,0,0"
+              IsEnabled="False" Click="Delete_Click"/>
       <Button x:Name="UndoButton" Content="Deshacer" Margin="12,0,0,0" Click="Undo_Click"/>
       <Button x:Name="RedoButton" Content="Rehacer" Margin="6,0,0,0" Click="Redo_Click"/>
       <Border Width="1" Margin="12,3" Background="{StaticResource BorderBrush}"/>
@@ -62,7 +65,7 @@
         <ColumnDefinition Width="314"/>
       </Grid.ColumnDefinitions>
       <Grid Grid.Column="0">
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
         <WrapPanel Margin="0,0,0,8">
           <ComboBox x:Name="CameraMode" Width="132" SelectedIndex="0"
                     SelectionChanged="CameraMode_SelectionChanged">
@@ -75,9 +78,36 @@
           <TextBlock x:Name="VisualSummaryText" Margin="12,0,0,0"
                      VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
           <TextBlock Margin="14,0,0,0" Foreground="{StaticResource MutedBrush}"
-                     Text="Clic: seleccionar · WASD: mover · derecho: mirar · Probar: E puerta"/>
+                     Text="Clic: seleccionar · Ctrl/Mayús: añadir · WASD: mover · derecho: mirar"/>
         </WrapPanel>
-        <Border Grid.Row="1" Background="#FF0A1118"
+        <WrapPanel Grid.Row="1" Margin="0,0,0,8" VerticalAlignment="Center">
+          <TextBlock Text="Herramienta" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
+          <ComboBox x:Name="GizmoTool" Width="106" Margin="5,0,8,0" SelectedIndex="0"
+                    SelectionChanged="GizmoOptions_Changed">
+            <ComboBoxItem Content="Seleccionar"/><ComboBoxItem Content="Mover"/>
+            <ComboBoxItem Content="Rotar"/><ComboBoxItem Content="Escalar"/>
+          </ComboBox>
+          <TextBlock Text="Eje" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
+          <ComboBox x:Name="GizmoAxis" Width="50" Margin="5,0,8,0" SelectedIndex="0"
+                    SelectionChanged="GizmoOptions_Changed">
+            <ComboBoxItem Content="X"/><ComboBoxItem Content="Y"/><ComboBoxItem Content="Z"/>
+          </ComboBox>
+          <ComboBox x:Name="GizmoSpace" Width="72" Margin="0,0,8,0" SelectedIndex="0"
+                    SelectionChanged="GizmoOptions_Changed">
+            <ComboBoxItem Content="Mundo"/><ComboBoxItem Content="Local"/>
+          </ComboBox>
+          <ComboBox x:Name="GizmoPivot" Width="98" Margin="0,0,8,0" SelectedIndex="0"
+                    SelectionChanged="GizmoOptions_Changed">
+            <ComboBoxItem Content="Mediana"/><ComboBoxItem Content="Activo"/>
+            <ComboBoxItem Content="Individual"/>
+          </ComboBox>
+          <TextBlock Text="Paso" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
+          <TextBox x:Name="GizmoSnap" Width="46" Margin="5,0,4,0" Text="0"
+                   LostFocus="GizmoSnap_LostFocus"
+                   ToolTip="0 desactiva ajuste; metros para mover, grados para rotar, factor para escalar."/>
+          <TextBlock Text="0 = libre" VerticalAlignment="Center" Foreground="{StaticResource FaintBrush}"/>
+        </WrapPanel>
+        <Border Grid.Row="2" Background="#FF0A1118"
                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
           <local:GpuViewportHost x:Name="Viewport" OpenAtrium="True"/>
         </Border>
@@ -91,7 +121,7 @@
                        FontSize="11" FontWeight="SemiBold"/>
             <TextBlock Text="Selecciona un objeto del documento."
                        Foreground="{StaticResource MutedBrush}" Margin="0,5,0,8"/>
-            <ListBox x:Name="EntityList" Height="180"
+            <ListBox x:Name="EntityList" Height="180" SelectionMode="Extended"
                      Background="{StaticResource SurfaceBrush}"
                      Foreground="{StaticResource TextBrush}"
                      BorderBrush="{StaticResource BorderBrush}"
@@ -123,6 +153,14 @@
                 </Style>
               </ListBox.Resources>
             </ListBox>
+            <TextBlock Text="Ctrl o Mayús: selección múltiple" Margin="0,5,0,8"
+                       Foreground="{StaticResource FaintBrush}"/>
+            <StackPanel Orientation="Horizontal">
+              <ComboBox x:Name="ParentTarget" Width="183" SelectedIndex="0"
+                        ToolTip="Nuevo padre de la selección; Raíz quita el padre."/>
+              <Button x:Name="ReparentButton" Content="Cambiar padre" Margin="6,0,0,0"
+                      IsEnabled="False" Click="Reparent_Click"/>
+            </StackPanel>
             <TextBlock Text="TRANSFORMACIÓN" Foreground="{StaticResource AccentBrush}"
                        FontSize="11" FontWeight="SemiBold" Margin="0,20,0,5"/>
             <TextBlock x:Name="SelectedLabel" Text="Ningún objeto seleccionado"

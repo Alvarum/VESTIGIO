@@ -62,6 +62,17 @@ VG_GPU_HOST_API int32_t vg_gpu_host_animation_height(const VgGpuHost *host, size
 /* Normalized viewport point, selecting mesh bounds by UUID. No hit returns 0. */
 VG_GPU_HOST_API int32_t vg_gpu_host_pick(VgGpuHost *host, float u, float v, char *uuid,
                                          size_t uuid_capacity);
+/* Hit-test without changing selection, used for additive viewport selection. */
+VG_GPU_HOST_API int32_t vg_gpu_host_peek(VgGpuHost *host, float u, float v, char *uuid,
+                                         size_t uuid_capacity);
+/* Editor gizmo draws into the GPU scene target. Operation -1 hides it;
+ * 0/1/2 are move/rotate/scale. Hit returns 0 or axis X/Y/Z as 1/2/3. */
+VG_GPU_HOST_API int32_t vg_gpu_host_gizmo_config(VgGpuHost *host, int32_t operation, int32_t space,
+                                                 int32_t pivot);
+VG_GPU_HOST_API int32_t vg_gpu_host_gizmo_hit(VgGpuHost *host, float u, float v);
+VG_GPU_HOST_API int32_t vg_gpu_host_gizmo_drag_direction(VgGpuHost *host, float u, float v,
+                                                         int32_t axis, float *out_x,
+                                                         float *out_y);
 VG_GPU_HOST_API uint64_t vg_gpu_host_document_revision(const VgGpuHost *host);
 /* Wave 4 document editing. All mutations require Edit mode on the owner thread.
  * Quaternions use XYZW and transforms are local to the entity parent. */
@@ -78,6 +89,29 @@ VG_GPU_HOST_API int32_t vg_gpu_host_duplicate_selected(VgGpuHost *host, char *uu
                                                        size_t uuid_capacity, char *error,
                                                        size_t error_capacity);
 VG_GPU_HOST_API int32_t vg_gpu_host_select(VgGpuHost *host, const char *uuid);
+/* E02: stable UUID selection. Empty UUID with additive=0 clears it. */
+VG_GPU_HOST_API int32_t vg_gpu_host_select_add(VgGpuHost *host, const char *uuid, int32_t additive,
+                                               int32_t toggle);
+VG_GPU_HOST_API size_t vg_gpu_host_selection_count(const VgGpuHost *host);
+VG_GPU_HOST_API int32_t vg_gpu_host_selection_at(const VgGpuHost *host, size_t index, char *uuid,
+                                                 size_t uuid_capacity);
+/* One gesture previews without publishing history. amount is absolute from the
+ * start of the gesture; snap applies in metres, radians or scale factor.
+ * op: 0 move, 1 rotate, 2 scale; space: 0 world, 1 local;
+ * pivot: 0 median, 1 active, 2 individual; axis: 0 X, 1 Y, 2 Z. */
+VG_GPU_HOST_API int32_t vg_gpu_host_begin_gesture(VgGpuHost *host, int32_t op, int32_t space,
+                                                  int32_t pivot, int32_t axis, float snap,
+                                                  char *error, size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_update_gesture(VgGpuHost *host, float amount, char *error,
+                                                   size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_end_gesture(VgGpuHost *host, int32_t commit, char *error,
+                                                size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_duplicate_selection(VgGpuHost *host, char *error,
+                                                        size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_delete_selection(VgGpuHost *host, char *error,
+                                                     size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_reparent_selection(VgGpuHost *host, const char *parent_uuid,
+                                                       char *error, size_t error_capacity);
 VG_GPU_HOST_API int32_t vg_gpu_host_selected_uuid(const VgGpuHost *host, char *uuid,
                                                   size_t uuid_capacity);
 VG_GPU_HOST_API int32_t vg_gpu_host_selected_transform(const VgGpuHost *host, float position[3],

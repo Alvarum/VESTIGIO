@@ -576,6 +576,270 @@ internal static class Program
         Console.WriteLine("PASS E04 Studio add/transform/undo/redo/save/reopen/play GPU");
     }
 
+    private static void VerifyE02Editing(string output, string level)
+    {
+        Directory.CreateDirectory(output);
+        string sourceCopy = Path.Combine(output, "e02-source.level.json");
+        string saved = Path.Combine(output, "e02-edited.level.json");
+        File.Copy(level, sourceCopy, true);
+        byte[] sourceHash = SHA256.HashData(File.ReadAllBytes(sourceCopy));
+        var app = new Application();
+        app.Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("pack://application:,,,/retro_studio;component/Themes/Graphite.xaml")
+        });
+        var window = App.CreateAtriumWindow(["--atrium", "--level", sourceCopy]);
+        var content = (FrameworkElement)window.Content;
+        window.Content = null;
+        using (var source = new HwndSource(new HwndSourceParameters("VESTIGIO E02 editor")
+        {
+            Width = 1320, Height = 820, WindowStyle = unchecked((int)0x80000000)
+        }))
+        {
+            try
+            {
+                source.RootVisual = content;
+                Dispatcher.CurrentDispatcher.Invoke(() => { },
+                    DispatcherPriority.ApplicationIdle);
+                content.Measure(new Size(1320, 820));
+                content.Arrange(new Rect(0, 0, 1320, 820));
+                content.UpdateLayout();
+                var viewport = window.GpuViewport;
+                Check(viewport.IsNativeReady && viewport.RenderForTest(),
+                    $"E02 no abrió GPU: {viewport.LastError}");
+                bool FindGizmoHit(out float u, out float v, out int axis)
+                {
+                    for (int y = 0; y < 180; y += 2)
+                        for (int x = 0; x < 320; x += 2)
+                        {
+                            float testU = (x + 0.5f) / 320f;
+                            float testV = (y + 0.5f) / 180f;
+                            int testAxis = GpuHostNative.vg_gpu_host_gizmo_hit(
+                                    viewport.NativeHandleForTest,
+                                    testU, testV);
+                            if (testAxis > 0)
+                            {
+                                u = testU; v = testV; axis = testAxis - 1;
+                                return true;
+                            }
+                        }
+                    u = v = 0f; axis = -1;
+                    return false;
+                }
+                bool HasGizmoHit() => FindGizmoHit(out _, out _, out _);
+                var add = (Button)window.FindName("AddButton")!;
+                add.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+                string first = viewport.SelectedUuid;
+                add.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+                string second = viewport.SelectedUuid;
+                Check(first != second && Guid.TryParse(first, out _) &&
+                      Guid.TryParse(second, out _),
+                    "E02 no creó dos entidades independientes.");
+                var list = (ListBox)window.FindName("EntityList")!;
+                list.SelectedItems.Clear();
+                list.SelectedItems.Add(list.Items.OfType<ListBoxItem>()
+                    .Single(item => Equals(item.Tag, first)));
+                list.SelectedItems.Add(list.Items.OfType<ListBoxItem>()
+                    .Single(item => Equals(item.Tag, second)));
+                Check(list.SelectedItems.Count == 2 &&
+                      viewport.SelectedUuids().Count == 2 &&
+                      ((TextBlock)window.FindName("SelectedLabel")!).Text.Contains("2 objetos"),
+                    "Multiselección WPF no llegó al Tool API nativo.");
+                float XOf(string uuid)
+                {
+                    Check(viewport.TrySelect(uuid),
+                        $"No se seleccionó {uuid}.");
+                    Check(viewport.TryGetSelectedTransform(out float[] position,
+                              out _, out _),
+                        $"No se leyó posición de {uuid}.");
+                    return position[0];
+                }
+                float firstX = XOf(first), secondX = XOf(second);
+                Check(viewport.TrySelectMany([first, second]),
+                    "No se restauró la multiselección para el gesto.");
+                var tool = (ComboBox)window.FindName("GizmoTool")!;
+                tool.SelectedIndex = 1;
+                ((ComboBox)window.FindName("GizmoSpace")!).SelectedIndex = 1;
+                ((ComboBox)window.FindName("GizmoPivot")!).SelectedIndex = 2;
+                ((TextBox)window.FindName("GizmoSnap")!).Text = "0.25";
+                ((ComboBox)window.FindName("GizmoAxis")!).SelectedIndex = 0;
+                Check(viewport.TrySetGizmoOptions(1, 0, 1, 2, 0.25f),
+                    "Controles de espacio local, pivote y ajuste no configuran gizmo.");
+                ulong before = GpuHostNative.vg_gpu_host_document_revision(
+                    viewport.NativeHandleForTest);
+                Check(viewport.TryBeginGesture(0) && viewport.TryUpdateGesture(0.34f),
+                    $"Preview de gesto E02 falló: {viewport.LastError}");
+                Check(GpuHostNative.vg_gpu_host_document_revision(
+                          viewport.NativeHandleForTest) == before,
+                    "Preview efímero cambió revisión de documento.");
+                Check(viewport.TryEndGesture(false) &&
+                      GpuHostNative.vg_gpu_host_document_revision(
+                          viewport.NativeHandleForTest) == before,
+                    "Escape/cancelación de gesto alteró revisión.");
+                Check(viewport.TryBeginGesture(0) && viewport.TryUpdateGesture(0.34f) &&
+                      viewport.TryEndGesture(true) &&
+                      GpuHostNative.vg_gpu_host_document_revision(
+                          viewport.NativeHandleForTest) == before + 1,
+                    $"Un drag no fue exactamente un comando: {viewport.LastError}");
+                Check(Math.Abs(XOf(first) - firstX - 0.25f) < 0.002f &&
+                      Math.Abs(XOf(second) - secondX - 0.25f) < 0.002f,
+                    "Mover en lote con snap local no aplicó +0,25 m a ambos UUID.");
+                Check(viewport.TrySelectMany([first, second]),
+                    "No se restauró selección tras leer transforms.");
+                Check(viewport.TryUndo() &&
+                      viewport.TrySelectMany([first, second]) &&
+                      viewport.TryBeginGesture(0) &&
+                      viewport.TryUpdateGesture(0.12f) &&
+                      viewport.TryEndGesture(false) &&
+                      viewport.TryRedo(),
+                    "Cancelación de gesto destruyó redo o undo/redo del lote falló.");
+                Check(Math.Abs(XOf(first) - firstX - 0.25f) < 0.002f &&
+                      Math.Abs(XOf(second) - secondX - 0.25f) < 0.002f,
+                    "Redo no restauró ambos valores transformados.");
+                Check(viewport.TrySelectMany([first, second]),
+                    "No se restauró selección para rotación.");
+                tool.SelectedIndex = 2;
+                Check(viewport.TrySetGizmoOptions(2, 2, 0, 0, 15f) &&
+                      viewport.TryBeginGesture(2) &&
+                      viewport.TryUpdateGesture(0.34f) &&
+                      viewport.TryEndGesture(true),
+                    $"Rotación múltiple con snap falló: {viewport.LastError}");
+                foreach (string id in new[] { first, second })
+                {
+                    Check(viewport.TrySelect(id) &&
+                          viewport.TryGetSelectedTransform(out _, out float[] q,
+                              out _) &&
+                          Math.Abs(Math.Abs(q[2]) - 0.1305262f) < 0.01f,
+                        "Rotación múltiple no aplicó 15° alrededor de Z.");
+                }
+                Check(viewport.TrySelectMany([first, second]),
+                    "No se restauró selección para capturar rotación.");
+                Check(viewport.RenderForTest() && viewport.CaptureForTest(
+                          Path.Combine(output, "e02-rotate-gpu.png")) && HasGizmoHit(),
+                    "Gizmo de rotación no se capturó o no responde a hit-test GPU.");
+                tool.SelectedIndex = 3;
+                Check(viewport.TrySetGizmoOptions(3, 2, 1, 2, 0.1f) &&
+                      viewport.TryBeginGesture(2) &&
+                      viewport.TryUpdateGesture(0.18f) &&
+                      viewport.TryEndGesture(true),
+                    $"Escalado múltiple con snap falló: {viewport.LastError}");
+                foreach (string id in new[] { first, second })
+                {
+                    Check(viewport.TrySelect(id) &&
+                          viewport.TryGetSelectedTransform(out _, out _,
+                              out float[] scale) &&
+                          Math.Abs(scale[2] - 2.28f) < 0.01f,
+                        "Escalado local múltiple no aplicó factor 1,2.");
+                }
+                Check(viewport.TrySelectMany([first, second]) &&
+                      viewport.RenderForTest() && viewport.CaptureForTest(
+                          Path.Combine(output, "e02-scale-gpu.png")) && HasGizmoHit(),
+                    "Gizmo de escala no se capturó o no responde a hit-test GPU.");
+                tool.SelectedIndex = 1;
+                Check(viewport.TrySetGizmoOptions(1, 0, 0, 0, 0.25f) &&
+                      viewport.RenderForTest() &&
+                      viewport.CaptureForTest(Path.Combine(output, "e02-gizmo-gpu.png")) &&
+                      HasGizmoHit(),
+                    "Gizmo de movimiento no se capturó o no responde a hit-test GPU.");
+                int count = viewport.EntityUuids().Count;
+                ((Button)window.FindName("DuplicateButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(viewport.EntityUuids().Count == count + 2 &&
+                      viewport.SelectedUuids().Count == 2,
+                    $"Duplicar lote no remapeó dos entidades: {viewport.LastError}");
+                string[] duplicates = viewport.SelectedUuids().ToArray();
+                Check(duplicates.All(id => id != first && id != second),
+                    "Duplicar lote no asignó UUID nuevos.");
+                var parents = (ComboBox)window.FindName("ParentTarget")!;
+                parents.SelectedItem = parents.Items.OfType<ComboBoxItem>()
+                    .Single(item => Equals(item.Tag, first));
+                ((Button)window.FindName("ReparentButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(string.IsNullOrWhiteSpace(
+                          ((TextBlock)window.FindName("FieldError")!).Text),
+                    "Reparentar lote válido informó error.");
+                ((Button)window.FindName("DeleteButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(viewport.EntityUuids().Count == count,
+                    "Borrar selección no quitó lote completo.");
+                Check(viewport.TryUndo() && viewport.EntityUuids().Count == count + 2,
+                    "Undo de borrado no restauró lote.");
+                Check(window.TrySaveToPath(saved) && window.TryReopen() &&
+                      viewport.EntityUuids().Count == count + 2 &&
+                      SHA256.HashData(File.ReadAllBytes(sourceCopy)).AsSpan()
+                          .SequenceEqual(sourceHash),
+                    $"Round-trip de lote cambió fuente o perdió objetos: {viewport.LastError}");
+                using (var savedDocument = System.Text.Json.JsonDocument.Parse(
+                           File.ReadAllText(saved)))
+                {
+                    var entities = savedDocument.RootElement.GetProperty("entities")
+                        .EnumerateArray().ToDictionary(entity =>
+                            entity.GetProperty("id").GetString()!);
+                    foreach (string id in new[] { first, second })
+                    {
+                        var transform = entities[id].GetProperty("transform");
+                        Check(Math.Abs(transform.GetProperty("position")[0]
+                                           .GetSingle() - 0.25f) < 0.002f &&
+                              Math.Abs(Math.Abs(transform.GetProperty("rotation")[2]
+                                                .GetSingle()) - 0.1305262f) < 0.01f &&
+                              Math.Abs(transform.GetProperty("scale")[2]
+                                           .GetSingle() - 2.28f) < 0.01f,
+                            "Round-trip perdió move/rotate/scale en entidad original.");
+                    }
+                    foreach (string id in duplicates)
+                        Check(entities[id].GetProperty("parent").GetString() == first,
+                            "Round-trip perdió remap/parent de duplicado.");
+                }
+                Check(viewport.RenderForTest() &&
+                      viewport.CaptureForTest(Path.Combine(output, "e02-edited-gpu.png")),
+                    "No se capturó escena editada en GPU.");
+                Check(viewport.TrySelect(first) &&
+                      viewport.TrySetGizmoOptions(1, 0, 0, 0, 0.25f) &&
+                      viewport.SetCameraMode(1),
+                    "No se preparó órbita para el arrastre proyectado.");
+                float hitU = 0f, hitV = 0f;
+                int hitAxis = -1;
+                Check(GpuHostNative.vg_gpu_host_frame(viewport.NativeHandleForTest,
+                          0.016, 0, 0, 170, 0, 0, 1) != 0 &&
+                      viewport.RenderForTest() &&
+                      FindGizmoHit(out hitU, out hitV, out hitAxis),
+                    "No se encontró gizmo tras orbitar cámara.");
+                float dx = 0f, dy = 0f;
+                Check(GpuHostNative.vg_gpu_host_gizmo_drag_direction(
+                          viewport.NativeHandleForTest, hitU, hitV, hitAxis,
+                          out dx, out dy) != 0 &&
+                      Math.Abs(dx * dx + dy * dy - 1f) < 0.02f,
+                    "Dirección proyectada del gizmo orbitado no es unitaria.");
+                float[] beforeDrag = [];
+                uint width = 0, height = 0;
+                Check(viewport.TryGetSelectedTransform(out beforeDrag,
+                          out _, out _) &&
+                      GpuHostNative.vg_gpu_host_size(viewport.NativeHandleForTest,
+                          out width, out height) != 0,
+                    "No se obtuvo transform o tamaño antes de arrastrar.");
+                int startX = (int)(hitU * width), startY = (int)(hitV * height);
+                float[] afterDrag = [];
+                Check(viewport.TryBeginPointerGesture(hitU, hitV, startX, startY) &&
+                      viewport.TryUpdatePointerGesture(startX + (int)(dx * 80),
+                          startY + (int)(dy * 80)) &&
+                      viewport.TryEndGesture(true) &&
+                      viewport.TryGetSelectedTransform(out afterDrag,
+                          out _, out _) &&
+                      afterDrag[hitAxis] - beforeDrag[hitAxis] > 1.2f,
+                    "Arrastre orbitado no siguió el eje proyectado del gizmo.");
+                Check(viewport.RenderForTest() && viewport.CaptureForTest(
+                          Path.Combine(output, "e02-orbit-drag-gpu.png")),
+                    "No se capturó resultado del arrastre con cámara orbitada.");
+            }
+            finally
+            {
+                source.RootVisual = null;
+                window.GpuViewport.Dispose();
+            }
+        }
+        Console.WriteLine("PASS E02 WPF multi, gizmo, gesture cancel/commit, batch, save/reopen GPU");
+    }
+
     private static void VerifyWave9Room(string output, string level)
     {
         Directory.CreateDirectory(output);
@@ -1028,6 +1292,11 @@ internal static class Program
             if (args.Length == 3 && args[0] == "--w09")
             {
                 VerifyWave9Room(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
+                return 0;
+            }
+            if (args.Length == 3 && args[0] == "--e02")
+            {
+                VerifyE02Editing(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
                 return 0;
             }
             if (args.Length == 4 && args[0] == "--e05")

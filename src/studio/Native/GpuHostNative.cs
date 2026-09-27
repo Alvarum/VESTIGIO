@@ -104,6 +104,10 @@ internal static class GpuHostNative
         [Out] byte[] uuid, nuint uuidCapacity);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_peek(nint host, float u, float v,
+        [Out] byte[] uuid, nuint uuidCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int vg_gpu_host_set_pick_mask(nint host, uint mask);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
@@ -121,6 +125,53 @@ internal static class GpuHostNative
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int vg_gpu_host_select(nint host,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string uuid);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nuint vg_gpu_host_selection_count(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_selection_at(nint host, nuint index,
+        [Out] byte[] uuid, nuint uuidCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_select_add(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string uuid, int additive, int toggle);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_begin_gesture(nint host, int op, int space,
+        int pivot, int axis, float snap, [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_update_gesture(nint host, float amount,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_end_gesture(nint host, int commit,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_duplicate_selection(nint host,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_delete_selection(nint host,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_reparent_selection(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string parentUuid,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_gizmo_hit(nint host, float u, float v);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_gizmo_drag_direction(nint host,
+        float u, float v, int axis, out float dx, out float dy);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_gizmo_config(nint host, int op,
+        int space, int pivot);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int vg_gpu_host_selected_uuid(nint host, [Out] byte[] uuid,

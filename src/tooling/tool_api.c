@@ -121,7 +121,30 @@ static bool vg_tool_register_id(VgToolBatch *batch, const char *id_or_temporary,
     }
     VgToolIdMapping *mapping = &batch->mappings[batch->mapping_count];
     (void)snprintf(mapping->temporary, sizeof(mapping->temporary), "%s", id_or_temporary);
-    vg_tool_make_uuid(batch, id_or_temporary, batch->mapping_count, mapping->id);
+    const VgJsonNode *entities = vg_json_object_get(vg_document_root(batch->document), "entities");
+    bool available = false;
+    for (size_t attempt = 0u; attempt < VG_CONTENT_MAX_ENTITIES + VG_TOOL_MAX_COMMANDS; ++attempt) {
+        vg_tool_make_uuid(batch, id_or_temporary,
+                          batch->mapping_count + attempt * VG_TOOL_MAX_COMMANDS, mapping->id);
+        available = true;
+        if (entities != NULL && entities->type == VG_JSON_ARRAY) {
+            for (size_t index = 0u; index < entities->as.array.count; ++index) {
+                const VgJsonNode *id = vg_json_object_get(entities->as.array.items[index], "id");
+                if (id != NULL && id->type == VG_JSON_STRING &&
+                    strcmp(id->as.string.data, mapping->id) == 0) {
+                    available = false;
+                    break;
+                }
+            }
+        }
+        for (size_t index = 0u; available && index < batch->mapping_count; ++index)
+            available = strcmp(batch->mappings[index].id, mapping->id) != 0;
+        if (available)
+            break;
+    }
+    if (!available)
+        return vg_tool_fail(diagnostic, VG_DOCUMENT_DUPLICATE, "queue", "$.id", id_or_temporary,
+                            batch, "cannot allocate a unique entity UUID");
     ++batch->mapping_count;
     return true;
 }
@@ -547,7 +570,8 @@ bool vg_document_entity_transform(const VgDocument *document, const char *id,
                 !isfinite(number->as.number.value))
                 return vg_document_fail(out_diagnostic, VG_DOCUMENT_VALIDATION, "read_transform",
                                         "$.entities[].transform", id, 0u,
-                                        vg_document_revision(document), "entity transform is invalid");
+                                        vg_document_revision(document),
+                                        "entity transform is invalid");
             destinations[group][index] = number->as.number.value;
         }
     }
