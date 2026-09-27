@@ -566,7 +566,7 @@ Commit integrado: `22e937a2d589e256f38ff7268603c26723343cae`.
 
 ## S03 — Puertas con bisagra, triggers e interacción
 
-Fase: **P6** · Rol: **runtime** · Estado: **PLANNED**.
+Fase: **P6** · Rol: **runtime** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: S02, D02, R03.
 

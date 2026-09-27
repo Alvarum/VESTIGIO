@@ -189,7 +189,8 @@ static bool vg_content_validate_capabilities(VgContentValidation *validation,
                         strcmp(capability, "legacy-geometry") == 0 ||
                         strcmp(capability, "component.engine.camera.v1") == 0 ||
                         strcmp(capability, "component.engine.mesh.v1") == 0 ||
-                        strcmp(capability, "component.engine.collider.v1") == 0;
+                        strcmp(capability, "component.engine.collider.v1") == 0 ||
+                        strcmp(capability, "component.engine.door.v1") == 0;
             if (!known) {
                 char path[96];
                 (void)snprintf(path, sizeof(path), "$.required[%zu]", index);
@@ -318,7 +319,7 @@ static bool vg_content_validate_transform(VgContentValidation *validation,
 
 static bool vg_content_component_known(const char *name) {
     return strcmp(name, "engine.camera") == 0 || strcmp(name, "engine.mesh") == 0 ||
-           strcmp(name, "engine.collider") == 0;
+           strcmp(name, "engine.collider") == 0 || strcmp(name, "engine.door") == 0;
 }
 
 static bool vg_content_component_version(VgContentValidation *validation, const VgJsonNode *node,
@@ -361,6 +362,14 @@ static bool vg_content_validate_component(VgContentValidation *validation, const
         if (!vg_content_validate_uuid_node(validation, vg_json_object_get(node, "asset"),
                                            asset_path, id, NULL))
             return false;
+    } else if (strcmp(name, "engine.door") == 0) {
+        double angle = 0.0, speed = 0.0;
+        if (!vg_content_number(vg_json_object_get(node, "open_angle_radians"), &angle) ||
+            angle == 0.0 || fabs(angle) > 3.14159265358979323846 ||
+            !vg_content_number(vg_json_object_get(node, "speed_radians_per_second"), &speed) ||
+            speed <= 0.0 || speed > 8.0)
+            return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT, path, id,
+                                   "door requires nonzero signed open angle up to pi and speed in (0,8]");
     } else {
         const char *shape = NULL;
         const char *motion = NULL;
@@ -424,6 +433,18 @@ static bool vg_content_validate_components(VgContentValidation *validation,
                 return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_REFERENCE, required_path,
                                        id, "required component '%s' is missing", name);
         }
+    }
+    if (components != NULL && vg_json_object_get(components, "engine.door") != NULL) {
+        const VgJsonNode *collider = vg_json_object_get(components, "engine.collider");
+        const char *motion = NULL;
+        if (collider != NULL)
+            (void)vg_content_string(vg_json_object_get(collider, "motion"), &motion);
+        if (vg_json_object_get(components, "engine.mesh") == NULL || collider == NULL ||
+            motion == NULL || strcmp(motion, "kinematic") != 0 ||
+            vg_json_object_get(entity, "parent") == NULL ||
+            vg_json_object_get(entity, "parent")->type != VG_JSON_STRING)
+            return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_FORMAT, path, id,
+                                   "door panel requires mesh, kinematic collider and hinge parent");
     }
     return true;
 }
@@ -674,6 +695,21 @@ static bool vg_content_validate_level(VgContentValidation *validation, const VgJ
         (void)snprintf(member_path, sizeof(member_path), "%s.components", path);
         if (!vg_content_validate_components(validation, entity, member_path, ids[index]))
             return false;
+        const VgJsonNode *components = vg_json_object_get(entity, "components");
+        if (vg_json_object_get(components, "engine.door") != NULL) {
+            for (size_t prior = 0u; prior < index; ++prior) {
+                const VgJsonNode *prior_components = vg_json_object_get(
+                    entities->as.array.items[prior], "components");
+                if (vg_json_object_get(prior_components, "engine.door") != NULL &&
+                    parents[prior] != NULL && strcmp(parents[index], parents[prior]) == 0) {
+                    (void)snprintf(member_path, sizeof(member_path), "%s.parent", path);
+                    return vg_content_fail(validation, VG_CONTENT_DIAGNOSTIC_DUPLICATE,
+                                           member_path, ids[index],
+                                           "door hinge '%s' is already used by panel '%s'",
+                                           parents[index], ids[prior]);
+                }
+            }
+        }
     }
     uint8_t state[VG_CONTENT_MAX_ENTITIES] = {0};
     for (size_t start = 0u; start < entities->as.array.count; ++start) {

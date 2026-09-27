@@ -142,7 +142,7 @@
       "validation": ["V-CORE", "V-APP", "V-SPATIAL"], "unlocks": "Exploración 3D y colisión de puertas."
     },
     {
-      "id": "S03", "phase": "P6", "title": "Puertas con bisagra, triggers e interacción", "role": "runtime", "dependencies": ["S02", "D02", "R03"], "locks": ["gamekit", "document-schema"], "status": "PLANNED",
+      "id": "S03", "phase": "P6", "title": "Puertas con bisagra, triggers e interacción", "role": "runtime", "dependencies": ["S02", "D02", "R03"], "locks": ["gamekit", "document-schema"], "status": "IN_PROGRESS",
       "paths": ["src/gamekit/", "src/gameplay/interaction.c", "src/content/", "tests/gamekit/", "tests/spatial/"],
       "steps": ["Implementar raíz/bisagra/panel con eje/pivot/ángulos/speed, estados closed/opening/open/closing/blocked/locked y obstrucción segura.", "Mover collider con misma transform del panel, incluso totalmente abierto; sweep angular/substeps con límites derivados de dimensiones/velocidad.", "Conectar key/lock/auto-close, Interactable y Trigger enter/exit/once/cooldown a eventos/reglas; emitir eventos de audio, reproducidos al integrar A01."],
       "acceptance": ["Puerta gira en ambos sentidos y con padre rotado; cierre sobre cuerpo bloquea/revierte sin aplastar por defecto ni tunneling dentro de límites probados.", "Raycast/visión/proyectil/movimiento coinciden con panel y collider abierto sigue sólido.", "Definición de puerta/triggers sobrevive round-trip; estado mutable serializable queda listo para P01. Sonido sólo se acepta como conectado después de A01/E05."],

@@ -1,6 +1,6 @@
 # VESTIGIO: entregables pequeños para un proyecto hobby
 
-Estado al 2026-09-27: **16 de 30 tickets integrados**. El usuario revisó y aceptó J01 y S01/S02. La oleada 3 (E01) está [lista para tu revisión](evidence/E01.md). La oleada 4 ya tiene [flujo funcional de edición verificado](evidence/W04.md); E02 continúa `IN_PROGRESS` y E03 permanece `PLANNED` según sus criterios formales. El usuario encargó continuar con **cuatro oleadas consecutivas, 4–7**, con commit, pruebas, evidencia y push separados. A01 tiene sólo un núcleo de audio parcial.
+Estado al 2026-09-27: **16 de 30 tickets integrados**. El usuario revisó y aceptó J01 y S01/S02. La oleada 3 (E01) está [lista para tu revisión](evidence/E01.md). La oleada 4 tiene [flujo funcional de edición verificado](evidence/W04.md); E02 continúa `IN_PROGRESS` y E03 permanece `PLANNED` según sus criterios formales. La oleada 5 tiene [puerta interactiva verificada](evidence/W05.md); S03 continúa `IN_PROGRESS`. El usuario encargó continuar con **cuatro oleadas consecutivas, 4–7**, con commit, pruebas, evidencia y push separados. A01 tiene sólo un núcleo de audio parcial.
 
 **El motor es nuevo.** No se exige compatibilidad con Haunted, sectores, formatos previos, juegos anteriores o renderer CPU. Los tickets G04 (adaptador GPU anterior) y D03 (migración) se retiraron. El código de prototipo ya integrado puede permanecer mientras no estorbe, pero no es criterio de aceptación para entregas nuevas ni justificación para financiar una migración.
 

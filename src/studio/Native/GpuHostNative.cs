@@ -28,6 +28,16 @@ internal static class GpuHostNative
     internal static extern int vg_gpu_host_set_mode(nint host, int play);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_interact(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nuint vg_gpu_host_door_count(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_door_angle(nint host, nuint index,
+        out float angle);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int vg_gpu_host_mode(nint host);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]

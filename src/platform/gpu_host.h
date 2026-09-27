@@ -30,6 +30,11 @@ VG_GPU_HOST_API int32_t vg_gpu_host_mode(const VgGpuHost *host);
 VG_GPU_HOST_API int32_t vg_gpu_host_frame(VgGpuHost *host, double elapsed_seconds,
                                           float move_x, float move_y, float look_x,
                                           float look_y, int32_t jump, int32_t focused);
+/* Queue one Play-mode interaction; consumed by the next fixed tick. */
+VG_GPU_HOST_API int32_t vg_gpu_host_interact(VgGpuHost *host);
+VG_GPU_HOST_API size_t vg_gpu_host_door_count(const VgGpuHost *host);
+VG_GPU_HOST_API int32_t vg_gpu_host_door_angle(const VgGpuHost *host, size_t index,
+                                              float *out_angle);
 /* Normalized viewport point, selecting mesh bounds by UUID. No hit returns 0. */
 VG_GPU_HOST_API int32_t vg_gpu_host_pick(VgGpuHost *host, float u, float v,
                                          char *uuid, size_t uuid_capacity);

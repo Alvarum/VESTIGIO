@@ -7,6 +7,7 @@
 #include "render/gpu_raylib/gpu_renderer.h"
 #include "tooling/tool_api.h"
 #include "vestigio/controller.h"
+#include "vestigio/door.h"
 #include <limits.h>
 #include <math.h>
 #include <stdatomic.h>
@@ -22,6 +23,8 @@ struct VgGpuHost {
     VgDocument *document;
     VgDocumentInstance *edit;
     VgDocumentInstance *play;
+    VgDoor **doors;
+    size_t door_count;
     VgEntity edit_camera;
     VgEntity play_camera;
     VgControllerConfig controller;
@@ -44,6 +47,7 @@ struct VgGpuHost {
     float orbit_distance;
     double accumulator;
     bool jump_pending;
+    bool interact_pending;
     uint64_t saved_revision;
     char *saved_json;
     size_t saved_length;
@@ -61,10 +65,22 @@ static void host_error(char *out, size_t capacity, const char *message) {
         (void)snprintf(out, capacity, "%s", message);
 }
 
-static void host_release_level(VgGpuHost *host) {
+static void host_release_play(VgGpuHost *host) {
+    for (size_t i = 0u; i < host->door_count; ++i)
+        vg_door_destroy(host->doors[i]);
+    free(host->doors);
+    host->doors = NULL;
+    host->door_count = 0u;
     vg_document_instance_destroy(host->play);
-    vg_document_instance_destroy(host->edit);
     host->play = NULL;
+    host->accumulator = 0.0;
+    host->jump_pending = false;
+    host->interact_pending = false;
+}
+
+static void host_release_level(VgGpuHost *host) {
+    host_release_play(host);
+    vg_document_instance_destroy(host->edit);
     host->edit = NULL;
     vg_document_destroy(host->document);
     host->document = NULL;
@@ -320,10 +336,7 @@ int32_t vg_gpu_host_set_mode(VgGpuHost *host, int32_t play) {
     if (!host_is_current(host) || host->edit == NULL || (play != 0 && play != 1))
         return false;
     if (play == 0) {
-        vg_document_instance_destroy(host->play);
-        host->play = NULL;
-        host->accumulator = 0.0;
-        host->jump_pending = false;
+        host_release_play(host);
         return true;
     }
     if (host->play != NULL)
@@ -334,20 +347,48 @@ int32_t vg_gpu_host_set_mode(VgGpuHost *host, int32_t play) {
                                 &host->play, &diagnostic) != VG_OK)
         return false;
     if (vg_document_instance_spatial(host->play) == NULL) {
-        vg_document_instance_destroy(host->play);
-        host->play = NULL;
+        host_release_play(host);
         return false;
     }
     if (!host_find_camera(host, host->play, &host->play_camera)) {
-        vg_document_instance_destroy(host->play);
-        host->play = NULL;
+        host_release_play(host);
         return false;
     }
     VgTransform camera;
     if (vg_entity_get_local_transform(host->context, host->play_camera, &camera) != VG_OK) {
-        vg_document_instance_destroy(host->play);
-        host->play = NULL;
+        host_release_play(host);
         return false;
+    }
+    size_t count = vg_document_instance_door_count(host->play);
+    if (count > 0u) {
+        host->doors = calloc(count, sizeof(*host->doors));
+        if (host->doors == NULL) {
+            host_release_play(host);
+            return false;
+        }
+        for (size_t i = 0u; i < count; ++i) {
+            VgDocumentDoorBinding binding;
+            if (!vg_document_instance_door_at(host->play, i, &binding)) {
+                host_release_play(host);
+                return false;
+            }
+            VgDoorDesc door = {0};
+            door.struct_size = sizeof(door);
+            door.api_version = VG_API_VERSION;
+            door.context = host->context;
+            door.spatial = vg_document_instance_spatial(host->play);
+            door.hinge = binding.hinge;
+            door.panel = binding.panel;
+            door.collider = binding.collider;
+            door.collider_description = binding.collider_description;
+            door.open_angle_radians = binding.open_angle_radians;
+            door.angular_speed_radians = binding.speed_radians_per_second;
+            if (vg_door_create(&door, &host->doors[i]) != VG_OK) {
+                host_release_play(host);
+                return false;
+            }
+            ++host->door_count;
+        }
     }
     host->controller = vg_controller_default_config();
     host->controller.height = 1.82f;
@@ -362,6 +403,7 @@ int32_t vg_gpu_host_set_mode(VgGpuHost *host, int32_t play) {
     host->play_pitch = -0.12f;
     host->accumulator = 0.0;
     host->jump_pending = false;
+    host->interact_pending = false;
     return true;
 }
 
@@ -370,6 +412,28 @@ int32_t vg_gpu_host_mode(const VgGpuHost *host) {
         return -1;
     return host->play != NULL ? 1 : 0;
 }
+
+int32_t vg_gpu_host_interact(VgGpuHost *host) {
+    if (!host_is_current(host) || host->play == NULL)
+        return false;
+    host->interact_pending = true;
+    return true;
+}
+
+size_t vg_gpu_host_door_count(const VgGpuHost *host) {
+    return host_is_current(host) && host->play != NULL ? host->door_count : 0u;
+}
+
+int32_t vg_gpu_host_door_angle(const VgGpuHost *host, size_t index,
+                                float *out_angle) {
+    if (!host_is_current(host) || host->play == NULL || index >= host->door_count ||
+        out_angle == NULL)
+        return false;
+    *out_angle = vg_door_angle(host->doors[index]);
+    return true;
+}
+
+static VgVec3 host_rotate(VgQuat q, VgVec3 vector);
 
 static bool host_step_edit(VgGpuHost *host, double elapsed, float x, float y,
                            int32_t elevation) {
@@ -412,6 +476,34 @@ static bool host_step_play(VgGpuHost *host, double elapsed, float x, float y, bo
     host->accumulator += fmin(elapsed, 0.1);
     unsigned int ticks = 0u;
     while (host->accumulator >= 1.0 / 60.0 && ticks++ < 6u) {
+        if (host->interact_pending) {
+            VgVec3 eye = vg_controller_eye_position(&host->controller, &host->player);
+            VgVec3 forward = host_rotate(host_rotation(host->play_yaw, host->play_pitch),
+                                          (VgVec3){0.0f, 1.0f, 0.0f});
+            VgSpatialRayQuery ray = {eye, forward, 3.0f,
+                                     host->controller.collision_mask, host->play_camera};
+            VgSpatialHit hit = {0};
+            bool found = false;
+            if (vg_spatial_raycast(spatial, &ray, &found, &hit) != VG_OK)
+                return false;
+            if (found) {
+                for (size_t i = 0u; i < host->door_count; ++i) {
+                    VgDocumentDoorBinding binding;
+                    if (!vg_document_instance_door_at(host->play, i, &binding))
+                        return false;
+                    if (binding.panel.value == hit.entity.value) {
+                        if (vg_door_toggle(host->doors[i]) != VG_OK)
+                            return false;
+                        break;
+                    }
+                }
+            }
+            host->interact_pending = false;
+        }
+        for (size_t i = 0u; i < host->door_count; ++i)
+            if (vg_door_step(host->doors[i], 1.0f / 60.0f,
+                             &host->controller, &host->player) != VG_OK)
+                return false;
         if (vg_controller_step(spatial, &host->controller, host->play_camera,
                                &input, 1.0f / 60.0f, &host->player) != VG_OK)
             return false;
@@ -447,6 +539,7 @@ int32_t vg_gpu_host_frame(VgGpuHost *host, double elapsed_seconds,
     } else {
         host->accumulator = 0.0;
         host->jump_pending = false;
+        host->interact_pending = false;
     }
     return vg_gpu_host_render(host);
 }
@@ -724,6 +817,18 @@ int32_t vg_gpu_host_duplicate_selected(VgGpuHost *host, char *uuid, size_t uuid_
         !host->has_selection) {
         host_error(error, error_capacity, "Selecciona un objeto para duplicarlo");
         return false;
+    }
+    for (size_t i = 0u; i < vg_document_instance_door_count(host->edit); ++i) {
+        VgDocumentDoorBinding binding;
+        if (!vg_document_instance_door_at(host->edit, i, &binding)) {
+            host_error(error, error_capacity, "No se pudo consultar la puerta seleccionada");
+            return false;
+        }
+        if (binding.panel.value == host->selected_entity.value) {
+            host_error(error, error_capacity,
+                       "No se puede duplicar un panel de puerta sin una bisagra propia");
+            return false;
+        }
     }
     VgToolBatch *batch = host_begin_edit(host, error, error_capacity);
     if (batch == NULL)

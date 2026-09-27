@@ -553,6 +553,112 @@ internal static class Program
         Console.WriteLine("PASS E04 Studio add/transform/undo/redo/save/reopen/play GPU");
     }
 
+    private static void VerifyStudioDoor(string output, string level, string model)
+    {
+        Directory.CreateDirectory(output);
+        byte[] sourceHash = SHA256.HashData(File.ReadAllBytes(level));
+        var app = new Application();
+        app.Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("pack://application:,,,/retro_studio;component/Themes/Graphite.xaml")
+        });
+        using var source = new HwndSource(new HwndSourceParameters("VESTIGIO E05 door")
+        {
+            Width = 640, Height = 360, WindowStyle = unchecked((int)0x80000000)
+        });
+        var viewport = new GpuViewportHost
+        {
+            Width = 640, Height = 360, OpenAtrium = true,
+            LevelPath = level, ModelPath = model
+        };
+        try
+        {
+            source.RootVisual = viewport;
+            Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            viewport.Measure(new Size(640, 360));
+            viewport.Arrange(new Rect(0, 0, 640, 360));
+            viewport.UpdateLayout();
+            Check(viewport.IsNativeReady && viewport.RenderForTest() &&
+                  !viewport.InteractForTest(), "E solo debe estar disponible en Probar.");
+            nint host = viewport.NativeHandleForTest;
+            ulong revision = GpuHostNative.vg_gpu_host_document_revision(host);
+            Check(viewport.TrySetPlaying(true) &&
+                  GpuHostNative.vg_gpu_host_door_count(host) == (nuint)1 &&
+                  GpuHostNative.vg_gpu_host_door_angle(host, 0, out float closedAngle) != 0 &&
+                  Math.Abs(closedAngle) < 0.001f,
+                "Studio Play no instanció la puerta cerrada del documento.");
+            Check(GpuHostNative.vg_gpu_host_frame(host, 1.0 / 60, 0, 1, 280, 0, 0, 1) != 0,
+                "No se pudo orientar la cámara de Play hacia la puerta.");
+            for (int frame = 0; frame < 35; ++frame)
+                Check(GpuHostNative.vg_gpu_host_frame(host, 1.0 / 60, 0, 1, 0, 0, 0, 1) != 0,
+                    $"Acercamiento a puerta falló en frame {frame}.");
+            Check(viewport.InteractForTest(), "Studio no encoló E en Play.");
+            for (int frame = 0; frame < 80; ++frame)
+                Check(GpuHostNative.vg_gpu_host_frame(host, 1.0 / 60, 0, 0, 0, 0, 0, 1) != 0,
+                    $"Animación de puerta falló en frame {frame}.");
+            Check(GpuHostNative.vg_gpu_host_door_angle(host, 0, out float openAngle) != 0 &&
+                  openAngle > 1.4f, $"E no abrió la puerta en Studio: {openAngle:0.###}");
+            Check(viewport.CaptureForTest(Path.Combine(output, "e05-studio-door-open.png")),
+                "No se capturó Play con puerta abierta.");
+            Check(viewport.TrySetPlaying(false) &&
+                  GpuHostNative.vg_gpu_host_door_count(host) == (nuint)0 &&
+                  GpuHostNative.vg_gpu_host_document_revision(host) == revision &&
+                  SHA256.HashData(File.ReadAllBytes(level)).AsSpan().SequenceEqual(sourceHash),
+                "Detener no descartó puerta de Play o modificó documento.");
+            Check(viewport.TrySetPlaying(true) &&
+                  GpuHostNative.vg_gpu_host_door_angle(host, 0, out closedAngle) != 0 &&
+                  Math.Abs(closedAngle) < 0.001f &&
+                  viewport.TrySetPlaying(false),
+                "Segundo Play no restauró la puerta cerrada del documento.");
+        }
+        finally
+        {
+            source.RootVisual = null;
+            viewport.Dispose();
+        }
+        var editor = App.CreateAtriumWindow(["--atrium", "--level", level]);
+        var editorContent = (FrameworkElement)editor.Content;
+        editor.Content = null;
+        using (var editorSource = new HwndSource(new HwndSourceParameters(
+                   "VESTIGIO E05 protected door")
+               {
+                   Width = 1320, Height = 820,
+                   WindowStyle = unchecked((int)0x80000000)
+               }))
+        {
+            try
+            {
+                editorSource.RootVisual = editorContent;
+                Dispatcher.CurrentDispatcher.Invoke(() => { },
+                    DispatcherPriority.ApplicationIdle);
+                editorContent.Measure(new Size(1320, 820));
+                editorContent.Arrange(new Rect(0, 0, 1320, 820));
+                editorContent.UpdateLayout();
+                editor.RefreshForTest();
+                nint editHost = editor.GpuViewport.NativeHandleForTest;
+                int beforeCount = editor.GpuViewport.EntityUuids().Count;
+                ulong beforeRevision = GpuHostNative.vg_gpu_host_document_revision(editHost);
+                Check(editor.GpuViewport.TrySelect(
+                          "60000000-0000-0000-0000-000000000010"),
+                    "No se seleccionó panel de puerta del documento.");
+                ((Button)editor.FindName("DuplicateButton")!).RaiseEvent(
+                    new RoutedEventArgs(ButtonBase.ClickEvent));
+                Check(editor.GpuViewport.EntityUuids().Count == beforeCount &&
+                      GpuHostNative.vg_gpu_host_document_revision(editHost) ==
+                          beforeRevision &&
+                      ((TextBlock)editor.FindName("FieldError")!).Text.Contains(
+                          "puerta", StringComparison.OrdinalIgnoreCase),
+                    "Duplicar panel de puerta debe preservar jerarquía y mostrar error.");
+            }
+            finally
+            {
+                editorSource.RootVisual = null;
+                editor.GpuViewport.Dispose();
+            }
+        }
+        Console.WriteLine("PASS E05 Studio Play E door, isolated Stop/replay");
+    }
+
     [STAThread]
     private static int Main(string[] args)
     {
@@ -568,6 +674,12 @@ internal static class Program
             if (args.Length == 3 && args[0] == "--e04")
             {
                 VerifyWave4Editing(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
+                return 0;
+            }
+            if (args.Length == 4 && args[0] == "--e05")
+            {
+                VerifyStudioDoor(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]),
+                    Path.GetFullPath(args[3]));
                 return 0;
             }
             string output = Path.GetFullPath(args[0]);

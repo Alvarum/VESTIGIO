@@ -63,7 +63,7 @@
           <Button x:Name="FrameButton" Content="Encuadrar selección" Margin="6,0,0,0"
                   Click="FrameSelection_Click"/>
           <TextBlock Margin="14,0,0,0" Foreground="{StaticResource MutedBrush}"
-                     Text="Clic: seleccionar · WASD: mover · derecho: mirar"/>
+                     Text="Clic: seleccionar · WASD: mover · derecho: mirar · Probar: E puerta"/>
         </WrapPanel>
         <Border Grid.Row="1" Background="#FF0A1118"
                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">

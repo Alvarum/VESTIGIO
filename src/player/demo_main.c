@@ -9,7 +9,8 @@ static int usage(void) {
     (void)fprintf(stderr,
                   "Uso: vestigio_player [--smoke frames] [--capture png] [--resolution WxH] "
                   "[--fullscreen|--windowed] [--vsync|--no-vsync] "
-                  "[--frame-cap hz] [--sensitivity valor] [--show-colliders]\n");
+                  "[--frame-cap hz] [--sensitivity valor] [--show-colliders] "
+                  "[--level archivo.level.json] [--smoke-door]\n");
     return 2;
 }
 
@@ -17,6 +18,8 @@ int main(int argc, char **argv) {
     int smoke_frames = 0;
     const char *capture = NULL;
     bool show_colliders = false;
+    bool smoke_door = false;
+    const char *level_path = NULL;
     VgSettingsLayer session = {0};
     session.struct_size = sizeof(session);
     session.api_version = VG_API_VERSION;
@@ -26,6 +29,10 @@ int main(int argc, char **argv) {
             capture = argv[++index];
         } else if (strcmp(argument, "--show-colliders") == 0) {
             show_colliders = true;
+        } else if (strcmp(argument, "--level") == 0 && index + 1 < argc) {
+            level_path = argv[++index];
+        } else if (strcmp(argument, "--smoke-door") == 0) {
+            smoke_door = true;
         } else if (strcmp(argument, "--smoke") == 0 && index + 1 < argc) {
             char *end = NULL;
             errno = 0;
@@ -73,6 +80,7 @@ int main(int argc, char **argv) {
             return usage();
         }
     }
-    return vg_demo_3d_run(smoke_frames, capture, show_colliders,
+    return vg_demo_3d_run(smoke_frames, capture, show_colliders, level_path,
+                          smoke_door,
                           session.present != 0u ? &session : NULL);
 }

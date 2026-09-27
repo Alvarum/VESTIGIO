@@ -50,6 +50,7 @@ add_library(vestigio_runtime STATIC
     src/runtime/camera.c
     src/runtime/game.c
     src/gamekit/controller.c
+    src/gamekit/door.c
     src/config/settings.c
     src/assets/asset_registry.c
     src/assets/static_model.c
@@ -258,6 +259,13 @@ if(RETRO_BUILD_APPS)
                 "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json")
             set_tests_properties(vestigio_studio_editing PROPERTIES
                 LABELS "window;gpu;studio;document;app")
+            add_test(NAME vestigio_studio_door COMMAND dotnet
+                "${CMAKE_BINARY_DIR}/bin/RetroForge.Studio.Tests.dll"
+                --e05 "${CMAKE_BINARY_DIR}/studio-door-evidence"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json"
+                "${PROJECT_SOURCE_DIR}/assets/demo/atrium.gltf")
+            set_tests_properties(vestigio_studio_door PROPERTIES
+                LABELS "window;gpu;studio;document;gamekit;app")
         endif()
         add_executable(retro_platform_test tests/platform_test.c)
         retro_target(retro_platform_test)
@@ -294,7 +302,7 @@ if(RETRO_BUILD_APPS)
     retro_target(vestigio_player)
     target_include_directories(vestigio_player PRIVATE "${PROJECT_SOURCE_DIR}/src")
     target_include_directories(vestigio_player SYSTEM PRIVATE "${raylib_SOURCE_DIR}/src")
-    target_link_libraries(vestigio_player PRIVATE vestigio_gpu_raylib vestigio_runtime)
+    target_link_libraries(vestigio_player PRIVATE vestigio_gpu_raylib vestigio_tool)
     foreach(app retro_fps retro_lab retro_player vestigio_player)
         set_target_properties(${app} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
         install(TARGETS ${app} RUNTIME DESTINATION . COMPONENT Runtime)
@@ -311,6 +319,9 @@ if(RETRO_BUILD_APPS)
         add_test(NAME vestigio_player_collision COMMAND vestigio_player --smoke 240)
         set_tests_properties(vestigio_player_collision PROPERTIES
             LABELS "window;gpu;spatial;gamekit;app")
+        add_test(NAME vestigio_player_door COMMAND vestigio_player --smoke 180 --smoke-door)
+        set_tests_properties(vestigio_player_door PROPERTIES
+            LABELS "window;gpu;spatial;gamekit;document;app")
     endif()
     install(TARGETS retro_editor RUNTIME DESTINATION . COMPONENT Runtime)
     install(DIRECTORY assets DESTINATION . COMPONENT Runtime)
@@ -368,6 +379,11 @@ if(BUILD_TESTING)
     retro_target(vestigio_controller_test)
     target_link_libraries(vestigio_controller_test PRIVATE vestigio_runtime)
     add_test(NAME vestigio_controller COMMAND vestigio_controller_test)
+    add_executable(vestigio_door_test tests/gamekit/door_test.c)
+    retro_target(vestigio_door_test)
+    target_link_libraries(vestigio_door_test PRIVATE vestigio_runtime)
+    add_test(NAME vestigio_door COMMAND vestigio_door_test)
+    set_tests_properties(vestigio_door PROPERTIES LABELS "gamekit;spatial")
     set_tests_properties(vestigio_controller PROPERTIES LABELS "spatial;gamekit;sdk")
 
     add_executable(vestigio_runtime_cpp_test tests/runtime/runtime_link_cpp_test.cpp)

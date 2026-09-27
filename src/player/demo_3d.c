@@ -27,11 +27,12 @@ static bool demo_read_model(const char *path, void **out_data, uint64_t *out_siz
     return true;
 }
 
-static VgInputSample demo_input_sample(bool focused, bool smoke, int frame) {
+static VgInputSample demo_input_sample(bool focused, bool smoke, bool smoke_door,
+                                       int frame) {
     VgInputSample sample = {0};
     sample.struct_size = sizeof(sample);
     sample.api_version = VG_API_VERSION;
-    if (smoke || IsKeyDown(KEY_W))
+    if ((smoke && !smoke_door) || (!smoke && IsKeyDown(KEY_W)))
         sample.held |= VG_ACTION_MOVE_FORWARD;
     if (!smoke && IsKeyDown(KEY_S))
         sample.held |= VG_ACTION_MOVE_BACKWARD;
@@ -41,7 +42,14 @@ static VgInputSample demo_input_sample(bool focused, bool smoke, int frame) {
         sample.held |= VG_ACTION_MOVE_LEFT;
     if (!smoke && IsKeyPressed(KEY_SPACE))
         sample.pressed |= VG_ACTION_JUMP;
-    if (smoke)
+    if (!smoke && IsKeyPressed(KEY_E))
+        sample.pressed |= VG_ACTION_INTERACT;
+    if (smoke_door && (frame == 0 || frame == 91))
+        sample.pressed |= VG_ACTION_INTERACT;
+    if (smoke_door)
+        sample.look_delta_x = frame == 160 ? 400.0f :
+                              frame == 162 ? -400.0f : 0.0f;
+    else if (smoke)
         sample.look_delta_x = frame == 0 ? 8.0f : 0.0f;
     else if (focused) {
         Vector2 look = GetMouseDelta();
@@ -53,7 +61,14 @@ static VgInputSample demo_input_sample(bool focused, bool smoke, int frame) {
 }
 
 int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_colliders,
+                   const char *level_path, bool smoke_door,
                    const VgSettingsLayer *session_settings) {
+    if (smoke_door && smoke_frames == 0)
+        smoke_frames = 180;
+    if (smoke_door && smoke_frames < 180) {
+        (void)fprintf(stderr, "--smoke-door requiere al menos 180 frames\n");
+        return 2;
+    }
     VgSettingsLayer settings = {0};
     settings.struct_size = sizeof(settings);
     settings.api_version = VG_API_VERSION;
@@ -67,6 +82,7 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
         return 2;
     }
     char model_path[2048] = {0};
+    char default_level_path[2048] = {0};
     void *model_data = NULL;
     uint64_t model_size = 0u;
     int path_length = snprintf(model_path, sizeof(model_path), "%sassets/demo/atrium.gltf",
@@ -76,6 +92,16 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
         (void)fprintf(stderr, "No se pudo leer el modelo 3D: %s\n", model_path);
         return 1;
     }
+    path_length = snprintf(default_level_path, sizeof(default_level_path),
+                           "%sassets/demo/atrium.level.json",
+                           GetApplicationDirectory());
+    if (path_length < 0 || (size_t)path_length >= sizeof(default_level_path)) {
+        (void)fprintf(stderr, "Ruta de nivel 3D demasiado larga\n");
+        free(model_data);
+        return 2;
+    }
+    if (level_path == NULL)
+        level_path = default_level_path;
 
     VgGpuRenderer *renderer = NULL;
     VgContext *context = NULL;
@@ -131,18 +157,31 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
         goto cleanup;
     }
     gpu_attached = true;
-    result = vg_demo_scene_create(context, model_data, model_size, settings.look_sensitivity, &scene);
+    result = vg_demo_scene_create(context, level_path, model_data, model_size,
+                                  settings.look_sensitivity, &scene);
     free(model_data);
     model_data = NULL;
     if (result != VG_OK) {
-        (void)fprintf(stderr, "No se pudo construir la escena 3D desde %s: %d\n", model_path,
-                      result);
+        (void)fprintf(stderr, "No se pudo construir la escena 3D desde %s: %d\n",
+                      level_path, result);
         goto cleanup;
     }
 
     VgVec3 start_position = {0};
     if (vg_demo_scene_camera_position(scene, &start_position) != VG_OK)
         goto cleanup;
+    VgTransform door_closed_panel = {0}, door_closed_collider = {0};
+    VgTransform door_open_panel = {0}, door_open_collider = {0};
+    if (smoke_door) {
+        if (vg_demo_scene_door_count(scene) == 0u ||
+            vg_demo_scene_door_pose(scene, 0u, &door_closed_panel,
+                                    &door_closed_collider) != VG_OK ||
+            vg_demo_scene_prepare_door_smoke(scene) != VG_OK ||
+            vg_demo_scene_door_hint(scene) == NULL) {
+            (void)fprintf(stderr, "Smoke puerta: panel/collider no accesible por E\n");
+            goto cleanup;
+        }
+    }
     if (smoke_frames == 0) {
         DisableCursor();
         cursor_captured = true;
@@ -166,7 +205,36 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
                 EnableCursor();
             cursor_captured = focused;
         }
-        VgInputSample sample = demo_input_sample(focused, smoke_frames > 0, frames);
+        if (smoke_door && frames == 90) {
+            float angle = vg_demo_scene_door_angle(scene, 0u);
+            if (angle < 1.4f ||
+                vg_demo_scene_door_pose(scene, 0u, &door_open_panel,
+                                        &door_open_collider) != VG_OK ||
+                fabsf(door_open_panel.position.x -
+                      door_closed_panel.position.x) < 0.2f ||
+                fabsf(door_open_panel.position.x -
+                      door_open_collider.position.x) > 0.001f ||
+                fabsf(door_open_panel.position.y -
+                      door_open_collider.position.y) > 0.001f) {
+                (void)fprintf(stderr, "Smoke puerta: panel o collider no abrio\n");
+                goto cleanup;
+            }
+            if (vg_demo_scene_prepare_door_smoke(scene) != VG_OK ||
+                vg_demo_scene_door_hint(scene) == NULL) {
+                (void)fprintf(stderr, "Smoke puerta: no se puede apuntar a puerta abierta\n");
+                goto cleanup;
+            }
+        }
+        if (smoke_door && frames == 161 && vg_demo_scene_door_hint(scene) != NULL) {
+            (void)fprintf(stderr, "Smoke puerta: hint no se limpio al mirar a otro lado\n");
+            goto cleanup;
+        }
+        if (smoke_door && frames == 163 && vg_demo_scene_door_hint(scene) == NULL) {
+            (void)fprintf(stderr, "Smoke puerta: hint no reaparecio al mirar a puerta\n");
+            goto cleanup;
+        }
+        VgInputSample sample = demo_input_sample(focused, smoke_frames > 0,
+                                                  smoke_door, frames);
         result = vg_demo_scene_submit_input(scene, &sample);
         if (result == VG_OK)
             result = vg_demo_scene_step(scene, smoke_frames > 0 ? 1.0 / 60.0 : now - previous);
@@ -179,20 +247,53 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
             (void)fprintf(stderr, "Frame 3D %d fallido: %d\n", frames, result);
             goto cleanup;
         }
-        vg_gpu_renderer_present(renderer);
+        vg_gpu_renderer_present_with_hint(renderer, vg_demo_scene_door_hint(scene));
+        if (smoke_door && frames == 90 && capture_path != NULL) {
+            char open_path[2048];
+            int count = snprintf(open_path, sizeof(open_path), "%s.open.png",
+                                 capture_path);
+            if (count < 0 || (size_t)count >= sizeof(open_path) ||
+                !vg_gpu_renderer_capture(renderer, open_path)) {
+                (void)fprintf(stderr, "Smoke puerta: no se pudo capturar pose abierta\n");
+                goto cleanup;
+            }
+        }
         ++frames;
     }
     VgFrameStats stats = vg_gpu_renderer_stats(renderer);
     VgVec3 end_position = {0};
     if (vg_demo_scene_camera_position(scene, &end_position) != VG_OK || frames == 0 ||
-        stats.draw_calls == 0u || stats.asset_uploads == 0u || stats.readbacks != 0u ||
-        (smoke_frames > 0 &&
+        stats.draw_calls == 0u || stats.asset_uploads == 0u ||
+        stats.readbacks != (smoke_door && capture_path != NULL ? 1u : 0u) ||
+        (smoke_frames > 0 && !smoke_door &&
          hypotf(end_position.x - start_position.x, end_position.y - start_position.y) < 0.02f) ||
-        (smoke_frames >= 240 &&
+        (smoke_frames >= 240 && !smoke_door &&
          (end_position.y < 2.3f || end_position.y > 2.6f ||
           fabsf(end_position.z - 1.7f) > 0.05f))) {
-        (void)fprintf(stderr, "La demo no produjo movimiento y geometria GPU comprobables\n");
+        (void)fprintf(stderr, "La demo no produjo movimiento y geometria GPU comprobables "
+                      "(frames=%d draws=%llu uploads=%llu readbacks=%llu start=%.2f,%.2f "
+                      "end=%.2f,%.2f)\n", frames,
+                      (unsigned long long)stats.draw_calls,
+                      (unsigned long long)stats.asset_uploads,
+                      (unsigned long long)stats.readbacks,
+                      (double)start_position.x, (double)start_position.y,
+                      (double)end_position.x, (double)end_position.y);
         goto cleanup;
+    }
+    if (smoke_door) {
+        VgTransform final_panel = {0}, final_collider = {0};
+        if (vg_demo_scene_door_angle(scene, 0u) > 0.05f ||
+            vg_demo_scene_door_pose(scene, 0u, &final_panel,
+                                    &final_collider) != VG_OK ||
+            fabsf(final_panel.position.x - door_closed_panel.position.x) > 0.01f ||
+            fabsf(final_panel.position.y - door_closed_panel.position.y) > 0.01f ||
+            fabsf(final_panel.position.x - final_collider.position.x) > 0.001f ||
+            fabsf(final_panel.position.y - final_collider.position.y) > 0.001f) {
+            (void)fprintf(stderr, "Smoke puerta: cierre no restauro panel y collider\n");
+            goto cleanup;
+        }
+        (void)printf("door smoke: E open/close, angle=%.3f, collider follows panel\n",
+                     (double)vg_demo_scene_door_angle(scene, 0u));
     }
     if (capture_path != NULL && !vg_gpu_renderer_capture(renderer, capture_path)) {
         (void)fprintf(stderr, "No se pudo guardar la captura GPU: %s\n", capture_path);

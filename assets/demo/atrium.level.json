@@ -4,7 +4,7 @@
   "id": "60000000-0000-0000-0000-000000000000",
   "name": "Atrium 3D",
   "coordinates": "right-handed-z-up-meters",
-  "required": ["core", "transform", "environment", "component.engine.camera.v1", "component.engine.mesh.v1", "component.engine.collider.v1"],
+  "required": ["core", "transform", "environment", "component.engine.camera.v1", "component.engine.mesh.v1", "component.engine.collider.v1", "component.engine.door.v1"],
   "environment": {
     "ambient_linear": [0.08, 0.09, 0.12],
     "clear_linear": [0.01, 0.02, 0.03]
@@ -132,6 +132,23 @@
       "components": {
         "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 2},
         "engine.collider": {"version": 1, "shape": "box", "motion": "static", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]}
+      }
+    },
+    {
+      "id": "60000000-0000-0000-0000-00000000000f",
+      "parent": null,
+      "transform": {"position": [2.35, -3.5, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1]},
+      "components": {}
+    },
+    {
+      "id": "60000000-0000-0000-0000-000000000010",
+      "parent": "60000000-0000-0000-0000-00000000000f",
+      "transform": {"position": [0.6, 0, 0.95], "rotation": [0, 0, 0, 1], "scale": [1.2, 0.14, 1.9]},
+      "required_components": ["engine.mesh", "engine.collider", "engine.door"],
+      "components": {
+        "engine.mesh": {"version": 1, "asset": "4a30312d-6174-7269-756d-2d6d6f64656c", "node_index": 2},
+        "engine.collider": {"version": 1, "shape": "box", "motion": "kinematic", "center": [0, 0, 0], "half_extents": [0.5, 0.5, 0.5]},
+        "engine.door": {"version": 1, "open_angle_radians": 1.5707963, "speed_radians_per_second": 1.4}
       }
     }
   ]

@@ -18,6 +18,7 @@ public sealed class GpuViewportHost : HwndHost
     private const int VkLeftControl = 0xA2;
     private const int VkA = 0x41;
     private const int VkD = 0x44;
+    private const int VkE = 0x45;
     private const int VkS = 0x53;
     private const int VkW = 0x57;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
@@ -27,6 +28,7 @@ public sealed class GpuViewportHost : HwndHost
     private bool _levelOpen;
     private bool _leftDown;
     private bool _spaceDown;
+    private bool _eDown;
     private GpuHostNative.NativePoint? _lastCursor;
     private double _previousFrame;
 
@@ -345,6 +347,9 @@ public sealed class GpuViewportHost : HwndHost
     internal bool CaptureForTest(string path) =>
         _nativeHost != 0 && GpuHostNative.vg_gpu_host_capture(_nativeHost, path) != 0;
 
+    internal bool InteractForTest() =>
+        _nativeHost != 0 && GpuHostNative.vg_gpu_host_interact(_nativeHost) != 0;
+
     private void RenderFrame(object? sender, EventArgs e)
     {
         Window? window = Window.GetWindow(this);
@@ -410,6 +415,7 @@ public sealed class GpuViewportHost : HwndHost
         bool left = Down(VkLeft);
         bool right = Down(VkRight);
         bool space = Down(VkSpace);
+        bool interact = Down(VkE);
         bool pointerKnown = GpuHostNative.GetCursorPos(out GpuHostNative.NativePoint cursor);
         uint width = 0, height = 0;
         bool inside = pointerKnown && GpuHostNative.ScreenToClient(
@@ -445,6 +451,9 @@ public sealed class GpuViewportHost : HwndHost
                 (nuint)uuid.Length) != 0 ? GpuHostNative.Error(uuid) : "Ninguno");
         }
         _leftDown = left;
+        if (focused && IsPlaying && interact && !_eDown)
+            _ = GpuHostNative.vg_gpu_host_interact(_nativeHost);
+        _eDown = interact;
         int jump = 0;
         if (focused)
             jump = IsPlaying ? (space && !_spaceDown ? 1 : 0) :
@@ -463,6 +472,7 @@ public sealed class GpuViewportHost : HwndHost
         _lastCursor = null;
         _leftDown = Down(VkLeft);
         _spaceDown = Down(VkSpace);
+        _eDown = Down(VkE);
     }
 
     private HandleRef BuildFallback(HandleRef hwndParent)

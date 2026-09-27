@@ -10,6 +10,9 @@
 typedef struct VgDocumentEntityBinding {
     VgUuid id;
     VgEntity entity;
+    VgSpatialCollider collider;
+    VgSpatialColliderDesc collider_description;
+    bool has_collider;
 } VgDocumentEntityBinding;
 
 typedef struct VgDocumentAssetBinding {
@@ -23,6 +26,8 @@ struct VgDocumentInstance {
     VgSpatialScene *spatial;
     VgDocumentEntityBinding *entities;
     size_t entity_count;
+    VgDocumentDoorBinding *doors;
+    size_t door_count;
     VgDocumentAssetBinding *assets;
     size_t asset_count;
 };
@@ -247,10 +252,11 @@ static VgResult vg_document_apply_colliders(VgDocumentInstance *instance,
             continue;
         const char *id = vg_document_node_string(vg_json_object_get(entity, "id"));
         const char *motion = vg_document_node_string(vg_json_object_get(component, "motion"));
-        if (motion == NULL || strcmp(motion, "static") != 0)
+        if (motion == NULL || (strcmp(motion, "static") != 0 &&
+                               strcmp(motion, "kinematic") != 0))
             return vg_document_runtime_invalid(diagnostic,
                                                "$.entities[].components.engine.collider.motion",
-                                               id, "document runtime currently supports static colliders");
+                                               id, "document runtime supports static and kinematic colliders");
         VgSpatialColliderDesc collider = {0};
         collider.entity = instance->entities[index].entity;
         collider.layer_mask = UINT64_C(1);
@@ -278,6 +284,41 @@ static VgResult vg_document_apply_colliders(VgDocumentInstance *instance,
                                                 : VG_DOCUMENT_VALIDATION,
                                             result, "$.entities[].components.engine.collider", id,
                                             "collider creation");
+        instance->entities[index].collider = handle;
+        instance->entities[index].collider_description = collider;
+        instance->entities[index].has_collider = true;
+    }
+    return VG_OK;
+}
+
+static VgResult vg_document_apply_doors(VgDocumentInstance *instance,
+                                        const VgJsonNode *entities,
+                                        VgDocumentDiagnostic *diagnostic) {
+    for (size_t index = 0u; index < instance->entity_count; ++index) {
+        const VgJsonNode *entity = entities->as.array.items[index];
+        const VgJsonNode *components = vg_json_object_get(entity, "components");
+        const VgJsonNode *door = vg_json_object_get(components, "engine.door");
+        if (door == NULL)
+            continue;
+        const char *id = vg_document_node_string(vg_json_object_get(entity, "id"));
+        const char *parent_text = vg_document_node_string(vg_json_object_get(entity, "parent"));
+        uint8_t parent_id[16];
+        VgEntity hinge = {VG_INVALID_HANDLE_VALUE};
+        if (!vg_document_parse_uuid(parent_text, parent_id) ||
+            !vg_document_find_binding(instance, parent_id, &hinge) ||
+            !instance->entities[index].has_collider)
+            return vg_document_runtime_invalid(diagnostic, "$.entities[].components.engine.door",
+                                               id, "door hinge or collider is missing");
+        VgDocumentDoorBinding *binding = &instance->doors[instance->door_count++];
+        binding->id = instance->entities[index].id;
+        binding->panel = instance->entities[index].entity;
+        binding->hinge = hinge;
+        binding->collider = instance->entities[index].collider;
+        binding->collider_description = instance->entities[index].collider_description;
+        binding->open_angle_radians =
+            (float)vg_json_object_get(door, "open_angle_radians")->as.number.value;
+        binding->speed_radians_per_second =
+            (float)vg_json_object_get(door, "speed_radians_per_second")->as.number.value;
     }
     return VG_OK;
 }
@@ -291,6 +332,7 @@ static void vg_document_instance_cleanup(VgDocumentInstance *instance) {
     if (instance->world.value != VG_INVALID_HANDLE_VALUE)
         (void)vg_world_destroy(instance->context, instance->world);
     free(instance->assets);
+    free(instance->doors);
     free(instance->entities);
     free(instance);
 }
@@ -356,7 +398,8 @@ VgResult vg_document_instantiate(VgContext *context, const VgDocument *document,
     if (candidate->entity_count != 0u) {
         candidate->entities = calloc(candidate->entity_count, sizeof(*candidate->entities));
         candidate->assets = calloc(candidate->entity_count, sizeof(*candidate->assets));
-        if (candidate->entities == NULL || candidate->assets == NULL) {
+        candidate->doors = calloc(candidate->entity_count, sizeof(*candidate->doors));
+        if (candidate->entities == NULL || candidate->assets == NULL || candidate->doors == NULL) {
             vg_document_instance_cleanup(candidate);
             return vg_document_runtime_fail(out_diagnostic, VG_DOCUMENT_OUT_OF_MEMORY,
                                             VG_ERROR_OUT_OF_MEMORY, "$", NULL,
@@ -441,6 +484,9 @@ VgResult vg_document_instantiate(VgContext *context, const VgDocument *document,
     result = vg_document_apply_colliders(candidate, entities, out_diagnostic);
     if (result != VG_OK)
         goto fail;
+    result = vg_document_apply_doors(candidate, entities, out_diagnostic);
+    if (result != VG_OK)
+        goto fail;
 
     *out_instance = candidate;
     if (out_diagnostic != NULL)
@@ -482,6 +528,34 @@ bool vg_document_instance_find_entity(const VgDocumentInstance *instance, VgUuid
                                       VgEntity *out_entity) {
     return instance != NULL && out_entity != NULL &&
            vg_document_find_binding(instance, id.bytes, out_entity);
+}
+
+bool vg_document_instance_find_collider(const VgDocumentInstance *instance, VgUuid id,
+                                        VgSpatialCollider *out_collider,
+                                        VgSpatialColliderDesc *out_description) {
+    if (instance == NULL || out_collider == NULL || out_description == NULL)
+        return false;
+    for (size_t index = 0u; index < instance->entity_count; ++index) {
+        const VgDocumentEntityBinding *binding = &instance->entities[index];
+        if (binding->has_collider && vg_document_uuid_equal(binding->id.bytes, id.bytes)) {
+            *out_collider = binding->collider;
+            *out_description = binding->collider_description;
+            return true;
+        }
+    }
+    return false;
+}
+
+size_t vg_document_instance_door_count(const VgDocumentInstance *instance) {
+    return instance == NULL ? 0u : instance->door_count;
+}
+
+bool vg_document_instance_door_at(const VgDocumentInstance *instance, size_t index,
+                                  VgDocumentDoorBinding *out_door) {
+    if (instance == NULL || index >= instance->door_count || out_door == NULL)
+        return false;
+    *out_door = instance->doors[index];
+    return true;
 }
 
 size_t vg_document_instance_asset_count(const VgDocumentInstance *instance) {

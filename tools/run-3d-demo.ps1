@@ -1,7 +1,11 @@
+# Ejemplo de puerta (180 frames por defecto):
+# powershell -File tools/run-3d-demo.ps1 -SmokeDoor -ShowColliders -Capture build/door.png
 param(
     [ValidateRange(0,100000)][int]$Smoke = 0,
     [string]$Capture = '',
-    [switch]$ShowColliders
+    [switch]$ShowColliders,
+    [string]$Level = '',
+    [switch]$SmokeDoor
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -24,6 +28,8 @@ try {
     if ($Smoke -gt 0) { $arguments += @('--smoke', [string]$Smoke) }
     if ($Capture) { $arguments += @('--capture', $Capture) }
     if ($ShowColliders) { $arguments += '--show-colliders' }
+    if ($Level) { $arguments += @('--level', $Level) }
+    if ($SmokeDoor) { $arguments += '--smoke-door' }
     & $player @arguments
     if ($LASTEXITCODE) { throw "Player termino con codigo $LASTEXITCODE" }
 } finally {

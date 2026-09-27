@@ -288,12 +288,86 @@ static void test_locale_precision_and_limits(void) {
     CHECK(unchanged_length == 42u);
 }
 
+static void test_door_component_validation(void) {
+    static const char format[] =
+        "{\"format\":\"vestigio.level\",\"version\":1,"
+        "\"id\":\"20000000-0000-0000-0000-000000000001\",\"name\":\"door\","
+        "\"coordinates\":\"right-handed-z-up-meters\","
+        "\"required\":[\"component.engine.door.v1\"],\"entities\":["
+        "{\"id\":\"20000000-0000-0000-0000-000000000002\",\"parent\":null,"
+        "\"transform\":{\"position\":[0,0,0],\"rotation\":[0,0,0,1],\"scale\":[1,1,1]}},"
+        "{\"id\":\"20000000-0000-0000-0000-000000000003\",\"parent\":%s,"
+        "\"transform\":{\"position\":[0.5,0,1],\"rotation\":[0,0,0,1],\"scale\":[1,1,1]},"
+        "\"components\":{\"engine.mesh\":{\"version\":1,"
+        "\"asset\":\"50000000-0000-0000-0000-000000000001\"},"
+        "\"engine.collider\":{\"version\":1,\"shape\":\"box\",\"motion\":\"%s\","
+        "\"center\":[0,0,0],\"half_extents\":[0.5,0.1,1]},"
+        "\"engine.door\":{\"version\":1,\"open_angle_radians\":%s,"
+        "\"speed_radians_per_second\":%s}}}%s]}";
+    const char *parent = "\"20000000-0000-0000-0000-000000000002\"";
+    const struct {
+        const char *parent;
+        const char *motion;
+        const char *angle;
+        const char *speed;
+        bool valid;
+    } cases[] = {
+        {parent, "kinematic", "1.57", "1.4", true},
+        {parent, "static", "1.57", "1.4", false},
+        {parent, "kinematic", "0", "1.4", false},
+        {parent, "kinematic", "3.5", "1.4", false},
+        {parent, "kinematic", "1.57", "0", false},
+        {parent, "kinematic", "1.57", "9", false},
+        {"null", "kinematic", "1.57", "1.4", false},
+    };
+    for (size_t index = 0u; index < sizeof(cases) / sizeof(cases[0]); ++index) {
+        char json[2048];
+        int length = snprintf(json, sizeof(json), format, cases[index].parent,
+                              cases[index].motion, cases[index].angle, cases[index].speed, "");
+        CHECK(length > 0 && (size_t)length < sizeof(json));
+        VgContentDocument *document = NULL;
+        VgContentDiagnostic diagnostic;
+        bool parsed = vg_content_parse_memory("door.level.json", json, (size_t)length,
+                                              &document, &diagnostic);
+        CHECK(parsed == cases[index].valid);
+        if (!parsed)
+            CHECK(strstr(diagnostic.path, "engine.door") != NULL ||
+                  strstr(diagnostic.path, "components") != NULL);
+        vg_content_document_destroy(document);
+    }
+    static const char duplicate_panel[] =
+        ",{\"id\":\"20000000-0000-0000-0000-000000000004\","
+        "\"parent\":\"20000000-0000-0000-0000-000000000002\","
+        "\"transform\":{\"position\":[1.5,0,1],\"rotation\":[0,0,0,1],"
+        "\"scale\":[1,1,1]},\"components\":{"
+        "\"engine.mesh\":{\"version\":1,"
+        "\"asset\":\"50000000-0000-0000-0000-000000000001\"},"
+        "\"engine.collider\":{\"version\":1,\"shape\":\"box\","
+        "\"motion\":\"kinematic\",\"center\":[0,0,0],"
+        "\"half_extents\":[0.5,0.1,1]},"
+        "\"engine.door\":{\"version\":1,\"open_angle_radians\":1.57,"
+        "\"speed_radians_per_second\":1.4}}}";
+    char duplicate_json[3072];
+    int length = snprintf(duplicate_json, sizeof(duplicate_json), format, parent,
+                          "kinematic", "1.57", "1.4", duplicate_panel);
+    CHECK(length > 0 && (size_t)length < sizeof(duplicate_json));
+    VgContentDocument *duplicate = NULL;
+    VgContentDiagnostic diagnostic;
+    CHECK(!vg_content_parse_memory("duplicate-door.level.json", duplicate_json,
+                                   (size_t)length, &duplicate, &diagnostic));
+    CHECK(duplicate == NULL && diagnostic.code == VG_CONTENT_DIAGNOSTIC_DUPLICATE &&
+          strcmp(diagnostic.path, "$.entities[2].parent") == 0 &&
+          strcmp(diagnostic.id, "20000000-0000-0000-0000-000000000004") == 0 &&
+          strstr(diagnostic.message, "already used by panel") != NULL);
+}
+
 int main(void) {
     test_valid_documents();
     test_invalid_corpus_and_transaction();
     test_required_unknown_cycle_and_transform();
     test_many_object_keys();
     test_locale_precision_and_limits();
+    test_door_component_validation();
     if (failures != 0)
         (void)fprintf(stderr, "%d content checks failed\n", failures);
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

@@ -120,6 +120,6 @@ flowchart TD
 
 ## Elegibilidad actual
 
-Por estado de dependencias: S03, V01, A01, A02.
+Por estado de dependencias: V01, A01, A02.
 
 Filtrar después por alcance encargado y locks. BLOCKED requiere resolver su motivo y actualizar estado; no se relanza automáticamente.

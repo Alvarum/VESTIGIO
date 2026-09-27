@@ -72,6 +72,9 @@ void vg_gpu_renderer_destroy(VgGpuRenderer *renderer);
 /* G01 diagnostic scene: indexed by the backend as real mesh/billboard draws. */
 bool vg_gpu_renderer_draw_demo(VgGpuRenderer *renderer);
 void vg_gpu_renderer_present(VgGpuRenderer *renderer);
+/* Presents the GPU target with a short window-space interaction hint.
+ * The hint is composited on the GPU after scaling, without framebuffer readback. */
+void vg_gpu_renderer_present_with_hint(VgGpuRenderer *renderer, const char *hint);
 /* WPF owns the thread message pump; this variant swaps without PollInputEvents. */
 void vg_gpu_renderer_present_embedded(VgGpuRenderer *renderer);
 

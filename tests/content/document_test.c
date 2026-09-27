@@ -554,6 +554,34 @@ static void test_place_transform_save_reopen_and_play_source(void) {
     clean_save_files(target);
 }
 
+static void test_atrium_door_definition_roundtrip(void) {
+    (void)VG_TEST_MKDIR(VG_CONTENT_TEST_DIR);
+    char source[1024];
+    (void)snprintf(source, sizeof(source), "%s/../../../assets/demo/atrium.level.json",
+                   VG_CONTENT_FIXTURES);
+    char target[1024];
+    (void)snprintf(target, sizeof(target), "%s/atrium-door.level.json", VG_CONTENT_TEST_DIR);
+    clean_save_files(target);
+    VgDocument *document = NULL;
+    VgDocumentDiagnostic diagnostic;
+    CHECK(vg_document_open_file(source, &document, &diagnostic));
+    if (document == NULL)
+        return;
+    size_t length = 0u;
+    char *json = canonical(document, &length);
+    CHECK(json != NULL && strstr(json, "\"engine.door\"") != NULL &&
+          strstr(json, "\"kinematic\"") != NULL);
+    CHECK(vg_document_save_atomic(document, target, 1u, &diagnostic));
+    VgDocument *reopened = NULL;
+    CHECK(vg_document_open_file(target, &reopened, &diagnostic));
+    if (reopened != NULL)
+        CHECK(same_document(document, reopened));
+    vg_document_destroy(reopened);
+    vg_content_string_destroy(json);
+    vg_document_destroy(document);
+    clean_save_files(target);
+}
+
 int main(void) {
     test_batch_preview_temp_ids_and_unknown_fields();
     test_failed_batches_preserve_document_and_redo();
@@ -562,6 +590,7 @@ int main(void) {
     test_batch_and_sequential_equivalence();
     test_recoverable_save_and_future_guard();
     test_place_transform_save_reopen_and_play_source();
+    test_atrium_door_definition_roundtrip();
     if (failures != 0)
         (void)fprintf(stderr, "%d document checks failed\n", failures);
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

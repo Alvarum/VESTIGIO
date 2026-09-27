@@ -296,10 +296,50 @@ static void test_atrium_document(void) {
     CHECK(vg_document_instantiate(context, document, &description, &instance, &diagnostic) ==
           VG_OK);
     if (instance != NULL) {
-        CHECK(vg_document_instance_entity_count(instance) == 14u);
+        CHECK(vg_document_instance_entity_count(instance) == 16u);
         CHECK(vg_document_instance_asset_count(instance) == 1u);
         CHECK(resolver.calls == 1u);
-        CHECK(vg_spatial_scene_stats(vg_document_instance_spatial(instance)).colliders == 13u);
+        CHECK(vg_spatial_scene_stats(vg_document_instance_spatial(instance)).colliders == 14u);
+        CHECK(vg_document_instance_door_count(instance) == 1u);
+        VgDocumentDoorBinding door = {0};
+        CHECK(vg_document_instance_door_at(instance, 0u, &door));
+        CHECK(door.panel.value != VG_INVALID_HANDLE_VALUE &&
+              door.hinge.value != VG_INVALID_HANDLE_VALUE &&
+              door.collider.value != VG_INVALID_HANDLE_VALUE);
+        CHECK(door.open_angle_radians > 1.5f && door.speed_radians_per_second == 1.4f);
+        VgUuid panel_id = {{0}};
+        CHECK(parse_uuid("60000000-0000-0000-0000-000000000010", panel_id.bytes));
+        VgSpatialCollider looked_up = {0};
+        VgSpatialColliderDesc looked_up_description = {0};
+        CHECK(vg_document_instance_find_collider(instance, panel_id, &looked_up,
+                                                 &looked_up_description));
+        CHECK(looked_up.value == door.collider.value &&
+              looked_up_description.entity.value == door.panel.value);
+        VgUuid hinge_id = {{0}};
+        CHECK(parse_uuid("60000000-0000-0000-0000-00000000000f", hinge_id.bytes));
+        CHECK(!vg_document_instance_find_collider(instance, hinge_id, &looked_up,
+                                                  &looked_up_description));
+        VgSpatialRayQuery door_ray = {0};
+        door_ray.origin = (VgVec3){2.95f, -4.5f, 0.95f};
+        door_ray.direction = (VgVec3){0.0f, 1.0f, 0.0f};
+        door_ray.max_distance = 1.5f;
+        door_ray.layer_mask = UINT64_C(1);
+        bool door_hit = false;
+        VgSpatialHit door_contact = {0};
+        CHECK(vg_spatial_raycast(vg_document_instance_spatial(instance), &door_ray,
+                                 &door_hit, &door_contact) == VG_OK);
+        CHECK(door_hit && door_contact.entity.value == door.panel.value);
+        VgTransform hinge_transform = {0};
+        CHECK(vg_entity_get_local_transform(context, door.hinge, &hinge_transform) == VG_OK);
+        hinge_transform.rotation.z = 0.70710678f;
+        hinge_transform.rotation.w = 0.70710678f;
+        CHECK(vg_entity_set_local_transform(context, door.hinge, &hinge_transform) == VG_OK);
+        CHECK(vg_spatial_world_refresh_entity(context, vg_document_instance_spatial(instance),
+                                              door.collider, &door.collider_description) == VG_OK);
+        door_hit = false;
+        CHECK(vg_spatial_raycast(vg_document_instance_spatial(instance), &door_ray,
+                                 &door_hit, &door_contact) == VG_OK);
+        CHECK(!door_hit);
         VgUuid camera_id = {{0}};
         VgUuid floor_id = {{0}};
         CHECK(parse_uuid("60000000-0000-0000-0000-000000000001", camera_id.bytes));
@@ -371,7 +411,7 @@ static void test_resolver_failure_rolls_back_everything(void) {
     vg_context_destroy(context);
 }
 
-static void test_unsupported_collider_rolls_back(void) {
+static void test_kinematic_collider_instantiates(void) {
     VgDocument *document = open_fixture();
     VgContext *context = create_context(1u);
     if (document == NULL || context == NULL) {
@@ -389,11 +429,13 @@ static void test_unsupported_collider_rolls_back(void) {
     CHECK(vg_tool_commit(batch, NULL, &diagnostic));
     ResolverState resolver = {0};
     VgDocumentInstanceDesc description = {resolve_mesh, &resolver};
-    VgDocumentInstance *sentinel = (VgDocumentInstance *)(uintptr_t)1u;
-    CHECK(vg_document_instantiate(context, document, &description, &sentinel, &diagnostic) ==
-          VG_ERROR_INVALID_ARGUMENT);
-    CHECK(sentinel == (VgDocumentInstance *)(uintptr_t)1u);
-    CHECK(strstr(diagnostic.path, "engine.collider.motion") != NULL);
+    VgDocumentInstance *instance = NULL;
+    CHECK(vg_document_instantiate(context, document, &description, &instance, &diagnostic) ==
+          VG_OK);
+    CHECK(instance != NULL);
+    if (instance != NULL)
+        CHECK(vg_spatial_scene_stats(vg_document_instance_spatial(instance)).colliders == 1u);
+    vg_document_instance_destroy(instance);
     CHECK(counters(context).live_leases == 0u);
     VgWorldDesc world_description = {sizeof(world_description), VG_API_VERSION, 1u, 1u};
     VgWorld proof = {0};
@@ -408,7 +450,7 @@ int main(void) {
     test_mesh_node_and_instance_isolation();
     test_atrium_document();
     test_resolver_failure_rolls_back_everything();
-    test_unsupported_collider_rolls_back();
+    test_kinematic_collider_instantiates();
     if (failures != 0)
         (void)fprintf(stderr, "%d document runtime checks failed\n", failures);
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

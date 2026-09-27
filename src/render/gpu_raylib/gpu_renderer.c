@@ -746,6 +746,10 @@ bool vg_gpu_renderer_draw_demo(VgGpuRenderer *renderer) {
 }
 
 void vg_gpu_renderer_present(VgGpuRenderer *renderer) {
+    vg_gpu_renderer_present_with_hint(renderer, NULL);
+}
+
+void vg_gpu_renderer_present_with_hint(VgGpuRenderer *renderer, const char *hint) {
     if (renderer == NULL || !renderer_require_owner(renderer) || renderer->target.id == 0u)
         return;
     float width = (float)GetRenderWidth(), height = (float)GetRenderHeight();
@@ -761,6 +765,17 @@ void vg_gpu_renderer_present(VgGpuRenderer *renderer) {
                    (Rectangle){(width - draw_width) * 0.5f, (height - draw_height) * 0.5f,
                                draw_width, draw_height},
                    (Vector2){0, 0}, 0.0f, WHITE);
+    if (hint != NULL && hint[0] != '\0') {
+        const int font_size = 22;
+        int text_width = MeasureText(hint, font_size);
+        int box_width = text_width + 36;
+        int box_x = (GetScreenWidth() - box_width) / 2;
+        int box_y = GetScreenHeight() - 62;
+        DrawRectangle(box_x, box_y, box_width, 42, (Color){9, 16, 22, 228});
+        DrawRectangleLines(box_x, box_y, box_width, 42, (Color){232, 165, 75, 255});
+        DrawText(hint, box_x + 18, box_y + 9, font_size,
+                 (Color){242, 240, 235, 255});
+    }
     EndDrawing();
 }
 
