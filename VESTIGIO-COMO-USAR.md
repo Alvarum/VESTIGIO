@@ -35,6 +35,8 @@ El script configura y compila `vestigio_player`, y luego abre la escena `assets/
 
 El Player imprime el nombre de la GPU y un resumen `visual=... lights=... fog=...` en la consola. Para elegir el perfil al arrancar: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/run-3d-demo.ps1 -Visual clean` (o `retro`). Los ajustes personales se guardan por defecto en `%LOCALAPPDATA%\VESTIGIO\visual.settings`; `-Settings ruta.settings` permite usar otro archivo. El nivel JSON contiene las luces y la niebla de la escena.
 
+Delante del punto inicial hay dos piezas cian que flotan y giran con fases distintas. Son actores temporales de la demo: no bloquean el paso ni se guardan en el nivel.
+
 Para una captura reproducible que se cierra sola:
 
 ```powershell
@@ -55,6 +57,8 @@ En **Editar**, haz clic sobre un objeto o selecciónalo en **Jerarquía**. Con *
 
 Pulsa **Probar** para jugar una instancia aislada del documento con colisiones, salto y puerta interactiva (**E**); **Detener** vuelve a Editar sin guardar los cambios ocurridos durante la prueba. El selector **Imagen** alterna Limpio/Retro. Los deslizantes de **Audio** ajustan volúmenes; el sonido se reproduce en Probar. Para usar otro archivo de preferencias, inicia Studio con `-Settings ruta.settings` (o el ejecutable directo con `--settings ruta.settings`).
 
+Las dos piezas animadas aparecen sólo en **Probar**; **Editar** muestra el documento guardado sin ellas. Detener destruye esas instancias de juego.
+
 ## Compilar y ejecutar pruebas
 
 Los scripts de apertura ya compilan sólo lo necesario. Para compilar todos los targets y correr las pruebas del preset:
@@ -71,7 +75,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Preset rele
 - **Falta `cmake.exe` o falla la restauración de .NET:** ejecuta `tools/bootstrap.ps1`; confirma `dotnet --version` y que el SDK instalado sea 10.
 - **No se abre la ventana o falla el shader:** actualiza el controlador de la GPU y comprueba que el dispositivo exponga OpenGL 3.3. El Player imprime la GPU detectada; un contexto OpenGL por software no verifica la ruta GPU real.
 - **No aparecen recursos del Atrium al lanzar el `.exe` manualmente:** usa los scripts desde la raíz para recompilar y copiar `assets/demo`; verifica que `atrium.gltf`, `atrium.level.json` y `audio/*.wav` estén junto al binario en `assets/demo/`.
-- **No se aprecian luces o niebla:** recompila con los scripts, prueba el nivel Atrium original y revisa la línea `visual=... lights=... fog=...` del Player. Las luces y la niebla provienen del `.level.json`, mientras Limpio/Retro son perfiles personales; cambiar F6 no añade luces al nivel. Si el resumen indica luces y niebla activas pero no son visibles en la imagen, eso requiere revisar el render, no cambiar los controles.
+- **No se aprecian luces o niebla:** recompila con los scripts para copiar el glTF y nivel corregidos, prueba el Atrium original y revisa `visual=... lights=... fog=...` en el Player. Las luces y la niebla provienen del `.level.json`; F6 sólo cambia Limpio/Retro. La [comparación de referencia](docs/implementation/evidence/W06-fix.md) muestra el efecto esperado desde la misma cámara.
 - **No hay sonido:** confirma que Windows tenga una salida de audio activa, revisa los deslizantes y F7/F8, y verifica los dos WAV en `assets/demo/audio`. Puedes aislar un problema de dispositivo ejecutando la demo con `-NoAudio`; el juego debe seguir funcionando sin sonido.
 
 Para las opciones de la demo, revisa `tools/run-3d-demo.ps1` o ejecuta el binario con una opción inválida para ver su sintaxis. Entre las opciones útiles están `-ShowColliders`, `-Settings`, `-Visual`, `-VolumeMaster`, `-VolumeSfx`, `-VolumeAmbience`, `-SaveAudio`, `-NoAudio`, `-Smoke` y `-Capture`.

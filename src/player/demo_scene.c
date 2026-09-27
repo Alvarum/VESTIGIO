@@ -2,6 +2,7 @@
 
 #include "content/document.h"
 #include "content/document_runtime.h"
+#include "gamekit/atrium_animation.h"
 #include "vestigio/controller.h"
 #include "vestigio/door.h"
 
@@ -18,6 +19,7 @@ struct VgDemoScene {
     VgEntity camera;
     VgGame *game;
     VgSpatialScene *spatial; /* owned by instance */
+    VgAtriumAnimation *animation;
     VgDoor **doors;
     VgDocumentDoorBinding *door_bindings;
     size_t door_count;
@@ -36,14 +38,13 @@ const VgDocumentInstance *vg_demo_scene_document_instance(const VgDemoScene *sce
     return scene != NULL ? scene->instance : NULL;
 }
 
-static const VgAssetId kAtriumAsset = {{0x4a, 0x30, 0x31, 0x2d, 0x61, 0x74, 0x72, 0x69,
-                                        0x75, 0x6d, 0x2d, 0x6d, 0x6f, 0x64, 0x65, 0x6c}};
+static const VgAssetId kAtriumAsset = {{0x4a, 0x30, 0x31, 0x2d, 0x61, 0x74, 0x72, 0x69, 0x75, 0x6d,
+                                        0x2d, 0x6d, 0x6f, 0x64, 0x65, 0x6c}};
 
-static VgResult demo_resolve_asset(void *user, VgContext *context, VgAssetId id,
-                                   VgAssetType type, VgAsset *out_asset) {
+static VgResult demo_resolve_asset(void *user, VgContext *context, VgAssetId id, VgAssetType type,
+                                   VgAsset *out_asset) {
     (void)user;
-    if (type != VG_ASSET_TYPE_MESH ||
-        memcmp(id.bytes, kAtriumAsset.bytes, sizeof(id.bytes)) != 0)
+    if (type != VG_ASSET_TYPE_MESH || memcmp(id.bytes, kAtriumAsset.bytes, sizeof(id.bytes)) != 0)
         return VG_ERROR_NOT_FOUND;
     VgAssetRequest request = {0};
     request.struct_size = sizeof(request);
@@ -55,8 +56,7 @@ static VgResult demo_resolve_asset(void *user, VgContext *context, VgAssetId id,
 }
 
 static VgResult demo_find_camera(VgDemoScene *scene, VgTransform *out_transform) {
-    for (size_t index = 0u; index < vg_document_instance_entity_count(scene->instance);
-         ++index) {
+    for (size_t index = 0u; index < vg_document_instance_entity_count(scene->instance); ++index) {
         VgUuid id;
         VgEntity entity;
         VgCameraDesc camera = {0};
@@ -65,8 +65,7 @@ static VgResult demo_find_camera(VgDemoScene *scene, VgTransform *out_transform)
         if (!vg_document_instance_entity_at(scene->instance, index, &id, &entity) ||
             vg_camera_get(scene->context, entity, &camera) != VG_OK)
             continue;
-        VgResult result = vg_entity_get_local_transform(scene->context, entity,
-                                                         out_transform);
+        VgResult result = vg_entity_get_local_transform(scene->context, entity, out_transform);
         if (result == VG_OK)
             scene->camera = entity;
         return result;
@@ -79,15 +78,13 @@ static VgResult demo_find_focused_door(VgDemoScene *scene) {
     if (scene->door_count == 0u)
         return VG_OK;
     VgTransform camera;
-    VgResult result = vg_entity_get_local_transform(scene->context, scene->camera,
-                                                     &camera);
+    VgResult result = vg_entity_get_local_transform(scene->context, scene->camera, &camera);
     if (result != VG_OK)
         return result;
     float cp = cosf(scene->pitch);
     VgSpatialRayQuery query = {0};
     query.origin = camera.position;
-    query.direction = (VgVec3){-sinf(scene->yaw) * cp, cosf(scene->yaw) * cp,
-                               sinf(scene->pitch)};
+    query.direction = (VgVec3){-sinf(scene->yaw) * cp, cosf(scene->yaw) * cp, sinf(scene->pitch)};
     query.max_distance = 3.0f;
     query.layer_mask = UINT64_C(1);
     query.ignored_entity = scene->camera;
@@ -105,8 +102,7 @@ static VgResult demo_find_focused_door(VgDemoScene *scene) {
     return VG_OK;
 }
 
-static void demo_fixed_update(VgContext *context, VgWorld world, float dt_seconds,
-                              void *user) {
+static void demo_fixed_update(VgContext *context, VgWorld world, float dt_seconds, void *user) {
     (void)world;
     VgDemoScene *scene = user;
     VgInputState input = {0};
@@ -118,12 +114,16 @@ static void demo_fixed_update(VgContext *context, VgWorld world, float dt_second
         return;
     }
     for (size_t index = 0u; index < scene->door_count; ++index) {
-        result = vg_door_step(scene->doors[index], dt_seconds, &scene->controller,
-                              &scene->player);
+        result = vg_door_step(scene->doors[index], dt_seconds, &scene->controller, &scene->player);
         if (result != VG_OK) {
             scene->update_error = result;
             return;
         }
+    }
+    result = vg_atrium_animation_step(scene->animation, dt_seconds);
+    if (result != VG_OK) {
+        scene->update_error = result;
+        return;
     }
     scene->yaw -= input.look_delta_x * scene->look_sensitivity;
     scene->pitch -= input.look_delta_y * scene->look_sensitivity;
@@ -146,8 +146,8 @@ static void demo_fixed_update(VgContext *context, VgWorld world, float dt_second
     movement.move_world.x = -sine_yaw * forward + cosine_yaw * strafe;
     movement.move_world.y = cosine_yaw * forward + sine_yaw * strafe;
     movement.jump_pressed = (input.pressed & VG_ACTION_JUMP) != 0u ? 1u : 0u;
-    result = vg_controller_step(scene->spatial, &scene->controller, scene->camera,
-                                &movement, dt_seconds, &scene->player);
+    result = vg_controller_step(scene->spatial, &scene->controller, scene->camera, &movement,
+                                dt_seconds, &scene->player);
     if (result != VG_OK) {
         scene->update_error = result;
         return;
@@ -174,8 +174,8 @@ static void demo_fixed_update(VgContext *context, VgWorld world, float dt_second
         result = vg_door_toggle(scene->doors[scene->focused_door]);
         if (result == VG_OK) {
             VgTransform panel;
-            if (vg_entity_get_world_transform(context,
-                    scene->door_bindings[scene->focused_door].panel, &panel) == VG_OK) {
+            if (vg_entity_get_world_transform(
+                    context, scene->door_bindings[scene->focused_door].panel, &panel) == VG_OK) {
                 scene->door_event_position = panel.position;
                 scene->door_event_pending = true;
             }
@@ -184,12 +184,11 @@ static void demo_fixed_update(VgContext *context, VgWorld world, float dt_second
     scene->update_error = result;
 }
 
-VgResult vg_demo_scene_create(VgContext *context, const char *level_path,
-                              const void *model_data, uint64_t model_size,
-                              float look_sensitivity, VgDemoScene **out_scene) {
-    if (context == NULL || level_path == NULL || model_data == NULL ||
-        model_size == 0u || out_scene == NULL || !isfinite(look_sensitivity) ||
-        look_sensitivity <= 0.0f)
+VgResult vg_demo_scene_create(VgContext *context, const char *level_path, const void *model_data,
+                              uint64_t model_size, float look_sensitivity,
+                              VgDemoScene **out_scene) {
+    if (context == NULL || level_path == NULL || model_data == NULL || model_size == 0u ||
+        out_scene == NULL || !isfinite(look_sensitivity) || look_sensitivity <= 0.0f)
         return VG_ERROR_INVALID_ARGUMENT;
     *out_scene = NULL;
     VgDemoScene *scene = calloc(1u, sizeof(*scene));
@@ -220,17 +219,16 @@ VgResult vg_demo_scene_create(VgContext *context, const char *level_path,
         goto fail;
     VgDocumentDiagnostic diagnostic = {0};
     if (!vg_document_open_file(level_path, &scene->document, &diagnostic)) {
-        (void)fprintf(stderr, "Nivel 3D invalido: %s (%s)\n", diagnostic.message,
-                      diagnostic.path);
+        (void)fprintf(stderr, "Nivel 3D invalido: %s (%s)\n", diagnostic.message, diagnostic.path);
         result = VG_ERROR_INVALID_ARGUMENT;
         goto fail;
     }
-    VgDocumentInstanceDesc instance_desc = {demo_resolve_asset, scene};
-    result = vg_document_instantiate(context, scene->document, &instance_desc,
-                                     &scene->instance, &diagnostic);
+    VgDocumentInstanceDesc instance_desc = {demo_resolve_asset, scene, 2u};
+    result = vg_document_instantiate(context, scene->document, &instance_desc, &scene->instance,
+                                     &diagnostic);
     if (result != VG_OK) {
-        (void)fprintf(stderr, "No se pudo instanciar nivel 3D: %s (%s)\n",
-                      diagnostic.message, diagnostic.path);
+        (void)fprintf(stderr, "No se pudo instanciar nivel 3D: %s (%s)\n", diagnostic.message,
+                      diagnostic.path);
         goto fail;
     }
     scene->world = vg_document_instance_world(scene->instance);
@@ -239,6 +237,9 @@ VgResult vg_demo_scene_create(VgContext *context, const char *level_path,
         result = VG_ERROR_NOT_FOUND;
         goto fail;
     }
+    result = vg_atrium_animation_create(context, scene->instance, &scene->animation);
+    if (result != VG_OK)
+        goto fail;
     VgTransform camera = {0};
     result = demo_find_camera(scene, &camera);
     if (result != VG_OK)
@@ -247,15 +248,14 @@ VgResult vg_demo_scene_create(VgContext *context, const char *level_path,
     scene->door_count = vg_document_instance_door_count(scene->instance);
     if (scene->door_count > 0u) {
         scene->doors = calloc(scene->door_count, sizeof(*scene->doors));
-        scene->door_bindings = calloc(scene->door_count,
-                                     sizeof(*scene->door_bindings));
+        scene->door_bindings = calloc(scene->door_count, sizeof(*scene->door_bindings));
         if (scene->doors == NULL || scene->door_bindings == NULL) {
             result = VG_ERROR_OUT_OF_MEMORY;
             goto fail;
         }
         for (size_t index = 0u; index < scene->door_count; ++index) {
             if (!vg_document_instance_door_at(scene->instance, index,
-                                               &scene->door_bindings[index])) {
+                                              &scene->door_bindings[index])) {
                 result = VG_ERROR_NOT_FOUND;
                 goto fail;
             }
@@ -281,13 +281,10 @@ VgResult vg_demo_scene_create(VgContext *context, const char *level_path,
     scene->player.grounded = 1u;
     /* The document camera is the initial authority; controller updates it later. */
     VgQuat rotation = camera.rotation;
-    scene->yaw = atan2f(2.0f * (rotation.w * rotation.z +
-                               rotation.x * rotation.y),
-                        1.0f - 2.0f * (rotation.y * rotation.y +
-                                       rotation.z * rotation.z));
-    scene->pitch = asinf(fmaxf(-1.0f, fminf(1.0f,
-                        2.0f * (rotation.w * rotation.x -
-                                rotation.y * rotation.z))));
+    scene->yaw = atan2f(2.0f * (rotation.w * rotation.z + rotation.x * rotation.y),
+                        1.0f - 2.0f * (rotation.y * rotation.y + rotation.z * rotation.z));
+    scene->pitch = asinf(
+        fmaxf(-1.0f, fminf(1.0f, 2.0f * (rotation.w * rotation.x - rotation.y * rotation.z))));
     VgGameCallbacks callbacks = {0};
     callbacks.struct_size = sizeof(callbacks);
     callbacks.api_version = VG_API_VERSION;
@@ -315,14 +312,14 @@ void vg_demo_scene_destroy(VgDemoScene *scene) {
         vg_door_destroy(scene->doors != NULL ? scene->doors[index] : NULL);
     free(scene->doors);
     free(scene->door_bindings);
+    vg_atrium_animation_destroy(scene->animation);
     vg_document_instance_destroy(scene->instance);
     vg_document_destroy(scene->document);
     free(scene);
 }
 
 VgResult vg_demo_scene_submit_input(VgDemoScene *scene, const VgInputSample *sample) {
-    return scene == NULL ? VG_ERROR_INVALID_ARGUMENT :
-           vg_game_submit_input(scene->game, sample);
+    return scene == NULL ? VG_ERROR_INVALID_ARGUMENT : vg_game_submit_input(scene->game, sample);
 }
 
 VgResult vg_demo_scene_step(VgDemoScene *scene, double elapsed_seconds) {
@@ -344,18 +341,16 @@ VgResult vg_demo_scene_camera_position(const VgDemoScene *scene, VgVec3 *out_pos
     if (scene == NULL || out_position == NULL)
         return VG_ERROR_INVALID_ARGUMENT;
     VgTransform transform;
-    VgResult result = vg_entity_get_local_transform(scene->context, scene->camera,
-                                                     &transform);
+    VgResult result = vg_entity_get_local_transform(scene->context, scene->camera, &transform);
     if (result == VG_OK)
         *out_position = transform.position;
     return result;
 }
 
-VgResult vg_demo_scene_camera_transform(const VgDemoScene *scene,
-                                         VgTransform *out_transform) {
+VgResult vg_demo_scene_camera_transform(const VgDemoScene *scene, VgTransform *out_transform) {
     return scene != NULL && out_transform != NULL
-        ? vg_entity_get_world_transform(scene->context, scene->camera, out_transform)
-        : VG_ERROR_INVALID_ARGUMENT;
+               ? vg_entity_get_world_transform(scene->context, scene->camera, out_transform)
+               : VG_ERROR_INVALID_ARGUMENT;
 }
 
 bool vg_demo_scene_take_door_event(VgDemoScene *scene, VgVec3 *out_position) {
@@ -375,8 +370,8 @@ const char *vg_demo_scene_door_hint(const VgDemoScene *scene) {
         scene->focused_door >= scene->door_count)
         return NULL;
     VgDoorState state = vg_door_state(scene->doors[scene->focused_door]);
-    return state == VG_DOOR_OPEN || state == VG_DOOR_OPENING
-               ? "E: cerrar puerta" : "E: abrir puerta";
+    return state == VG_DOOR_OPEN || state == VG_DOOR_OPENING ? "E: cerrar puerta"
+                                                             : "E: abrir puerta";
 }
 
 size_t vg_demo_scene_door_count(const VgDemoScene *scene) {
@@ -390,8 +385,7 @@ VgResult vg_demo_scene_toggle_door(VgDemoScene *scene, size_t index) {
 }
 
 float vg_demo_scene_door_angle(const VgDemoScene *scene, size_t index) {
-    return scene == NULL || index >= scene->door_count ? NAN :
-           vg_door_angle(scene->doors[index]);
+    return scene == NULL || index >= scene->door_count ? NAN : vg_door_angle(scene->doors[index]);
 }
 
 typedef struct VgDemoColliderSnapshot {
@@ -401,8 +395,8 @@ typedef struct VgDemoColliderSnapshot {
 } VgDemoColliderSnapshot;
 
 static void demo_visit_door_collider(void *user, VgSpatialCollider collider,
-                                     const VgSpatialColliderDesc *description,
-                                     VgVec3 bounds_min, VgVec3 bounds_max) {
+                                     const VgSpatialColliderDesc *description, VgVec3 bounds_min,
+                                     VgVec3 bounds_max) {
     (void)bounds_min;
     (void)bounds_max;
     VgDemoColliderSnapshot *snapshot = user;
@@ -412,19 +406,17 @@ static void demo_visit_door_collider(void *user, VgSpatialCollider collider,
     }
 }
 
-VgResult vg_demo_scene_door_pose(const VgDemoScene *scene, size_t index,
-                                 VgTransform *out_panel, VgTransform *out_collider) {
-    if (scene == NULL || index >= scene->door_count || out_panel == NULL ||
-        out_collider == NULL)
+VgResult vg_demo_scene_door_pose(const VgDemoScene *scene, size_t index, VgTransform *out_panel,
+                                 VgTransform *out_collider) {
+    if (scene == NULL || index >= scene->door_count || out_panel == NULL || out_collider == NULL)
         return VG_ERROR_INVALID_ARGUMENT;
-    VgResult result = vg_entity_get_world_transform(scene->context,
-                                scene->door_bindings[index].panel, out_panel);
+    VgResult result =
+        vg_entity_get_world_transform(scene->context, scene->door_bindings[index].panel, out_panel);
     if (result != VG_OK)
         return result;
     VgDemoColliderSnapshot snapshot = {0};
     snapshot.target = scene->door_bindings[index].collider;
-    result = vg_spatial_scene_visit_debug(scene->spatial, demo_visit_door_collider,
-                                           &snapshot);
+    result = vg_spatial_scene_visit_debug(scene->spatial, demo_visit_door_collider, &snapshot);
     if (result == VG_OK && snapshot.found)
         *out_collider = snapshot.transform;
     return result != VG_OK ? result : snapshot.found ? VG_OK : VG_ERROR_NOT_FOUND;
@@ -437,8 +429,8 @@ VgResult vg_demo_scene_prepare_door_smoke(VgDemoScene *scene) {
     VgResult result = vg_demo_scene_door_pose(scene, 0u, &panel, &collider);
     if (result != VG_OK)
         return result;
-    scene->player.feet = (VgVec3){panel.position.x, panel.position.y - 1.7f,
-                                  panel.position.z - 0.95f};
+    scene->player.feet =
+        (VgVec3){panel.position.x, panel.position.y - 1.7f, panel.position.z - 0.95f};
     scene->player.grounded = 1u;
     scene->player.vertical_speed = 0.0f;
     scene->yaw = 0.0f;
@@ -451,4 +443,14 @@ VgResult vg_demo_scene_prepare_door_smoke(VgDemoScene *scene) {
     camera.rotation = (VgQuat){0.0f, 0.0f, 0.0f, 1.0f};
     result = vg_entity_set_local_transform(scene->context, scene->camera, &camera);
     return result == VG_OK ? demo_find_focused_door(scene) : result;
+}
+
+size_t vg_demo_scene_animation_count(const VgDemoScene *scene) {
+    return scene == NULL ? 0u : vg_atrium_animation_count(scene->animation);
+}
+
+VgResult vg_demo_scene_animation_pose(const VgDemoScene *scene, size_t index,
+                                      VgTransform *out_pose) {
+    return scene == NULL ? VG_ERROR_INVALID_ARGUMENT
+                         : vg_atrium_animation_pose(scene->animation, index, out_pose);
 }

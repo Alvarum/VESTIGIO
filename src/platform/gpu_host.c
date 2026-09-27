@@ -1,8 +1,9 @@
 #include "platform/gpu_host.h"
 
-#include "content/document_runtime.h"
-#include "content/document_internal.h"
 #include "audio/atrium_audio.h"
+#include "content/document_internal.h"
+#include "content/document_runtime.h"
+#include "gamekit/atrium_animation.h"
 #include "platform/win32_embed.h"
 #include "raylib.h"
 #include "render/gpu_raylib/gpu_renderer.h"
@@ -35,6 +36,7 @@ struct VgGpuHost {
     VgDocument *document;
     VgDocumentInstance *edit;
     VgDocumentInstance *play;
+    VgAtriumAnimation *animation;
     VgDoor **doors;
     size_t door_count;
     VgEntity edit_camera;
@@ -87,8 +89,8 @@ static void host_error(char *out, size_t capacity, const char *message) {
 static int host_settings_file_state(const char *path) {
 #ifdef _WIN32
     wchar_t wide[4096];
-    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1,
-                            wide, (int)(sizeof(wide) / sizeof(wide[0]))) == 0)
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide,
+                            (int)(sizeof(wide) / sizeof(wide[0]))) == 0)
         return -1;
     DWORD attributes = GetFileAttributesW(wide);
     if (attributes != INVALID_FILE_ATTRIBUTES)
@@ -97,13 +99,16 @@ static int host_settings_file_state(const char *path) {
     return failure == ERROR_FILE_NOT_FOUND || failure == ERROR_PATH_NOT_FOUND ? 0 : -1;
 #else
     FILE *file = fopen(path, "rb");
-    if (file != NULL) { (void)fclose(file); return 1; }
+    if (file != NULL) {
+        (void)fclose(file);
+        return 1;
+    }
     return errno == ENOENT ? 0 : -1;
 #endif
 }
 
-static bool host_apply_visual(VgGpuHost *host, const VgDocumentInstance *instance,
-                              int32_t mode, char *error, size_t error_capacity) {
+static bool host_apply_visual(VgGpuHost *host, const VgDocumentInstance *instance, int32_t mode,
+                              char *error, size_t error_capacity) {
     VgGpuVisualSettings visual = vg_gpu_renderer_default_visual_settings();
     visual.mode = (VgGpuVisualMode)mode;
     if (instance != NULL) {
@@ -135,17 +140,17 @@ static bool host_apply_visual(VgGpuHost *host, const VgDocumentInstance *instanc
             visual.lights[i].position = world.position;
             visual.lights[i].radius = binding.range;
             visual.lights[i].intensity = binding.intensity;
-            memcpy(visual.lights[i].color, binding.color_linear,
-                   sizeof(visual.lights[i].color));
+            memcpy(visual.lights[i].color, binding.color_linear, sizeof(visual.lights[i].color));
         }
     }
-    return vg_gpu_renderer_set_visual_settings(host->renderer, &visual, error,
-                                                error_capacity);
+    return vg_gpu_renderer_set_visual_settings(host->renderer, &visual, error, error_capacity);
 }
 
 static void host_release_play(VgGpuHost *host) {
     vg_atrium_audio_destroy(host->audio);
     host->audio = NULL;
+    vg_atrium_animation_destroy(host->animation);
+    host->animation = NULL;
     for (size_t i = 0u; i < host->door_count; ++i)
         vg_door_destroy(host->doors[i]);
     free(host->doors);
@@ -196,8 +201,8 @@ static bool host_read_model(const char *path, void **out_data, uint64_t *out_siz
     if (file == NULL)
         return false;
     long size = 0;
-    bool ok = fseek(file, 0, SEEK_END) == 0 && (size = ftell(file)) > 0 &&
-              size <= 1024 * 1024 && fseek(file, 0, SEEK_SET) == 0;
+    bool ok = fseek(file, 0, SEEK_END) == 0 && (size = ftell(file)) > 0 && size <= 1024 * 1024 &&
+              fseek(file, 0, SEEK_SET) == 0;
     void *data = ok ? malloc((size_t)size) : NULL;
     ok = data != NULL && fread(data, 1u, (size_t)size, file) == (size_t)size;
     (void)fclose(file);
@@ -210,12 +215,11 @@ static bool host_read_model(const char *path, void **out_data, uint64_t *out_siz
     return true;
 }
 
-static VgResult host_resolve_asset(void *user, VgContext *context, VgAssetId id,
-                                   VgAssetType type, VgAsset *out_asset) {
+static VgResult host_resolve_asset(void *user, VgContext *context, VgAssetId id, VgAssetType type,
+                                   VgAsset *out_asset) {
     VgGpuHost *host = user;
-    static const uint8_t atrium_asset_id[16] = {
-        0x4a, 0x30, 0x31, 0x2d, 0x61, 0x74, 0x72, 0x69,
-        0x75, 0x6d, 0x2d, 0x6d, 0x6f, 0x64, 0x65, 0x6c};
+    static const uint8_t atrium_asset_id[16] = {0x4a, 0x30, 0x31, 0x2d, 0x61, 0x74, 0x72, 0x69,
+                                                0x75, 0x6d, 0x2d, 0x6d, 0x6f, 0x64, 0x65, 0x6c};
     if (type != VG_ASSET_TYPE_MESH || host->model_data == NULL)
         return VG_ERROR_UNSUPPORTED;
     if (memcmp(id.bytes, atrium_asset_id, sizeof(atrium_asset_id)) != 0)
@@ -248,8 +252,7 @@ static VgResult host_resolve_asset(void *user, VgContext *context, VgAssetId id,
     return vg_asset_acquire(context, &request, out_asset);
 }
 
-static bool host_find_camera(VgGpuHost *host, VgDocumentInstance *instance,
-                             VgEntity *out_camera) {
+static bool host_find_camera(VgGpuHost *host, VgDocumentInstance *instance, VgEntity *out_camera) {
     size_t count = vg_document_instance_entity_count(instance);
     for (size_t index = 0u; index < count; ++index) {
         VgUuid id;
@@ -272,8 +275,8 @@ static VgQuat host_rotation(float yaw, float pitch) {
     return (VgQuat){cy * sp, sy * sp, sy * cp, cy * cp};
 }
 
-static VgResult host_set_camera(VgGpuHost *host, VgEntity entity, VgVec3 position,
-                                float yaw, float pitch) {
+static VgResult host_set_camera(VgGpuHost *host, VgEntity entity, VgVec3 position, float yaw,
+                                float pitch) {
     VgTransform transform;
     VgResult result = vg_entity_get_local_transform(host->context, entity, &transform);
     if (result != VG_OK)
@@ -299,8 +302,8 @@ VgGpuHost *vg_gpu_host_create(void *parent_window, unsigned int width, unsigned 
     host->audio_enabled = true;
     for (uint32_t bus = 0u; bus < VG_AUDIO_BUS_COUNT; ++bus)
         host->audio_gain[bus] = 1.0f;
-    host->pick_mask = VG_GPU_PICK_MESH | VG_GPU_PICK_CAMERA |
-                      VG_GPU_PICK_LIGHT | VG_GPU_PICK_TRIGGER;
+    host->pick_mask =
+        VG_GPU_PICK_MESH | VG_GPU_PICK_CAMERA | VG_GPU_PICK_LIGHT | VG_GPU_PICK_TRIGGER;
     VgGpuHost *expected = NULL;
     if (!atomic_compare_exchange_strong_explicit(&active_host, &expected, host,
                                                  memory_order_acq_rel, memory_order_acquire)) {
@@ -349,8 +352,7 @@ int32_t vg_gpu_host_render(VgGpuHost *host) {
         return false;
     VgDocumentInstance *instance = host->play != NULL ? host->play : host->edit;
     char visual_error[192] = {0};
-    if (!host_apply_visual(host, instance, host->visual_mode,
-                           visual_error, sizeof(visual_error)))
+    if (!host_apply_visual(host, instance, host->visual_mode, visual_error, sizeof(visual_error)))
         return false;
     if (instance != NULL) {
         if (vg_gpu_renderer_draw_world(host->renderer, host->context,
@@ -367,8 +369,8 @@ int32_t vg_gpu_host_visual_mode(const VgGpuHost *host) {
     return host_is_current(host) && host->renderer != NULL ? host->visual_mode : -1;
 }
 
-int32_t vg_gpu_host_set_visual_mode(VgGpuHost *host, int32_t mode,
-                                    char *error, size_t error_capacity) {
+int32_t vg_gpu_host_set_visual_mode(VgGpuHost *host, int32_t mode, char *error,
+                                    size_t error_capacity) {
     if (!host_is_current(host) || host->renderer == NULL ||
         (mode != VG_GPU_VISUAL_CLEAN && mode != VG_GPU_VISUAL_RETRO)) {
         host_error(error, error_capacity, "Perfil visual invalido");
@@ -382,8 +384,8 @@ int32_t vg_gpu_host_set_visual_mode(VgGpuHost *host, int32_t mode,
     return true;
 }
 
-int32_t vg_gpu_host_load_visual_profile(VgGpuHost *host, const char *path,
-                                        char *error, size_t error_capacity) {
+int32_t vg_gpu_host_load_visual_profile(VgGpuHost *host, const char *path, char *error,
+                                        size_t error_capacity) {
     if (!host_is_current(host) || path == NULL || path[0] == '\0') {
         host_error(error, error_capacity, "Ruta de settings invalida");
         return false;
@@ -392,8 +394,7 @@ int32_t vg_gpu_host_load_visual_profile(VgGpuHost *host, const char *path,
     if (file_state == 0) {
         for (uint32_t bus = 0u; bus < VG_AUDIO_BUS_COUNT; ++bus)
             host->audio_gain[bus] = 1.0f;
-        return vg_gpu_host_set_visual_mode(host, VG_VISUAL_PROFILE_CLEAN,
-                                            error, error_capacity);
+        return vg_gpu_host_set_visual_mode(host, VG_VISUAL_PROFILE_CLEAN, error, error_capacity);
     }
     if (file_state < 0) {
         host_error(error, error_capacity, "No se pudo leer settings visuales");
@@ -421,9 +422,10 @@ int32_t vg_gpu_host_load_visual_profile(VgGpuHost *host, const char *path,
     host->audio_gain[VG_AUDIO_BUS_SFX] = resolved.audio_sfx_gain;
     host->audio_gain[VG_AUDIO_BUS_AMBIENCE] = resolved.audio_ambience_gain;
     return vg_gpu_host_set_visual_mode(host,
-        (layer.present & VG_SETTING_VISUAL_PROFILE) != 0u
-            ? (int32_t)layer.visual_profile : VG_VISUAL_PROFILE_CLEAN,
-        error, error_capacity);
+                                       (layer.present & VG_SETTING_VISUAL_PROFILE) != 0u
+                                           ? (int32_t)layer.visual_profile
+                                           : VG_VISUAL_PROFILE_CLEAN,
+                                       error, error_capacity);
 }
 
 int32_t vg_gpu_host_set_audio_enabled(VgGpuHost *host, int32_t enabled) {
@@ -438,8 +440,7 @@ int32_t vg_gpu_host_audio_device_state(const VgGpuHost *host) {
         return -1;
     if (host->audio == NULL)
         return VG_AUDIO_DEVICE_STOPPED;
-    return vg_atrium_audio_ready(host->audio) ? VG_AUDIO_DEVICE_READY
-                                                : VG_AUDIO_DEVICE_UNAVAILABLE;
+    return vg_atrium_audio_ready(host->audio) ? VG_AUDIO_DEVICE_READY : VG_AUDIO_DEVICE_UNAVAILABLE;
 }
 
 uint64_t vg_gpu_host_audio_voice_starts(const VgGpuHost *host) {
@@ -463,13 +464,12 @@ int32_t vg_gpu_host_audio_focus_paused(const VgGpuHost *host) {
 }
 
 float vg_gpu_host_audio_gain(const VgGpuHost *host, uint32_t bus) {
-    return host_is_current(host) && bus < VG_AUDIO_BUS_COUNT
-        ? host->audio_gain[bus] : -1.0f;
+    return host_is_current(host) && bus < VG_AUDIO_BUS_COUNT ? host->audio_gain[bus] : -1.0f;
 }
 
 int32_t vg_gpu_host_set_audio_gain(VgGpuHost *host, uint32_t bus, float gain) {
-    if (!host_is_current(host) || bus >= VG_AUDIO_BUS_COUNT || !isfinite(gain) ||
-        gain < 0.0f || gain > 1.0f)
+    if (!host_is_current(host) || bus >= VG_AUDIO_BUS_COUNT || !isfinite(gain) || gain < 0.0f ||
+        gain > 1.0f)
         return false;
     if (vg_atrium_audio_ready(host->audio) &&
         vg_atrium_audio_set_gain(host->audio, bus, gain) != VG_OK)
@@ -478,8 +478,8 @@ int32_t vg_gpu_host_set_audio_gain(VgGpuHost *host, uint32_t bus, float gain) {
     return true;
 }
 
-int32_t vg_gpu_host_save_audio_gains(VgGpuHost *host, const char *path,
-                                     char *error, size_t error_capacity) {
+int32_t vg_gpu_host_save_audio_gains(VgGpuHost *host, const char *path, char *error,
+                                     size_t error_capacity) {
     if (!host_is_current(host) || path == NULL || path[0] == '\0') {
         host_error(error, error_capacity, "Ruta de settings invalida");
         return false;
@@ -513,8 +513,8 @@ int32_t vg_gpu_host_save_audio_gains(VgGpuHost *host, const char *path,
     return true;
 }
 
-int32_t vg_gpu_host_save_visual_profile(VgGpuHost *host, const char *path,
-                                        char *error, size_t error_capacity) {
+int32_t vg_gpu_host_save_visual_profile(VgGpuHost *host, const char *path, char *error,
+                                        size_t error_capacity) {
     if (!host_is_current(host) || path == NULL || path[0] == '\0') {
         host_error(error, error_capacity, "Ruta de settings invalida");
         return false;
@@ -560,12 +560,11 @@ int32_t vg_gpu_host_visual_fog_enabled(const VgGpuHost *host) {
         return false;
     const VgDocumentInstance *instance = host->play != NULL ? host->play : host->edit;
     VgDocumentEnvironment environment;
-    return vg_document_instance_environment(instance, &environment) &&
-           environment.fog_enabled;
+    return vg_document_instance_environment(instance, &environment) && environment.fog_enabled;
 }
 
-int32_t vg_gpu_host_open_level(VgGpuHost *host, const char *level_path,
-                               const char *model_path, char *error, size_t error_capacity) {
+int32_t vg_gpu_host_open_level(VgGpuHost *host, const char *level_path, const char *model_path,
+                               char *error, size_t error_capacity) {
     if (!host_is_current(host) || level_path == NULL || model_path == NULL ||
         level_path[0] == '\0' || model_path[0] == '\0' || host->document != NULL)
         return false;
@@ -584,8 +583,7 @@ int32_t vg_gpu_host_open_level(VgGpuHost *host, const char *level_path,
         slash = backslash;
     if (slash == NULL || (size_t)(slash - model_path) > INT_MAX ||
         snprintf(host->audio_directory, sizeof(host->audio_directory), "%.*s/audio",
-                 (int)(slash - model_path), model_path) >=
-            (int)sizeof(host->audio_directory)) {
+                 (int)(slash - model_path), model_path) >= (int)sizeof(host->audio_directory)) {
         host_error(error, error_capacity, "Ruta de audio Atrium demasiado larga");
         goto fail;
     }
@@ -606,9 +604,9 @@ int32_t vg_gpu_host_open_level(VgGpuHost *host, const char *level_path,
         host_error(error, error_capacity, "No se pudo habilitar el importer glTF");
         goto fail;
     }
-    VgDocumentInstanceDesc description = {host_resolve_asset, host};
-    if (vg_document_instantiate(host->context, host->document, &description,
-                                &host->edit, &diagnostic) != VG_OK) {
+    VgDocumentInstanceDesc description = {host_resolve_asset, host, 0u};
+    if (vg_document_instantiate(host->context, host->document, &description, &host->edit,
+                                &diagnostic) != VG_OK) {
         host_error(error, error_capacity, diagnostic.message);
         goto fail;
     }
@@ -620,8 +618,8 @@ int32_t vg_gpu_host_open_level(VgGpuHost *host, const char *level_path,
     host->edit_pitch = -0.12f;
     host->orbit_target = (VgVec3){0.0f, 1.5f, 0.0f};
     host->orbit_distance = 8.0f;
-    if (!vg_document_write_canonical(host->document, &host->saved_json,
-                                      &host->saved_length, &diagnostic)) {
+    if (!vg_document_write_canonical(host->document, &host->saved_json, &host->saved_length,
+                                     &diagnostic)) {
         host_error(error, error_capacity, diagnostic.message);
         goto fail;
     }
@@ -643,15 +641,19 @@ int32_t vg_gpu_host_set_mode(VgGpuHost *host, int32_t play) {
     if (host->play != NULL)
         return true;
     VgDocumentDiagnostic diagnostic = {0};
-    VgDocumentInstanceDesc description = {host_resolve_asset, host};
-    if (vg_document_instantiate(host->context, host->document, &description,
-                                &host->play, &diagnostic) != VG_OK)
+    VgDocumentInstanceDesc description = {host_resolve_asset, host, 2u};
+    if (vg_document_instantiate(host->context, host->document, &description, &host->play,
+                                &diagnostic) != VG_OK)
         return false;
     if (vg_document_instance_spatial(host->play) == NULL) {
         host_release_play(host);
         return false;
     }
     if (!host_find_camera(host, host->play, &host->play_camera)) {
+        host_release_play(host);
+        return false;
+    }
+    if (vg_atrium_animation_create(host->context, host->play, &host->animation) != VG_OK) {
         host_release_play(host);
         return false;
     }
@@ -708,14 +710,13 @@ int32_t vg_gpu_host_set_mode(VgGpuHost *host, int32_t play) {
     host->audio_focus_paused = true;
     if (host->audio_enabled) {
         char audio_error[192] = {0};
-        host->audio = vg_atrium_audio_create(host->audio_directory,
-                                              audio_error, sizeof(audio_error));
+        host->audio =
+            vg_atrium_audio_create(host->audio_directory, audio_error, sizeof(audio_error));
         if (!vg_atrium_audio_ready(host->audio))
             (void)fprintf(stderr, "%s\n", audio_error);
         else {
             for (uint32_t bus = 0u; bus < VG_AUDIO_BUS_COUNT; ++bus)
-                (void)vg_atrium_audio_set_gain(host->audio, bus,
-                                                host->audio_gain[bus]);
+                (void)vg_atrium_audio_set_gain(host->audio, bus, host->audio_gain[bus]);
             (void)vg_atrium_audio_set_paused(host->audio, false, true);
         }
     }
@@ -739,8 +740,7 @@ size_t vg_gpu_host_door_count(const VgGpuHost *host) {
     return host_is_current(host) && host->play != NULL ? host->door_count : 0u;
 }
 
-int32_t vg_gpu_host_door_angle(const VgGpuHost *host, size_t index,
-                                float *out_angle) {
+int32_t vg_gpu_host_door_angle(const VgGpuHost *host, size_t index, float *out_angle) {
     if (!host_is_current(host) || host->play == NULL || index >= host->door_count ||
         out_angle == NULL)
         return false;
@@ -748,33 +748,52 @@ int32_t vg_gpu_host_door_angle(const VgGpuHost *host, size_t index,
     return true;
 }
 
+size_t vg_gpu_host_animation_count(const VgGpuHost *host) {
+    return host_is_current(host) && host->play != NULL ? vg_atrium_animation_count(host->animation)
+                                                       : 0u;
+}
+
+int32_t vg_gpu_host_animation_height(const VgGpuHost *host, size_t index, float *out_height) {
+    if (!host_is_current(host) || host->play == NULL || out_height == NULL)
+        return false;
+    VgTransform pose;
+    if (vg_atrium_animation_pose(host->animation, index, &pose) != VG_OK)
+        return false;
+    *out_height = pose.position.z;
+    return true;
+}
+
 static VgVec3 host_rotate(VgQuat q, VgVec3 vector);
 
-static bool host_step_edit(VgGpuHost *host, double elapsed, float x, float y,
-                           int32_t elevation) {
+static bool host_step_edit(VgGpuHost *host, double elapsed, float x, float y, int32_t elevation) {
     VgTransform camera;
     if (vg_entity_get_local_transform(host->context, host->edit_camera, &camera) != VG_OK)
         return false;
     float length = hypotf(x, y);
-    if (length > 1.0f) { x /= length; y /= length; }
+    if (length > 1.0f) {
+        x /= length;
+        y /= length;
+    }
     float dt = (float)fmin(elapsed, 0.1);
     if (host->edit_camera_mode == 1) {
         host->orbit_distance -= y * 3.2f * dt;
-        if (host->orbit_distance < 1.0f) host->orbit_distance = 1.0f;
-        if (host->orbit_distance > 80.0f) host->orbit_distance = 80.0f;
+        if (host->orbit_distance < 1.0f)
+            host->orbit_distance = 1.0f;
+        if (host->orbit_distance > 80.0f)
+            host->orbit_distance = 80.0f;
         float cos_pitch = cosf(host->edit_pitch);
-        camera.position = (VgVec3){
-            host->orbit_target.x + sinf(host->edit_yaw) * cos_pitch * host->orbit_distance,
-            host->orbit_target.y - cosf(host->edit_yaw) * cos_pitch * host->orbit_distance,
-            host->orbit_target.z - sinf(host->edit_pitch) * host->orbit_distance};
-        return host_set_camera(host, host->edit_camera, camera.position,
-                               host->edit_yaw, host->edit_pitch) == VG_OK;
+        camera.position =
+            (VgVec3){host->orbit_target.x + sinf(host->edit_yaw) * cos_pitch * host->orbit_distance,
+                     host->orbit_target.y - cosf(host->edit_yaw) * cos_pitch * host->orbit_distance,
+                     host->orbit_target.z - sinf(host->edit_pitch) * host->orbit_distance};
+        return host_set_camera(host, host->edit_camera, camera.position, host->edit_yaw,
+                               host->edit_pitch) == VG_OK;
     }
     camera.position.x += (cosf(host->edit_yaw) * x - sinf(host->edit_yaw) * y) * 3.2f * dt;
     camera.position.y += (sinf(host->edit_yaw) * x + cosf(host->edit_yaw) * y) * 3.2f * dt;
     camera.position.z += (float)elevation * 3.2f * dt;
-    return host_set_camera(host, host->edit_camera, camera.position,
-                           host->edit_yaw, host->edit_pitch) == VG_OK;
+    return host_set_camera(host, host->edit_camera, camera.position, host->edit_yaw,
+                           host->edit_pitch) == VG_OK;
 }
 
 static bool host_step_play(VgGpuHost *host, double elapsed, float x, float y, bool jump) {
@@ -782,7 +801,10 @@ static bool host_step_play(VgGpuHost *host, double elapsed, float x, float y, bo
     if (spatial == NULL)
         return false;
     float length = hypotf(x, y);
-    if (length > 1.0f) { x /= length; y /= length; }
+    if (length > 1.0f) {
+        x /= length;
+        y /= length;
+    }
     VgControllerInput input = {0};
     input.move_world.x = cosf(host->play_yaw) * x - sinf(host->play_yaw) * y;
     input.move_world.y = sinf(host->play_yaw) * x + cosf(host->play_yaw) * y;
@@ -794,9 +816,9 @@ static bool host_step_play(VgGpuHost *host, double elapsed, float x, float y, bo
         if (host->interact_pending) {
             VgVec3 eye = vg_controller_eye_position(&host->controller, &host->player);
             VgVec3 forward = host_rotate(host_rotation(host->play_yaw, host->play_pitch),
-                                          (VgVec3){0.0f, 1.0f, 0.0f});
-            VgSpatialRayQuery ray = {eye, forward, 3.0f,
-                                     host->controller.collision_mask, host->play_camera};
+                                         (VgVec3){0.0f, 1.0f, 0.0f});
+            VgSpatialRayQuery ray = {eye, forward, 3.0f, host->controller.collision_mask,
+                                     host->play_camera};
             VgSpatialHit hit = {0};
             bool found = false;
             if (vg_spatial_raycast(spatial, &ray, &found, &hit) != VG_OK)
@@ -812,9 +834,8 @@ static bool host_step_play(VgGpuHost *host, double elapsed, float x, float y, bo
                         if (vg_atrium_audio_ready(host->audio)) {
                             VgTransform panel;
                             if (vg_entity_get_world_transform(host->context, binding.panel,
-                                                               &panel) == VG_OK)
-                                (void)vg_atrium_audio_play_door(host->audio,
-                                                                 panel.position);
+                                                              &panel) == VG_OK)
+                                (void)vg_atrium_audio_play_door(host->audio, panel.position);
                         }
                         break;
                     }
@@ -823,39 +844,41 @@ static bool host_step_play(VgGpuHost *host, double elapsed, float x, float y, bo
             host->interact_pending = false;
         }
         for (size_t i = 0u; i < host->door_count; ++i)
-            if (vg_door_step(host->doors[i], 1.0f / 60.0f,
-                             &host->controller, &host->player) != VG_OK)
+            if (vg_door_step(host->doors[i], 1.0f / 60.0f, &host->controller, &host->player) !=
+                VG_OK)
                 return false;
-        if (vg_controller_step(spatial, &host->controller, host->play_camera,
-                               &input, 1.0f / 60.0f, &host->player) != VG_OK)
+        if (vg_atrium_animation_step(host->animation, 1.0 / 60.0) != VG_OK)
+            return false;
+        if (vg_controller_step(spatial, &host->controller, host->play_camera, &input, 1.0f / 60.0f,
+                               &host->player) != VG_OK)
             return false;
         host->jump_pending = false;
         input.jump_pressed = 0u;
         host->accumulator -= 1.0 / 60.0;
     }
     VgVec3 eye = vg_controller_eye_position(&host->controller, &host->player);
-    return host_set_camera(host, host->play_camera, eye,
-                           host->play_yaw, host->play_pitch) == VG_OK;
+    return host_set_camera(host, host->play_camera, eye, host->play_yaw, host->play_pitch) == VG_OK;
 }
 
-int32_t vg_gpu_host_frame(VgGpuHost *host, double elapsed_seconds,
-                           float move_x, float move_y, float look_x, float look_y,
-                           int32_t jump, int32_t focused) {
+int32_t vg_gpu_host_frame(VgGpuHost *host, double elapsed_seconds, float move_x, float move_y,
+                          float look_x, float look_y, int32_t jump, int32_t focused) {
     if (!host_is_current(host) || host->edit == NULL || !isfinite(elapsed_seconds) ||
-        elapsed_seconds < 0.0 || !isfinite(move_x) || !isfinite(move_y) ||
-        !isfinite(look_x) || !isfinite(look_y) || fabsf(look_x) > 10000.0f ||
-        fabsf(look_y) > 10000.0f || jump < -1 || jump > 1)
+        elapsed_seconds < 0.0 || !isfinite(move_x) || !isfinite(move_y) || !isfinite(look_x) ||
+        !isfinite(look_y) || fabsf(look_x) > 10000.0f || fabsf(look_y) > 10000.0f || jump < -1 ||
+        jump > 1)
         return false;
     if (focused != 0) {
         float *yaw = host->play != NULL ? &host->play_yaw : &host->edit_yaw;
         float *pitch = host->play != NULL ? &host->play_pitch : &host->edit_pitch;
         *yaw -= look_x * 0.0025f;
         *pitch -= look_y * 0.0025f;
-        if (*pitch > 1.25f) *pitch = 1.25f;
-        if (*pitch < -1.25f) *pitch = -1.25f;
+        if (*pitch > 1.25f)
+            *pitch = 1.25f;
+        if (*pitch < -1.25f)
+            *pitch = -1.25f;
         bool stepped = host->play != NULL
-            ? host_step_play(host, elapsed_seconds, move_x, move_y, jump != 0)
-            : host_step_edit(host, elapsed_seconds, move_x, move_y, jump);
+                           ? host_step_play(host, elapsed_seconds, move_x, move_y, jump != 0)
+                           : host_step_edit(host, elapsed_seconds, move_x, move_y, jump);
         if (!stepped)
             return false;
     } else {
@@ -866,10 +889,8 @@ int32_t vg_gpu_host_frame(VgGpuHost *host, double elapsed_seconds,
     if (vg_atrium_audio_ready(host->audio)) {
         if (host->play != NULL) {
             VgTransform camera;
-            if (vg_entity_get_world_transform(host->context, host->play_camera,
-                                               &camera) == VG_OK) {
-                VgVec3 right = host_rotate(camera.rotation,
-                                            (VgVec3){1.0f, 0.0f, 0.0f});
+            if (vg_entity_get_world_transform(host->context, host->play_camera, &camera) == VG_OK) {
+                VgVec3 right = host_rotate(camera.rotation, (VgVec3){1.0f, 0.0f, 0.0f});
                 (void)vg_atrium_audio_set_listener(host->audio, camera.position, right);
             }
         }
@@ -881,27 +902,23 @@ int32_t vg_gpu_host_frame(VgGpuHost *host, double elapsed_seconds,
 }
 
 uint64_t vg_gpu_host_document_revision(const VgGpuHost *host) {
-    return host_is_current(host) && host->document != NULL
-        ? vg_document_revision(host->document) : 0u;
+    return host_is_current(host) && host->document != NULL ? vg_document_revision(host->document)
+                                                           : 0u;
 }
 
 static void host_format_uuid(VgUuid id, char out[37]) {
-    (void)snprintf(out, 37u,
-                   "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-                   id.bytes[0], id.bytes[1], id.bytes[2], id.bytes[3],
-                   id.bytes[4], id.bytes[5], id.bytes[6], id.bytes[7],
-                   id.bytes[8], id.bytes[9], id.bytes[10], id.bytes[11],
+    (void)snprintf(out, 37u, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+                   id.bytes[0], id.bytes[1], id.bytes[2], id.bytes[3], id.bytes[4], id.bytes[5],
+                   id.bytes[6], id.bytes[7], id.bytes[8], id.bytes[9], id.bytes[10], id.bytes[11],
                    id.bytes[12], id.bytes[13], id.bytes[14], id.bytes[15]);
 }
 
 static bool host_entity_has_mesh(const VgGpuHost *host, size_t index) {
-    const VgJsonNode *entities = vg_json_object_get(vg_document_root(host->document),
-                                                    "entities");
-    if (entities == NULL || entities->type != VG_JSON_ARRAY ||
-        index >= entities->as.array.count)
+    const VgJsonNode *entities = vg_json_object_get(vg_document_root(host->document), "entities");
+    if (entities == NULL || entities->type != VG_JSON_ARRAY || index >= entities->as.array.count)
         return false;
-    const VgJsonNode *components = vg_json_object_get(entities->as.array.items[index],
-                                                       "components");
+    const VgJsonNode *components =
+        vg_json_object_get(entities->as.array.items[index], "components");
     return vg_json_object_get(components, "engine.mesh") != NULL;
 }
 
@@ -915,8 +932,8 @@ size_t vg_gpu_host_entity_count(const VgGpuHost *host) {
     return count;
 }
 
-int32_t vg_gpu_host_entity_at(const VgGpuHost *host, size_t index,
-                              char *uuid, size_t uuid_capacity) {
+int32_t vg_gpu_host_entity_at(const VgGpuHost *host, size_t index, char *uuid,
+                              size_t uuid_capacity) {
     if (!host_is_current(host) || host->edit == NULL || uuid == NULL || uuid_capacity < 37u)
         return false;
     size_t mesh_index = 0u;
@@ -960,8 +977,7 @@ int32_t vg_gpu_host_select(VgGpuHost *host, const char *uuid) {
         bool has_mesh = vg_mesh_renderer_get(host->context, entity, &mesh) == VG_OK;
         host->selected_entity = entity;
         host->selected_center = has_mesh ? mesh.bounds_center : (VgVec3){0};
-        host->selected_extent = has_mesh ? mesh.bounds_extent
-                                         : (VgVec3){0.25f, 0.25f, 0.25f};
+        host->selected_extent = has_mesh ? mesh.bounds_extent : (VgVec3){0.25f, 0.25f, 0.25f};
         host->has_selection = true;
         (void)snprintf(host->selected_uuid, sizeof(host->selected_uuid), "%s", current);
         if (has_mesh)
@@ -978,10 +994,10 @@ int32_t vg_gpu_host_selected_uuid(const VgGpuHost *host, char *uuid, size_t uuid
     return true;
 }
 
-int32_t vg_gpu_host_selected_transform(const VgGpuHost *host,
-                                        float position[3], float rotation[4], float scale[3]) {
-    if (!host_is_current(host) || host->play != NULL || !host->has_selection ||
-        position == NULL || rotation == NULL || scale == NULL)
+int32_t vg_gpu_host_selected_transform(const VgGpuHost *host, float position[3], float rotation[4],
+                                       float scale[3]) {
+    if (!host_is_current(host) || host->play != NULL || !host->has_selection || position == NULL ||
+        rotation == NULL || scale == NULL)
         return false;
     VgDocumentTransform transform;
     if (!vg_document_entity_transform(host->document, host->selected_uuid, &transform, NULL))
@@ -998,16 +1014,15 @@ int32_t vg_gpu_host_selected_transform(const VgGpuHost *host,
 static bool host_prepare_instance(VgGpuHost *host, const VgDocument *document,
                                   VgDocumentInstance **out_edit, VgEntity *out_camera,
                                   VgDocumentDiagnostic *diagnostic, bool preserve_camera) {
-    VgDocumentInstanceDesc description = {host_resolve_asset, host};
+    VgDocumentInstanceDesc description = {host_resolve_asset, host, 0u};
     VgDocumentInstance *candidate = NULL;
-    if (vg_document_instantiate(host->context, document, &description,
-                                &candidate, diagnostic) != VG_OK)
+    if (vg_document_instantiate(host->context, document, &description, &candidate, diagnostic) !=
+        VG_OK)
         return false;
     VgEntity camera;
     if (!host_find_camera(host, candidate, &camera)) {
         vg_document_instance_destroy(candidate);
-        host_error(diagnostic->message, sizeof(diagnostic->message),
-                   "El nivel no contiene camara");
+        host_error(diagnostic->message, sizeof(diagnostic->message), "El nivel no contiene camara");
         return false;
     }
     if (preserve_camera) {
@@ -1015,8 +1030,8 @@ static bool host_prepare_instance(VgGpuHost *host, const VgDocument *document,
         VgCameraDesc old_camera = {0};
         old_camera.struct_size = sizeof(old_camera);
         old_camera.api_version = VG_API_VERSION;
-        if (vg_entity_get_local_transform(host->context, host->edit_camera,
-                                           &old_transform) != VG_OK ||
+        if (vg_entity_get_local_transform(host->context, host->edit_camera, &old_transform) !=
+                VG_OK ||
             vg_camera_get(host->context, host->edit_camera, &old_camera) != VG_OK ||
             vg_entity_set_local_transform(host->context, camera, &old_transform) != VG_OK ||
             vg_camera_set(host->context, camera, &old_camera) != VG_OK) {
@@ -1031,8 +1046,7 @@ static bool host_prepare_instance(VgGpuHost *host, const VgDocument *document,
     return true;
 }
 
-static void host_swap_edit(VgGpuHost *host, VgDocumentInstance *candidate,
-                           VgEntity camera) {
+static void host_swap_edit(VgGpuHost *host, VgDocumentInstance *candidate, VgEntity camera) {
     char selected[37];
     (void)snprintf(selected, sizeof(selected), "%s", host->selected_uuid);
     vg_document_instance_destroy(host->edit);
@@ -1044,8 +1058,8 @@ static void host_swap_edit(VgGpuHost *host, VgDocumentInstance *candidate,
         (void)vg_gpu_host_select(host, selected);
 }
 
-static bool host_apply_batch(VgGpuHost *host, VgToolBatch *batch,
-                             VgToolResult *out_result, char *error, size_t error_capacity) {
+static bool host_apply_batch(VgGpuHost *host, VgToolBatch *batch, VgToolResult *out_result,
+                             char *error, size_t error_capacity) {
     VgDocumentDiagnostic diagnostic = {0};
     char *json = NULL;
     size_t length = 0u;
@@ -1056,8 +1070,7 @@ static bool host_apply_batch(VgGpuHost *host, VgToolBatch *batch,
         return false;
     }
     VgDocument *preview = NULL;
-    bool opened = vg_document_open_memory("<edit-preview>", json, length,
-                                          &preview, &diagnostic);
+    bool opened = vg_document_open_memory("<edit-preview>", json, length, &preview, &diagnostic);
     free(json);
     if (!opened) {
         host_error(error, error_capacity, diagnostic.message);
@@ -1066,8 +1079,7 @@ static bool host_apply_batch(VgGpuHost *host, VgToolBatch *batch,
     }
     VgDocumentInstance *candidate = NULL;
     VgEntity camera;
-    bool prepared = host_prepare_instance(host, preview, &candidate, &camera,
-                                           &diagnostic, true);
+    bool prepared = host_prepare_instance(host, preview, &candidate, &camera, &diagnostic, true);
     vg_document_destroy(preview);
     if (!prepared) {
         host_error(error, error_capacity, diagnostic.message);
@@ -1088,8 +1100,7 @@ static bool host_apply_batch(VgGpuHost *host, VgToolBatch *batch,
     return true;
 }
 
-static VgToolBatch *host_begin_edit(VgGpuHost *host, char *error,
-                                    size_t error_capacity) {
+static VgToolBatch *host_begin_edit(VgGpuHost *host, char *error, size_t error_capacity) {
     if (!host_is_current(host) || host->document == NULL || host->edit == NULL ||
         host->play != NULL) {
         host_error(error, error_capacity, "La edicion requiere el modo Editar");
@@ -1097,14 +1108,13 @@ static VgToolBatch *host_begin_edit(VgGpuHost *host, char *error,
     }
     VgDocumentDiagnostic diagnostic = {0};
     VgToolBatch *batch = NULL;
-    if (!vg_tool_begin(host->document, vg_document_revision(host->document),
-                       &batch, &diagnostic))
+    if (!vg_tool_begin(host->document, vg_document_revision(host->document), &batch, &diagnostic))
         host_error(error, error_capacity, diagnostic.message);
     return batch;
 }
 
-static bool host_result_id(const VgToolResult *result, const char *temporary,
-                            char *uuid, size_t uuid_capacity) {
+static bool host_result_id(const VgToolResult *result, const char *temporary, char *uuid,
+                           size_t uuid_capacity) {
     for (size_t i = 0u; i < result->mapping_count; ++i) {
         if (strcmp(result->mappings[i].temporary, temporary) == 0) {
             (void)snprintf(uuid, uuid_capacity, "%s", result->mappings[i].id);
@@ -1114,8 +1124,8 @@ static bool host_result_id(const VgToolResult *result, const char *temporary,
     return false;
 }
 
-int32_t vg_gpu_host_add_mesh(VgGpuHost *host, char *uuid, size_t uuid_capacity,
-                              char *error, size_t error_capacity) {
+int32_t vg_gpu_host_add_mesh(VgGpuHost *host, char *uuid, size_t uuid_capacity, char *error,
+                             size_t error_capacity) {
     if (uuid == NULL || uuid_capacity < 37u) {
         host_error(error, error_capacity, "Se requiere un UUID de salida");
         return false;
@@ -1124,14 +1134,13 @@ int32_t vg_gpu_host_add_mesh(VgGpuHost *host, char *uuid, size_t uuid_capacity,
     if (batch == NULL)
         return false;
     static const char *components =
-        "{\"engine.mesh\":{\"version\":1,\"asset\":\"4a30312d-6174-7269-756d-2d6d6f64656c\",\"node_index\":2},"
+        "{\"engine.mesh\":{\"version\":1,\"asset\":\"4a30312d-6174-7269-756d-2d6d6f64656c\",\"node_"
+        "index\":2},"
         "\"engine.collider\":{\"version\":1,\"shape\":\"box\",\"motion\":\"static\","
         "\"center\":[0,0,0],\"half_extents\":[0.5,0.5,0.5]}}";
-    VgDocumentTransform transform = {
-        {0.0, -3.0, 0.95}, {0.0, 0.0, 0.0, 1.0}, {0.65, 0.65, 1.9}};
+    VgDocumentTransform transform = {{0.0, -3.0, 0.95}, {0.0, 0.0, 0.0, 1.0}, {0.65, 0.65, 1.9}};
     VgDocumentDiagnostic diagnostic = {0};
-    if (!vg_tool_create_entity(batch, "$new-pillar", NULL, &transform,
-                               components, &diagnostic)) {
+    if (!vg_tool_create_entity(batch, "$new-pillar", NULL, &transform, components, &diagnostic)) {
         host_error(error, error_capacity, diagnostic.message);
         vg_tool_cancel(batch);
         return false;
@@ -1148,9 +1157,8 @@ int32_t vg_gpu_host_add_mesh(VgGpuHost *host, char *uuid, size_t uuid_capacity,
 }
 
 int32_t vg_gpu_host_duplicate_selected(VgGpuHost *host, char *uuid, size_t uuid_capacity,
-                                        char *error, size_t error_capacity) {
-    if (uuid == NULL || uuid_capacity < 37u || !host_is_current(host) ||
-        !host->has_selection) {
+                                       char *error, size_t error_capacity) {
+    if (uuid == NULL || uuid_capacity < 37u || !host_is_current(host) || !host->has_selection) {
         host_error(error, error_capacity, "Selecciona un objeto para duplicarlo");
         return false;
     }
@@ -1171,10 +1179,9 @@ int32_t vg_gpu_host_duplicate_selected(VgGpuHost *host, char *uuid, size_t uuid_
         return false;
     VgDocumentDiagnostic diagnostic = {0};
     VgDocumentTransform transform;
-    if (!vg_document_entity_transform(host->document, host->selected_uuid,
-                                      &transform, &diagnostic) ||
-        !vg_tool_duplicate_entity(batch, host->selected_uuid, "$duplicate", NULL,
-                                  &diagnostic)) {
+    if (!vg_document_entity_transform(host->document, host->selected_uuid, &transform,
+                                      &diagnostic) ||
+        !vg_tool_duplicate_entity(batch, host->selected_uuid, "$duplicate", NULL, &diagnostic)) {
         host_error(error, error_capacity, diagnostic.message);
         vg_tool_cancel(batch);
         return false;
@@ -1196,13 +1203,11 @@ int32_t vg_gpu_host_duplicate_selected(VgGpuHost *host, char *uuid, size_t uuid_
     return true;
 }
 
-int32_t vg_gpu_host_set_selected_transform(VgGpuHost *host,
-                                            const float position[3],
-                                            const float rotation[4],
-                                            const float scale[3], char *error,
-                                            size_t error_capacity) {
-    if (!host_is_current(host) || !host->has_selection || position == NULL ||
-        rotation == NULL || scale == NULL) {
+int32_t vg_gpu_host_set_selected_transform(VgGpuHost *host, const float position[3],
+                                           const float rotation[4], const float scale[3],
+                                           char *error, size_t error_capacity) {
+    if (!host_is_current(host) || !host->has_selection || position == NULL || rotation == NULL ||
+        scale == NULL) {
         host_error(error, error_capacity, "Selecciona un objeto y transformacion valida");
         return false;
     }
@@ -1242,10 +1247,10 @@ int32_t vg_gpu_host_set_selected_transform(VgGpuHost *host,
     return host_apply_batch(host, batch, NULL, error, error_capacity);
 }
 
-int32_t vg_gpu_host_save_level(VgGpuHost *host, const char *path,
-                                char *error, size_t error_capacity) {
-    if (!host_is_current(host) || host->document == NULL || host->play != NULL ||
-        path == NULL || path[0] == '\0') {
+int32_t vg_gpu_host_save_level(VgGpuHost *host, const char *path, char *error,
+                               size_t error_capacity) {
+    if (!host_is_current(host) || host->document == NULL || host->play != NULL || path == NULL ||
+        path[0] == '\0') {
         host_error(error, error_capacity, "Guardar requiere una ruta y el modo Editar");
         return false;
     }
@@ -1285,12 +1290,10 @@ int32_t vg_gpu_host_is_dirty(const VgGpuHost *host) {
     return dirty;
 }
 
-int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path,
-                                  const char *model_path, char *error,
-                                  size_t error_capacity) {
-    if (!host_is_current(host) || host->edit == NULL || host->play != NULL ||
-        level_path == NULL || level_path[0] == '\0' || model_path == NULL ||
-        model_path[0] == '\0') {
+int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path, const char *model_path,
+                                 char *error, size_t error_capacity) {
+    if (!host_is_current(host) || host->edit == NULL || host->play != NULL || level_path == NULL ||
+        level_path[0] == '\0' || model_path == NULL || model_path[0] == '\0') {
         host_error(error, error_capacity, "Reabrir requiere rutas y el modo Editar");
         return false;
     }
@@ -1300,8 +1303,8 @@ int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path,
         host_error(error, error_capacity, "No se pudo leer el modelo Atrium");
         return false;
     }
-    bool same_model = model_size == host->model_size &&
-                      memcmp(model, host->model_data, (size_t)model_size) == 0;
+    bool same_model =
+        model_size == host->model_size && memcmp(model, host->model_data, (size_t)model_size) == 0;
     free(model);
     if (!same_model) {
         host_error(error, error_capacity, "El modelo difiere del Atrium cargado");
@@ -1322,8 +1325,7 @@ int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path,
     }
     VgDocumentInstance *candidate = NULL;
     VgEntity camera;
-    if (!host_prepare_instance(host, document, &candidate, &camera,
-                               &diagnostic, true)) {
+    if (!host_prepare_instance(host, document, &candidate, &camera, &diagnostic, true)) {
         host_error(error, error_capacity, diagnostic.message);
         free(canonical);
         vg_document_destroy(document);
@@ -1340,8 +1342,7 @@ int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path,
     return true;
 }
 
-static int32_t host_history(VgGpuHost *host, bool undo, char *error,
-                             size_t error_capacity) {
+static int32_t host_history(VgGpuHost *host, bool undo, char *error, size_t error_capacity) {
     if (!host_is_current(host) || host->edit == NULL || host->play != NULL) {
         host_error(error, error_capacity, "Historial requiere el modo Editar");
         return false;
@@ -1356,14 +1357,12 @@ static int32_t host_history(VgGpuHost *host, bool undo, char *error,
     }
     VgDocumentInstance *candidate = NULL;
     VgEntity camera;
-    if (!host_prepare_instance(host, host->document, &candidate, &camera,
-                               &diagnostic, true)) {
+    if (!host_prepare_instance(host, host->document, &candidate, &camera, &diagnostic, true)) {
         char failure[256];
         (void)snprintf(failure, sizeof(failure), "%s", diagnostic.message);
         uint64_t rollback_revision = vg_document_revision(host->document);
-        bool rolled_back = undo
-            ? vg_document_redo(host->document, rollback_revision, &diagnostic)
-            : vg_document_undo(host->document, rollback_revision, &diagnostic);
+        bool rolled_back = undo ? vg_document_redo(host->document, rollback_revision, &diagnostic)
+                                : vg_document_undo(host->document, rollback_revision, &diagnostic);
         host_error(error, error_capacity, rolled_back ? failure : diagnostic.message);
         return false;
     }
@@ -1382,11 +1381,11 @@ int32_t vg_gpu_host_redo(VgGpuHost *host, char *error, size_t error_capacity) {
 
 uint64_t vg_gpu_host_readbacks(const VgGpuHost *host) {
     return host_is_current(host) && host->renderer != NULL
-        ? vg_gpu_renderer_stats(host->renderer).readbacks : 0u;
+               ? vg_gpu_renderer_stats(host->renderer).readbacks
+               : 0u;
 }
 
-int32_t vg_gpu_host_camera_position(const VgGpuHost *host,
-                                     float *x, float *y, float *z) {
+int32_t vg_gpu_host_camera_position(const VgGpuHost *host, float *x, float *y, float *z) {
     if (!host_is_current(host) || host->edit == NULL || x == NULL || y == NULL || z == NULL)
         return false;
     VgTransform camera;
@@ -1400,16 +1399,15 @@ int32_t vg_gpu_host_camera_position(const VgGpuHost *host,
 }
 
 static VgVec3 host_rotate(VgQuat q, VgVec3 vector) {
-    VgVec3 t = {2.0f * (q.y * vector.z - q.z * vector.y),
-                2.0f * (q.z * vector.x - q.x * vector.z),
+    VgVec3 t = {2.0f * (q.y * vector.z - q.z * vector.y), 2.0f * (q.z * vector.x - q.x * vector.z),
                 2.0f * (q.x * vector.y - q.y * vector.x)};
     return (VgVec3){vector.x + q.w * t.x + q.y * t.z - q.z * t.y,
                     vector.y + q.w * t.y + q.z * t.x - q.x * t.z,
                     vector.z + q.w * t.z + q.x * t.y - q.y * t.x};
 }
 
-static bool host_ray_bounds(VgVec3 origin, VgVec3 direction, VgVec3 center,
-                            VgVec3 extent, float *out_distance) {
+static bool host_ray_bounds(VgVec3 origin, VgVec3 direction, VgVec3 center, VgVec3 extent,
+                            float *out_distance) {
     float o[3] = {origin.x, origin.y, origin.z};
     float d[3] = {direction.x, direction.y, direction.z};
     float c[3] = {center.x, center.y, center.z};
@@ -1423,20 +1421,26 @@ static bool host_ray_bounds(VgVec3 origin, VgVec3 direction, VgVec3 center,
         }
         float a = (c[axis] - e[axis] - o[axis]) / d[axis];
         float b = (c[axis] + e[axis] - o[axis]) / d[axis];
-        if (a > b) { float swap = a; a = b; b = swap; }
-        if (a > near_t) near_t = a;
-        if (b < far_t) far_t = b;
-        if (near_t > far_t) return false;
+        if (a > b) {
+            float swap = a;
+            a = b;
+            b = swap;
+        }
+        if (a > near_t)
+            near_t = a;
+        if (b < far_t)
+            far_t = b;
+        if (near_t > far_t)
+            return false;
     }
     *out_distance = near_t;
     return true;
 }
 
-int32_t vg_gpu_host_pick(VgGpuHost *host, float u, float v,
-                          char *uuid, size_t uuid_capacity) {
-    if (!host_is_current(host) || host->edit == NULL || host->play != NULL ||
-        uuid == NULL || uuid_capacity < 37u || !isfinite(u) || !isfinite(v) ||
-        u < 0.0f || u > 1.0f || v < 0.0f || v > 1.0f)
+int32_t vg_gpu_host_pick(VgGpuHost *host, float u, float v, char *uuid, size_t uuid_capacity) {
+    if (!host_is_current(host) || host->edit == NULL || host->play != NULL || uuid == NULL ||
+        uuid_capacity < 37u || !isfinite(u) || !isfinite(v) || u < 0.0f || u > 1.0f || v < 0.0f ||
+        v > 1.0f)
         return false;
     uuid[0] = '\0';
     host->has_selection = false;
@@ -1470,12 +1474,14 @@ int32_t vg_gpu_host_pick(VgGpuHost *host, float u, float v,
         float right_offset = (2.0f * u - 1.0f) * half_height * (320.0f / 180.0f);
         float up_offset = (1.0f - 2.0f * v) * half_height;
         VgVec3 lateral = host_rotate(camera.rotation, (VgVec3){right_offset, 0.0f, up_offset});
-        origin.x += lateral.x; origin.y += lateral.y; origin.z += lateral.z;
+        origin.x += lateral.x;
+        origin.y += lateral.y;
+        origin.z += lateral.z;
         direction = host_rotate(camera.rotation, (VgVec3){0.0f, 1.0f, 0.0f});
     } else {
         float tan_half = tanf(camera_desc.vertical_fov_radians * 0.5f);
-        VgVec3 camera_ray = {(2.0f * u - 1.0f) * tan_half * (320.0f / 180.0f),
-                             1.0f, (1.0f - 2.0f * v) * tan_half};
+        VgVec3 camera_ray = {(2.0f * u - 1.0f) * tan_half * (320.0f / 180.0f), 1.0f,
+                             (1.0f - 2.0f * v) * tan_half};
         float ray_length = sqrtf(camera_ray.x * camera_ray.x + camera_ray.y * camera_ray.y +
                                  camera_ray.z * camera_ray.z);
         camera_ray.x /= ray_length;
@@ -1525,15 +1531,13 @@ int32_t vg_gpu_host_pick(VgGpuHost *host, float u, float v,
             extent = mesh.bounds_extent;
             (void)vg_asset_release(host->context, mesh.asset);
         }
-        VgQuat inverse = {-transform.rotation.x, -transform.rotation.y,
-                           -transform.rotation.z, transform.rotation.w};
-        VgVec3 offset = {origin.x - transform.position.x,
-                         origin.y - transform.position.y,
+        VgQuat inverse = {-transform.rotation.x, -transform.rotation.y, -transform.rotation.z,
+                          transform.rotation.w};
+        VgVec3 offset = {origin.x - transform.position.x, origin.y - transform.position.y,
                          origin.z - transform.position.z};
         VgVec3 local_origin = host_rotate(inverse, offset);
         VgVec3 local_direction = host_rotate(inverse, direction);
-        if (transform.scale.x <= 0.0f || transform.scale.y <= 0.0f ||
-            transform.scale.z <= 0.0f)
+        if (transform.scale.x <= 0.0f || transform.scale.y <= 0.0f || transform.scale.z <= 0.0f)
             continue;
         local_origin.x /= transform.scale.x;
         local_origin.y /= transform.scale.y;
@@ -1542,8 +1546,8 @@ int32_t vg_gpu_host_pick(VgGpuHost *host, float u, float v,
         local_direction.y /= transform.scale.y;
         local_direction.z /= transform.scale.z;
         float distance = 0.0f;
-        if (host_ray_bounds(local_origin, local_direction, center,
-                            extent, &distance) && distance < nearest) {
+        if (host_ray_bounds(local_origin, local_direction, center, extent, &distance) &&
+            distance < nearest) {
             nearest = distance;
             chosen = id;
             chosen_entity = entity;
@@ -1569,12 +1573,10 @@ int32_t vg_gpu_host_pick(VgGpuHost *host, float u, float v,
 }
 
 int32_t vg_gpu_host_frame_selection(VgGpuHost *host) {
-    if (!host_is_current(host) || host->edit == NULL || host->play != NULL ||
-        !host->has_selection)
+    if (!host_is_current(host) || host->edit == NULL || host->play != NULL || !host->has_selection)
         return false;
     VgTransform transform;
-    if (vg_entity_get_world_transform(host->context, host->selected_entity,
-                                       &transform) != VG_OK)
+    if (vg_entity_get_world_transform(host->context, host->selected_entity, &transform) != VG_OK)
         return false;
     VgVec3 center = {host->selected_center.x * transform.scale.x,
                      host->selected_center.y * transform.scale.y,
@@ -1590,17 +1592,14 @@ int32_t vg_gpu_host_frame_selection(VgGpuHost *host) {
     float largest = fmaxf(extent_x, fmaxf(extent_y, extent_z));
     host->orbit_distance = fmaxf(2.0f, fminf(60.0f, largest * 3.0f));
     float cos_pitch = cosf(host->edit_pitch);
-    VgVec3 eye = {
-        host->orbit_target.x + sinf(host->edit_yaw) * cos_pitch * host->orbit_distance,
-        host->orbit_target.y - cosf(host->edit_yaw) * cos_pitch * host->orbit_distance,
-        host->orbit_target.z - sinf(host->edit_pitch) * host->orbit_distance};
-    return host_set_camera(host, host->edit_camera, eye,
-                           host->edit_yaw, host->edit_pitch) == VG_OK;
+    VgVec3 eye = {host->orbit_target.x + sinf(host->edit_yaw) * cos_pitch * host->orbit_distance,
+                  host->orbit_target.y - cosf(host->edit_yaw) * cos_pitch * host->orbit_distance,
+                  host->orbit_target.z - sinf(host->edit_pitch) * host->orbit_distance};
+    return host_set_camera(host, host->edit_camera, eye, host->edit_yaw, host->edit_pitch) == VG_OK;
 }
 
 int32_t vg_gpu_host_set_camera_mode(VgGpuHost *host, int32_t mode) {
-    if (!host_is_current(host) || host->edit == NULL || host->play != NULL ||
-        mode < 0 || mode > 2)
+    if (!host_is_current(host) || host->edit == NULL || host->play != NULL || mode < 0 || mode > 2)
         return false;
     VgCameraDesc description = {0};
     description.struct_size = sizeof(description);
@@ -1619,8 +1618,8 @@ int32_t vg_gpu_host_set_camera_mode(VgGpuHost *host, int32_t mode) {
 }
 
 int32_t vg_gpu_host_set_pick_mask(VgGpuHost *host, uint32_t mask) {
-    const uint32_t all = VG_GPU_PICK_MESH | VG_GPU_PICK_CAMERA |
-                         VG_GPU_PICK_LIGHT | VG_GPU_PICK_TRIGGER;
+    const uint32_t all =
+        VG_GPU_PICK_MESH | VG_GPU_PICK_CAMERA | VG_GPU_PICK_LIGHT | VG_GPU_PICK_TRIGGER;
     if (!host_is_current(host) || (mask & ~all) != 0u)
         return false;
     host->pick_mask = mask;

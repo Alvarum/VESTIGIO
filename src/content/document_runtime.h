@@ -17,6 +17,9 @@ typedef VgResult (*VgDocumentAssetResolverFn)(void *user, VgContext *context, Vg
 typedef struct VgDocumentInstanceDesc {
     VgDocumentAssetResolverFn resolve_asset;
     void *resolver_user;
+    /* Extra world slots for runtime-only entities. Zero preserves an exact
+     * document-sized world for editor and existing consumers. */
+    uint32_t runtime_entity_capacity;
 } VgDocumentInstanceDesc;
 
 /* The panel local transform is its closed pose. Rotate the hinge about local Z;

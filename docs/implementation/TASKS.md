@@ -670,7 +670,7 @@ Desbloquea: Puertas audibles, ambiente y música de juego.
 
 ## A02 — Animación rígida y skeletal con pose por instancia
 
-Fase: **P7** · Rol: **content** · Estado: **PLANNED**.
+Fase: **P7** · Rol: **content** · Estado: **IN_PROGRESS**.
 
 Dependencias integradas: G03, D02.
 

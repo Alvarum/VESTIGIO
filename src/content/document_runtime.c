@@ -160,8 +160,8 @@ static VgResult vg_document_apply_mesh(VgDocumentInstance *instance,
                                        const VgJsonNode *component, VgEntity entity,
                                        const char *entity_id, VgDocumentDiagnostic *diagnostic) {
     VgAsset asset = {VG_INVALID_HANDLE_VALUE};
-    VgResult result = vg_document_resolve_mesh(instance, description, component, entity_id,
-                                               diagnostic, &asset);
+    VgResult result =
+        vg_document_resolve_mesh(instance, description, component, entity_id, diagnostic, &asset);
     if (result != VG_OK)
         return result;
     uint32_t node_index = 0u;
@@ -255,11 +255,10 @@ static VgResult vg_document_apply_colliders(VgDocumentInstance *instance,
             continue;
         const char *id = vg_document_node_string(vg_json_object_get(entity, "id"));
         const char *motion = vg_document_node_string(vg_json_object_get(component, "motion"));
-        if (motion == NULL || (strcmp(motion, "static") != 0 &&
-                               strcmp(motion, "kinematic") != 0))
-            return vg_document_runtime_invalid(diagnostic,
-                                               "$.entities[].components.engine.collider.motion",
-                                               id, "document runtime supports static and kinematic colliders");
+        if (motion == NULL || (strcmp(motion, "static") != 0 && strcmp(motion, "kinematic") != 0))
+            return vg_document_runtime_invalid(
+                diagnostic, "$.entities[].components.engine.collider.motion", id,
+                "document runtime supports static and kinematic colliders");
         VgSpatialColliderDesc collider = {0};
         collider.entity = instance->entities[index].entity;
         collider.layer_mask = UINT64_C(1);
@@ -272,8 +271,8 @@ static VgResult vg_document_apply_colliders(VgDocumentInstance *instance,
             return vg_document_runtime_invalid(diagnostic,
                                                "$.entities[].components.engine.collider", id,
                                                "collider box fields are invalid");
-        result = vg_entity_get_world_transform(instance->context, collider.entity,
-                                               &collider.transform);
+        result =
+            vg_entity_get_world_transform(instance->context, collider.entity, &collider.transform);
         if (result != VG_OK)
             return vg_document_runtime_fail(diagnostic, VG_DOCUMENT_VALIDATION, result,
                                             "$.entities[].components.engine.collider", id,
@@ -281,12 +280,11 @@ static VgResult vg_document_apply_colliders(VgDocumentInstance *instance,
         VgSpatialCollider handle = {0};
         result = vg_spatial_collider_create(instance->spatial, &collider, &handle);
         if (result != VG_OK)
-            return vg_document_runtime_fail(diagnostic,
-                                            result == VG_ERROR_OUT_OF_MEMORY
-                                                ? VG_DOCUMENT_OUT_OF_MEMORY
-                                                : VG_DOCUMENT_VALIDATION,
-                                            result, "$.entities[].components.engine.collider", id,
-                                            "collider creation");
+            return vg_document_runtime_fail(
+                diagnostic,
+                result == VG_ERROR_OUT_OF_MEMORY ? VG_DOCUMENT_OUT_OF_MEMORY
+                                                 : VG_DOCUMENT_VALIDATION,
+                result, "$.entities[].components.engine.collider", id, "collider creation");
         instance->entities[index].collider = handle;
         instance->entities[index].collider_description = collider;
         instance->entities[index].has_collider = true;
@@ -294,8 +292,7 @@ static VgResult vg_document_apply_colliders(VgDocumentInstance *instance,
     return VG_OK;
 }
 
-static VgResult vg_document_apply_doors(VgDocumentInstance *instance,
-                                        const VgJsonNode *entities,
+static VgResult vg_document_apply_doors(VgDocumentInstance *instance, const VgJsonNode *entities,
                                         VgDocumentDiagnostic *diagnostic) {
     for (size_t index = 0u; index < instance->entity_count; ++index) {
         const VgJsonNode *entity = entities->as.array.items[index];
@@ -326,16 +323,14 @@ static VgResult vg_document_apply_doors(VgDocumentInstance *instance,
     return VG_OK;
 }
 
-static void vg_document_apply_environment(VgDocumentInstance *instance,
-                                          const VgJsonNode *root) {
+static void vg_document_apply_environment(VgDocumentInstance *instance, const VgJsonNode *root) {
     VgDocumentEnvironment *output = &instance->environment;
-    *output = (VgDocumentEnvironment){
-        .ambient_linear = {0.2f, 0.2f, 0.2f},
-        .clear_linear = {0.01f, 0.02f, 0.03f},
-        .fog_color_linear = {0.01f, 0.02f, 0.03f},
-        .fog_start = 0.0f,
-        .fog_end = 80.0f,
-        .fog_enabled = false};
+    *output = (VgDocumentEnvironment){.ambient_linear = {0.2f, 0.2f, 0.2f},
+                                      .clear_linear = {0.01f, 0.02f, 0.03f},
+                                      .fog_color_linear = {0.01f, 0.02f, 0.03f},
+                                      .fog_start = 0.0f,
+                                      .fog_end = 80.0f,
+                                      .fog_enabled = false};
     const VgJsonNode *environment = vg_json_object_get(root, "environment");
     if (environment == NULL)
         return;
@@ -352,14 +347,13 @@ static void vg_document_apply_environment(VgDocumentInstance *instance,
     if (mode == NULL || strcmp(mode, "linear") != 0)
         return;
     output->fog_enabled = true;
-    (void)vg_document_read_vector(vg_json_object_get(fog, "color_linear"),
-                                  output->fog_color_linear, 3u);
+    (void)vg_document_read_vector(vg_json_object_get(fog, "color_linear"), output->fog_color_linear,
+                                  3u);
     output->fog_start = (float)vg_json_object_get(fog, "start")->as.number.value;
     output->fog_end = (float)vg_json_object_get(fog, "end")->as.number.value;
 }
 
-static void vg_document_apply_lights(VgDocumentInstance *instance,
-                                     const VgJsonNode *entities) {
+static void vg_document_apply_lights(VgDocumentInstance *instance, const VgJsonNode *entities) {
     for (size_t index = 0u; index < instance->entity_count; ++index) {
         const VgJsonNode *entity = entities->as.array.items[index];
         const VgJsonNode *components = vg_json_object_get(entity, "components");
@@ -464,8 +458,14 @@ VgResult vg_document_instantiate(VgContext *context, const VgDocument *document,
     VgWorldDesc world_description = {0};
     world_description.struct_size = sizeof(world_description);
     world_description.api_version = VG_API_VERSION;
-    world_description.initial_entity_capacity = (uint32_t)candidate->entity_count;
-    world_description.max_entities = (uint32_t)candidate->entity_count;
+    uint32_t extra_entities = description == NULL ? 0u : description->runtime_entity_capacity;
+    if (candidate->entity_count > (size_t)UINT32_MAX - extra_entities) {
+        vg_document_instance_cleanup(candidate);
+        return vg_document_runtime_invalid(out_diagnostic, "$.entities", NULL,
+                                           "entity capacity exceeds uint32 range");
+    }
+    world_description.initial_entity_capacity = (uint32_t)candidate->entity_count + extra_entities;
+    world_description.max_entities = world_description.initial_entity_capacity;
     VgResult result = vg_world_create(context, &world_description, &candidate->world);
     if (result != VG_OK) {
         vg_document_instance_cleanup(candidate);
@@ -571,8 +571,7 @@ size_t vg_document_instance_entity_count(const VgDocumentInstance *instance) {
 
 bool vg_document_instance_entity_at(const VgDocumentInstance *instance, size_t index,
                                     VgUuid *out_id, VgEntity *out_entity) {
-    if (instance == NULL || index >= instance->entity_count || out_id == NULL ||
-        out_entity == NULL)
+    if (instance == NULL || index >= instance->entity_count || out_id == NULL || out_entity == NULL)
         return false;
     *out_id = instance->entities[index].id;
     *out_entity = instance->entities[index].entity;

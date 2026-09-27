@@ -51,6 +51,7 @@ add_library(vestigio_runtime STATIC
     src/runtime/game.c
     src/gamekit/controller.c
     src/gamekit/door.c
+    src/gamekit/animation.c
     src/config/settings.c
     src/assets/asset_registry.c
     src/assets/static_model.c
@@ -230,7 +231,7 @@ if(RETRO_BUILD_APPS)
     target_link_libraries(vestigio_audio_raylib PUBLIC vestigio_audio PRIVATE raylib)
     if(WIN32)
         add_library(vestigio_gpu_host SHARED src/platform/gpu_host.c src/platform/win32_embed.c
-            src/audio/atrium_audio.c)
+            src/audio/atrium_audio.c src/gamekit/atrium_animation.c)
         retro_target(vestigio_gpu_host)
         target_compile_definitions(vestigio_gpu_host PRIVATE VG_GPU_HOST_BUILD)
         target_include_directories(vestigio_gpu_host PRIVATE "${PROJECT_SOURCE_DIR}/src")
@@ -334,7 +335,7 @@ if(RETRO_BUILD_APPS)
     retro_target(retro_player)
     target_link_libraries(retro_player PRIVATE retro_session retro_gameplay retro_platform)
     add_executable(vestigio_player src/player/demo_main.c src/player/demo_3d.c
-        src/player/demo_scene.c src/audio/atrium_audio.c)
+        src/player/demo_scene.c src/audio/atrium_audio.c src/gamekit/atrium_animation.c)
     retro_target(vestigio_player)
     target_include_directories(vestigio_player PRIVATE "${PROJECT_SOURCE_DIR}/src")
     target_include_directories(vestigio_player SYSTEM PRIVATE "${raylib_SOURCE_DIR}/src")
@@ -464,6 +465,11 @@ if(BUILD_TESTING)
     target_link_libraries(vestigio_door_test PRIVATE vestigio_runtime)
     add_test(NAME vestigio_door COMMAND vestigio_door_test)
     set_tests_properties(vestigio_door PROPERTIES LABELS "gamekit;spatial")
+    add_executable(vestigio_animation_test tests/gamekit/animation_test.c)
+    retro_target(vestigio_animation_test)
+    target_link_libraries(vestigio_animation_test PRIVATE vestigio_runtime)
+    add_test(NAME vestigio_animation COMMAND vestigio_animation_test)
+    set_tests_properties(vestigio_animation PROPERTIES LABELS "gamekit;animation")
     set_tests_properties(vestigio_controller PROPERTIES LABELS "spatial;gamekit;sdk")
 
     add_executable(vestigio_runtime_cpp_test tests/runtime/runtime_link_cpp_test.cpp)

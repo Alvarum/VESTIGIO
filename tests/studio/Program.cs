@@ -225,6 +225,23 @@ internal static class Program
                 out editY, out editZ) != 0, "Cámara edit no disponible tras encuadre.");
             Check(viewport.TrySetPlaying(true), "Probar no pudo activar el modo nativo.");
             Check(viewport.NativeModeForTest == 1, "Probar no creó una instancia aislada.");
+            float actorA0 = 0, actorB0 = 0;
+            Check(GpuHostNative.vg_gpu_host_animation_count(host) == 2 &&
+                  GpuHostNative.vg_gpu_host_animation_height(host, 0, out actorA0) != 0 &&
+                  GpuHostNative.vg_gpu_host_animation_height(host, 1, out actorB0) != 0 &&
+                  Math.Abs(actorA0 - actorB0) > 0.4f,
+                "Las dos instancias de animación no tienen fases independientes.");
+            string animationBefore = Path.Combine(output, "w08-before.png");
+            string animationAfter = Path.Combine(output, "w08-after.png");
+            Check(viewport.RenderForTest() && viewport.CaptureForTest(animationBefore),
+                "No se capturó la primera pose de animación GPU.");
+            for (int frame = 0; frame < 30; ++frame)
+                Check(GpuHostNative.vg_gpu_host_frame(host, 1.0 / 60, 0, 0, 0, 0, 0, 1) != 0,
+                    $"Falló el frame de animación {frame}.");
+            Check(viewport.RenderForTest() && viewport.CaptureForTest(animationAfter) &&
+                  !SHA256.HashData(File.ReadAllBytes(animationBefore)).AsSpan().SequenceEqual(
+                      SHA256.HashData(File.ReadAllBytes(animationAfter))),
+                "Las poses capturadas antes/después son idénticas.");
             Check(GpuHostNative.vg_gpu_host_set_camera_mode(host, 2) == 0,
                 "No se debe editar la cámara mientras se prueba.");
             Check(GpuHostNative.vg_gpu_host_camera_position(host, out float playX,
@@ -233,6 +250,10 @@ internal static class Program
             for (int frame = 0; frame < 30; ++frame)
                 Check(GpuHostNative.vg_gpu_host_frame(host, 1.0 / 60, 0, 1, 0, 0, 0, 1) != 0,
                     $"Falló el frame de prueba {frame}.");
+            Check(GpuHostNative.vg_gpu_host_animation_height(host, 0, out float actorA1) != 0 &&
+                  GpuHostNative.vg_gpu_host_animation_height(host, 1, out float actorB1) != 0 &&
+                  actorA1 > actorA0 + 0.2f && actorB1 > actorB0 + 0.1f,
+                "El clip rígido no avanzó durante Probar.");
             Check(GpuHostNative.vg_gpu_host_camera_position(host, out float movedX,
                     out float movedY, out float movedZ) != 0 &&
                   Math.Abs(movedX - playX) + Math.Abs(movedY - playY) +
@@ -241,6 +262,8 @@ internal static class Program
             string playCapture = Path.Combine(output, "e01-play.png");
             Check(viewport.CaptureForTest(playCapture), "No se capturó la prueba.");
             Check(viewport.TrySetPlaying(false), "Detener no pudo activar Editar.");
+            Check(GpuHostNative.vg_gpu_host_animation_count(host) == 0,
+                "Detener no liberó las instancias de animación.");
             Check(viewport.NativeModeForTest == 0 && viewport.RenderForTest(),
                 "Detener no restauró la edición GPU.");
             Check(GpuHostNative.vg_gpu_host_camera_position(host, out float restoredX,
@@ -252,8 +275,8 @@ internal static class Program
             Check(GpuHostNative.vg_gpu_host_document_revision(host) == revision &&
                   SHA256.HashData(File.ReadAllBytes(level)).AsSpan().SequenceEqual(sourceHash),
                 "Play/Stop modificó el documento o archivo de nivel.");
-            Check(GpuHostNative.vg_gpu_host_readbacks(host) == 2,
-                "Solo las dos capturas explícitas deben leer el framebuffer.");
+            Check(GpuHostNative.vg_gpu_host_readbacks(host) == 4,
+                "Solo las cuatro capturas explícitas deben leer el framebuffer.");
             viewport.Width = 640;
             viewport.Height = 360;
             viewport.Measure(new Size(640, 360));

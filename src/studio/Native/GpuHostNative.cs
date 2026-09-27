@@ -164,6 +164,13 @@ internal static class GpuHostNative
     internal static extern ulong vg_gpu_host_document_revision(nint host);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nuint vg_gpu_host_animation_count(nint host);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_animation_height(nint host, nuint index,
+        out float height);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern ulong vg_gpu_host_readbacks(nint host);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
