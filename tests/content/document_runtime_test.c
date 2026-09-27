@@ -149,7 +149,8 @@ static void test_complete_instance_and_cleanup(void) {
         return;
     }
     ResolverState resolver = {0};
-    VgDocumentInstanceDesc description = {resolve_mesh, &resolver};
+    VgDocumentInstanceDesc description = {.resolve_asset = resolve_mesh,
+                                          .resolver_user = &resolver};
     VgDocumentInstance *instance = NULL;
     VgDocumentDiagnostic diagnostic;
     CHECK(vg_document_instantiate(context, document, &description, &instance, &diagnostic) ==
@@ -236,7 +237,8 @@ static void test_mesh_node_and_instance_isolation(void) {
                                 &diagnostic));
     CHECK(vg_tool_commit(batch, NULL, &diagnostic));
     ResolverState resolver = {0};
-    VgDocumentInstanceDesc description = {resolve_mesh, &resolver};
+    VgDocumentInstanceDesc description = {.resolve_asset = resolve_mesh,
+                                          .resolver_user = &resolver};
     VgDocumentInstance *first = NULL;
     VgDocumentInstance *second = NULL;
     CHECK(vg_document_instantiate(context, document, &description, &first, &diagnostic) == VG_OK);
@@ -291,7 +293,8 @@ static void test_atrium_document(void) {
     source.source_size = sizeof(mesh_bytes);
     CHECK(vg_asset_catalog_upsert(context, &source) == VG_OK);
     ResolverState resolver = {0};
-    VgDocumentInstanceDesc description = {resolve_mesh, &resolver};
+    VgDocumentInstanceDesc description = {.resolve_asset = resolve_mesh,
+                                          .resolver_user = &resolver};
     VgDocumentInstance *instance = NULL;
     CHECK(vg_document_instantiate(context, document, &description, &instance, &diagnostic) ==
           VG_OK);
@@ -302,14 +305,14 @@ static void test_atrium_document(void) {
         CHECK(vg_spatial_scene_stats(vg_document_instance_spatial(instance)).colliders == 14u);
         VgDocumentEnvironment environment = {0};
         CHECK(vg_document_instance_environment(instance, &environment));
-        CHECK(environment.fog_enabled && environment.fog_start == 8.0f &&
-              environment.fog_end == 24.0f &&
-              environment.ambient_linear[0] == 0.55f &&
-              environment.clear_linear[2] == 0.03f);
+        CHECK(environment.fog_enabled && environment.fog_start == 3.0f &&
+              environment.fog_end == 14.0f &&
+              environment.ambient_linear[0] == 0.22f &&
+              environment.clear_linear[2] == 0.07f);
         CHECK(vg_document_instance_light_count(instance) == 2u);
         VgDocumentLightBinding light = {0};
         CHECK(vg_document_instance_light_at(instance, 0u, &light));
-        CHECK(light.intensity == 2.0f && light.range == 5.0f);
+        CHECK(light.intensity == 5.0f && light.range == 8.0f);
         VgTransform light_transform = {0};
         CHECK(vg_entity_get_world_transform(context, light.entity,
                                              &light_transform) == VG_OK);
@@ -411,7 +414,8 @@ static void test_resolver_failure_rolls_back_everything(void) {
 
     ResolverState resolver = {0};
     resolver.fail_call = 2u;
-    VgDocumentInstanceDesc description = {resolve_mesh, &resolver};
+    VgDocumentInstanceDesc description = {.resolve_asset = resolve_mesh,
+                                          .resolver_user = &resolver};
     VgDocumentInstance *sentinel = (VgDocumentInstance *)(uintptr_t)1u;
     CHECK(vg_document_instantiate(context, document, &description, &sentinel, &diagnostic) ==
           VG_ERROR_NOT_FOUND);
@@ -444,7 +448,8 @@ static void test_kinematic_collider_instantiates(void) {
         &diagnostic));
     CHECK(vg_tool_commit(batch, NULL, &diagnostic));
     ResolverState resolver = {0};
-    VgDocumentInstanceDesc description = {resolve_mesh, &resolver};
+    VgDocumentInstanceDesc description = {.resolve_asset = resolve_mesh,
+                                          .resolver_user = &resolver};
     VgDocumentInstance *instance = NULL;
     CHECK(vg_document_instantiate(context, document, &description, &instance, &diagnostic) ==
           VG_OK);

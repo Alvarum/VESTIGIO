@@ -1,5 +1,9 @@
 # RetroForge Studio / Foundry
 
+> **¿Buscas el motor VESTIGIO nuevo y el Atrium 3D?** Empieza por
+> [VESTIGIO: compilar, abrir y usar](VESTIGIO-COMO-USAR.md). Los pasos de
+> RetroForge que siguen describen otra parte del repositorio.
+
 > Estado actual: base en desarrollo. El formato `retro_map 4` incorpora
 > aberturas parciales y evita que conectar dos habitaciones elimine toda la
 > pared. Consulta [Portales y recursos visuales](docs/14-portales-y-recursos-visuales.md).
@@ -10,8 +14,8 @@ reproductor genérico, Foundry y el laboratorio independiente.
 
 La primera escena del motor VESTIGIO nuevo se ejecuta con
 `powershell -NoProfile -ExecutionPolicy Bypass -File tools/run-3d-demo.ps1`.
-Consulta [Atrium 3D](assets/demo/README.md) para
-controles y límites; es una demo GPU recorrible sin colisiones.
+Consulta [la guía de VESTIGIO](VESTIGIO-COMO-USAR.md) para compilar, abrir
+Player y Studio, conocer los controles y probar la escena GPU con colisiones.
 
 ## Empezar en Windows
 
