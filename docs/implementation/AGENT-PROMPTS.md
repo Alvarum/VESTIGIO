@@ -16,7 +16,7 @@ CONTRACTS.md, VALIDATION.md, STATE.md y los tickets de backlog.json/TASKS.md.
 La investigación de docs/research explica las decisiones; no repitas toda su auditoría.
 
 Comprueba HEAD, trabajo concurrente y dependencias integradas de los tickets elegidos.
-J01 y S01/S02 ya están integrados; no los repitas ni avances a E01 sin un nuevo encargo.
+J01, S01/S02 y E01 ya están integrados; no los repitas ni avances a E02/E03 sin un nuevo encargo.
 Implementa únicamente los tickets encargados usando el SDK C y GPU real cuando aplique.
 No migres Haunted ni agregues adaptadores o compatibilidad con prototipos anteriores.
 

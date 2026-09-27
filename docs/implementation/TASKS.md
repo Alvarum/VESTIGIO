@@ -396,7 +396,7 @@ Commit integrado: `2e15e5e`.
 
 ## E01 — Viewport editorial GPU conectado al documento
 
-Fase: **P5** · Rol: **editor** · Estado: **IN_PROGRESS**.
+Fase: **P5** · Rol: **editor** · Estado: **INTEGRATED**.
 
 Dependencias integradas: G02, G03, D02, I01.
 
@@ -419,6 +419,10 @@ Puntos de entrada: `src/studio/Controls/`, `src/studio/Native/`, `src/studio/Mod
 Verificación: V-APP, V-GPU, V-WPF, V-DATA.
 
 Desbloquea: Edición directa sobre la escena real.
+
+Evidencia: docs/implementation/evidence/E01.md.
+
+Commit integrado: `73fe637`.
 
 ## E02 — Gizmos, multiselección y comandos de transformación
 

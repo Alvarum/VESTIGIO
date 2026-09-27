@@ -100,7 +100,7 @@
       "validation": ["V-CORE", "V-DATA"], "unlocks": "Editor y automatización sobre una autoridad documental."
     },
     {
-      "id": "E01", "phase": "P5", "title": "Viewport editorial GPU conectado al documento", "role": "editor", "dependencies": ["G02", "G03", "D02", "I01"], "locks": ["wpf-viewport", "tool-api"], "status": "IN_PROGRESS",
+      "id": "E01", "phase": "P5", "title": "Viewport editorial GPU conectado al documento", "role": "editor", "dependencies": ["G02", "G03", "D02", "I01"], "locks": ["wpf-viewport", "tool-api"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/E01.md"], "integrated_commit": "73fe637",
       "paths": ["src/studio/Controls/", "src/studio/Native/", "src/studio/Models/EditorDocument.cs", "src/editor/", "tests/studio/"],
       "steps": ["Integrar superficie aprobada en G02 con EditWorld, cámara libre/orbit/ortográfica, frame seleccionado y renderables de G03.", "Actualizar EditWorld desde revisiones/eventos del documento; Play crea copia aislada y Stop vuelve a edición sin guardar mutaciones de juego.", "Implementar selección por UUID y picking editorial por ray/bounds con máscara para luces/triggers/cámaras, independiente de colisión de gameplay."],
       "acceptance": ["Abrir documento/importar recurso y verlo en viewport comparte runtime/validadores con consumidor C.", "Editar cámara/selección no marca contenido dirty; Play/Stop no modifica documento ni partida del usuario.", "Foco, held input, resize y GPU sin readback normal siguen pasando al integrarse con Studio real."],
