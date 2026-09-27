@@ -1,6 +1,6 @@
 # VESTIGIO: entregables pequeños para un proyecto hobby
 
-Estado al 2026-09-27: **12 de 30 tickets integrados**. Ya existen la base GPU real, SDK C instalable, importación glTF/GLB, input/settings y documento transaccional. A01 tiene sólo un núcleo de audio parcial. E01 y S01 quedaron interrumpidos; hay archivos parciales de S01 sin seguimiento en `src/physics/` y `src/world/spatial_world.*`, que deben revisarse antes de reutilizarlos.
+Estado al 2026-09-27: **13 de 30 tickets integrados**. J01 ya ofrece una escena nueva en Player GPU, pendiente de revisión humana; [pruebas e instrucciones](evidence/J01.md). A01 tiene sólo un núcleo de audio parcial. E01 y S01 no están autorizados en esta oleada; parte de S01 quedó en el commit concurrente `939dd9c` y debe revisarse antes de continuarla.
 
 **El motor es nuevo.** No se exige compatibilidad con Haunted, sectores, formatos previos, juegos anteriores o renderer CPU. Los tickets G04 (adaptador GPU anterior) y D03 (migración) se retiraron. El código de prototipo ya integrado puede permanecer mientras no estorbe, pero no es criterio de aceptación para entregas nuevas ni justificación para financiar una migración.
 

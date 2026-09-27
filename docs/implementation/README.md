@@ -2,7 +2,7 @@
 
 **Paquete de implementación para agentes.** Este paquete convierte el [roadmap de investigación](../research/12-roadmap.md) en tickets con dependencias, alcance, responsabilidades, pruebas y criterios de cierre.
 
-**Actualización 2026-09-27:** hay 12 de 30 tickets integrados. La entrega avanza por [oleadas funcionales revisables](ENTREGABLES-HOBBY.md), una a la vez. La oleada 0 publica plan/base; J01 espera la revisión del usuario. Se retiraron los tickets de compatibilidad y migración de proyectos anteriores.
+**Actualización 2026-09-27:** hay 13 de 30 tickets integrados. La entrega avanza por [oleadas funcionales revisables](ENTREGABLES-HOBBY.md), una a la vez. La oleada 1 (J01) tiene demo GPU y [evidencia de prueba](evidence/J01.md); espera la revisión del usuario antes de iniciar la oleada 2. Se retiraron los tickets de compatibilidad y migración de proyectos anteriores.
 
 La prioridad confirmada es **render de geometría, materiales y efectos en GPU**. SDK C y Studio deben usar el mismo runtime. El renderer CPU previo no es requisito de compatibilidad para los entregables nuevos.
 

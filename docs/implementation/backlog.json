@@ -86,7 +86,7 @@
       "validation": ["V-APP", "V-SDK", "V-ASSET", "V-GPU"], "unlocks": "Primer juego C con modelos GPU; asset browser y mundo mixto."
     },
     {
-      "id": "J01", "phase": "P3", "title": "Primera escena 3D nueva y recorrible en GPU", "role": "runtime", "dependencies": ["G03", "I01", "D02"], "locks": ["platform-window", "session-bridge", "public-api"], "status": "PLANNED",
+      "id": "J01", "phase": "P3", "title": "Primera escena 3D nueva y recorrible en GPU", "role": "runtime", "dependencies": ["G03", "I01", "D02"], "locks": ["platform-window", "session-bridge", "public-api"], "status": "INTEGRATED", "evidence": ["docs/implementation/evidence/J01.md"], "integrated_commit": "7efc54c",
       "paths": ["src/player/", "src/api/", "examples/", "tests/sdk/", "tests/gpu/"],
       "steps": ["Crear un proyecto de ejemplo nuevo con suelo visual, algunos objetos y un modelo glTF/GLB importado; no convertir ni migrar Haunted.", "Conectar el consumidor de SDK al host Player y a sus acciones de input para recorrer la escena con cámara en GPU; si falta una pieza pública, añadir sólo la conexión imprescindible.", "Documentar comando de arranque y controles; comprobar apertura, recorrido, resize y cierre con una prueba dirigida y una captura en GPU real."],
       "acceptance": ["Un usuario arranca una escena nueva desde un comando reproducible, ve el modelo importado y puede desplazar la cámara; el frame final se dibuja en GPU.", "El ejemplo usa el SDK público sin incluir internals; Player libera ventana y recursos al cerrar, con errores legibles si falta el asset.", "Este hito es recorrido libre sin colisiones ni editor; no se anuncia como juego completo."],

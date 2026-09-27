@@ -336,7 +336,7 @@ Commit integrado: `50ece2a`.
 
 ## J01 — Primera escena 3D nueva y recorrible en GPU
 
-Fase: **P3** · Rol: **runtime** · Estado: **PLANNED**.
+Fase: **P3** · Rol: **runtime** · Estado: **INTEGRATED**.
 
 Dependencias integradas: G03, I01, D02.
 
@@ -359,6 +359,10 @@ Puntos de entrada: `src/player/`, `src/api/`, `examples/`, `tests/sdk/`, `tests/
 Verificación: V-APP, V-SDK, V-GPU.
 
 Desbloquea: Demo mínima visible antes de financiar física o autoría.
+
+Evidencia: docs/implementation/evidence/J01.md.
+
+Commit integrado: `7efc54c`.
 
 ## D02 — Documento nativo, transacciones y Tool API
 

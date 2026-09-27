@@ -8,15 +8,16 @@ Copiar un prompt sólo cuando el usuario encargue una oleada de [ENTREGABLES-HOB
 Implementa VESTIGIO siguiendo el paquete docs/implementation/README.md del repositorio:
 C:\Users\alvar\Documents\dev\doom like\1
 
-ALCANCE: J01 — primera escena 3D nueva y recorrible en GPU.
-LÍMITE: sólo J01. Sin tiempo fijo; informar avances sin ampliar el alcance.
+ALCANCE: [oleada que el usuario haya encargado y tickets concretos].
+LÍMITE: sólo [esa oleada]. Sin tiempo fijo; informar avances sin ampliar el alcance.
 
 Esto es una solicitud de implementación, no de volver a planificar. Lee PLAN.md,
 CONTRACTS.md, VALIDATION.md, STATE.md y los tickets de backlog.json/TASKS.md.
 La investigación de docs/research explica las decisiones; no repitas toda su auditoría.
 
-Comprueba HEAD y trabajo concurrente. Las dependencias de J01 ya están integradas.
-Implementa únicamente J01 usando SDK C y GPU real, con un proyecto de ejemplo nuevo.
+Comprueba HEAD, trabajo concurrente y dependencias integradas de los tickets elegidos.
+J01 ya está integrado; no repitas ni avances a S01/S02 sin un nuevo encargo.
+Implementa únicamente los tickets encargados usando el SDK C y GPU real cuando aplique.
 No migres Haunted ni agregues adaptadores o compatibilidad con prototipos anteriores.
 
 No hagas refactors globales, cambios de licencia, un ECS universal ni MCP/game DLL.
@@ -27,10 +28,10 @@ Por ticket: implementar, probar casos de aceptación, revisar diff, integrar y r
 resultados en evidence/<ID>.md y STATE/backlog. No marques PASS lo que no ejecutaste.
 No alteres trabajo ajeno ni compartas salidas de build con otro escritor.
 
-Detente al cerrar J01 o ante un bloqueo real sin trabajo independiente dentro
+Detente al cerrar la oleada encargada o ante un bloqueo real sin trabajo independiente dentro
 del alcance. Tras las pruebas y el commit integrado, comprueba el remoto y haz
 push directo a origin/main sin forzar. Entrega SHA publicado, archivos, pruebas,
-límites, pasos para probar la escena y siguiente paso posible. No inicies S01.
+límites, pasos para probar el resultado y siguiente paso posible. No inicies otra oleada.
 ```
 
 ## Coordinador de varios agentes
