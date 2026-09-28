@@ -1,82 +1,28 @@
-# RetroForge y VESTIGIO
+# VESTIGIO 3D
 
-> **¿Buscas el motor VESTIGIO nuevo y el Atrium 3D?** Empieza por
-> [VESTIGIO: compilar, abrir y usar](VESTIGIO-COMO-USAR.md). Los pasos de
-> RetroForge que siguen describen otra parte del repositorio.
+Motor 3D en desarrollo con render OpenGL 3.3 en GPU, Player y Studio WPF.
+Este repositorio contiene sólo VESTIGIO. RetroForge 2.5D tiene un repositorio
+Git independiente en `C:\Users\alvar\Documents\dev\RetroForge`, publicado en
+el repositorio privado https://github.com/Alvarum/RetroForge.
 
-> Estado actual: base en desarrollo. El formato `retro_map 4` incorpora
-> aberturas parciales y evita que conectar dos habitaciones elimine toda la
-> pared. Consulta [Portales y recursos visuales](docs/14-portales-y-recursos-visuales.md).
-
-Este repositorio contiene dos motores en desarrollo, cada uno con su propio
-código, recursos, pruebas y Studio: **RetroForge** (juego retro 2.5D, C23,
-renderer CPU y raylib) vive en `engines/retroforge`; **VESTIGIO** (escenas 3D
-con render GPU) vive en `engines/vestigio`. Comparten las herramientas de
-desarrollo de la raíz, pero sus fuentes y carpetas de compilación están separadas.
-Consulta [la estructura y los límites de cada motor](docs/REPO-STRUCTURE.md).
-
-La primera escena del motor VESTIGIO nuevo se ejecuta con
-`powershell -NoProfile -ExecutionPolicy Bypass -File tools/run-3d-demo.ps1`.
-Consulta [la guía de VESTIGIO](VESTIGIO-COMO-USAR.md) para compilar, abrir
-Player y Studio, conocer los controles y probar la escena GPU con colisiones.
-
-## Empezar en Windows
-
-Desde PowerShell, en esta carpeta. RetroForge queda como motor predeterminado;
-indica `-Engine Vestigio` para elegir el motor 3D:
+Desde PowerShell en la raíz del repositorio:
 
 ```powershell
 ./tools/bootstrap.ps1
 ./tools/build.ps1 -Preset debug -Test
-./tools/build.ps1 -Engine Vestigio -Preset debug -Test
-./build/retroforge/debug/bin/retro_fps.exe
-./build/retroforge/debug/bin/retro_lab.exe
-./build/retroforge/debug/bin/retro_studio.exe
-./build/vestigio/debug/bin/vestigio_player.exe
-./build/vestigio/debug/bin/vestigio_studio.exe
+./tools/run-3d-demo.ps1
+./tools/run-studio-3d.ps1
 ```
 
-RetroForge Studio abre `engines/retroforge/assets/studio/haunted.retro`: una casa con plantas superpuestas,
-triggers 3D, diálogos, objetivos, luces dinámicas, escalera, perseguidora, drop
-de llave y jefe de dos fases. **PROBAR** ejecuta una copia aislada del nivel;
-**EXPORTAR** genera una carpeta y ZIP para Windows.
+El código, las pruebas y los recursos 3D están en `engines/vestigio/`; los
+binarios se generan en `build/vestigio/debug/bin/`. El módulo `common/` contiene
+sólo configuración y mapeo de entrada. [La guía de uso](VESTIGIO-COMO-USAR.md)
+detalla los controles, la compilación y el flujo actual de edición.
 
-Las herramientas viven en `.tools`; no se modifica el MSYS2 global ni el PATH
-permanente. La primera preparación necesita Internet y espacio para herramientas.
+**Estado del editor:** Player y Studio compilan y tienen pruebas automatizadas,
+pero el usuario rechazó la usabilidad de la interfaz 3D mostrada. La próxima
+etapa será planificar y revisar esa interfaz antes de ampliar funciones.
 
-Si PowerShell bloquea scripts, usa `powershell -NoProfile -ExecutionPolicy Bypass
--File tools/build.ps1 -Preset debug -Test` (todo en una línea). La opción afecta
-sólo a ese proceso. El mismo patrón sirve para `tools/bootstrap.ps1`.
-
-```powershell
-./tools/build.ps1 -Preset release -Test -Package
-```
-
-El paquete se genera en `dist/RetroForge-Windows.zip`.
-
-## Controles
-
-WASD: moverse; ratón: mirar; clic izquierdo: disparar; Espacio: saltar;
-E: interactuar; Escape: pausa; flechas y Enter: menús. F11 alterna ventana sin
-bordes. F1: plano, F2: geometría, F3: profundidad, F4: contadores del FPS.
-En el reproductor genérico F5 guarda rápido y F9 carga. El menú de pausa permite
-usar tres ranuras manuales; los checkpoints crean autoguardado.
-
-**Objetivo en RetroForge:** recoger la llave naranja en el depósito lateral, abrir la compuerta
-con E y llegar a la terminal de salida. Hay tres guardias y suministros.
-
-## Estudiar el proyecto
-
-Empieza por [la ruta de aprendizaje](docs/00-empezar.md) y
-[el índice de archivos](docs/01-arquitectura.md). La documentación cubre C,
-matemáticas, memoria, rasterización, física, mapas, juego y reutilización.
-
-La investigación original permanece en `deep-research-report.md`.
-Consulta [verificación y límites](docs/08-verificacion.md) para distinguir las
-pruebas ejecutadas de las comprobaciones manuales pendientes.
-
-Continúa con [el tutorial de Studio](docs/09-retroforge-studio.md),
-[personajes y perseguidores](docs/10-gameplay-y-personajes.md) y
-[los formatos v3](docs/11-formato-v2.md). La capa nueva se estudia en
-[lógica e interacciones](docs/12-logica-interacciones.md) y
-[diálogos, guardado e iluminación](docs/13-dialogos-guardado-iluminacion.md).
+La [investigación](docs/research/README.md) y el [backlog](docs/implementation/README.md)
+conservan referencias históricas de proyectos estudiados. Esas referencias no
+son dependencias de código de RetroForge ni implican compatibilidad entre motores.

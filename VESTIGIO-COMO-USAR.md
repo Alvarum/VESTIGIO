@@ -1,9 +1,8 @@
 # VESTIGIO: compilar, abrir y usar el Atrium 3D
 
 Esta guía es para el motor **VESTIGIO 3D**. Sus fuentes, pruebas, Studio y
-recursos están separados en `engines/vestigio/`; RetroForge se mantiene en
-`engines/retroforge/`. Las herramientas de preparación y compilación de la raíz
-son compartidas. Ejecuta los comandos desde la **raíz del repositorio**.
+recursos están en `engines/vestigio/`. Ejecuta los comandos desde la **raíz del
+repositorio**.
 
 ## Requisitos y primera preparación
 
@@ -55,7 +54,7 @@ Para jugar otro nivel guardado desde Studio, pasa `-Level ruta\nivel.level.json`
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/run-studio-3d.ps1
 ```
 
-El script compila el host GPU y la aplicación WPF, luego inicia **VESTIGIO Studio — Atrium 3D**. La aplicación queda en `build/vestigio/debug/bin/vestigio_studio.exe` y abre niveles 3D sin argumentos especiales. Para abrir un nivel propio directamente: `./build/vestigio/debug/bin/vestigio_studio.exe --level "ruta\nivel.level.json"`. RetroForge tiene otro ejecutable: `build/retroforge/debug/bin/retro_studio.exe`.
+El script compila el host GPU y la aplicación WPF, luego inicia **VESTIGIO Studio — Atrium 3D**. La aplicación queda en `build/vestigio/debug/bin/vestigio_studio.exe` y abre niveles 3D sin argumentos especiales. Para abrir un nivel propio directamente: `./build/vestigio/debug/bin/vestigio_studio.exe --level "ruta\nivel.level.json"`.
 
 En **Editar**, haz clic sobre un objeto o selecciónalo en **Jerarquía**. Con **Añadir pilar** o **Duplicar** creas otra instancia; cambia posición, rotación o escala en el inspector y pulsa **Aplicar transformación**. **Deshacer/Rehacer** revierten o repiten cambios. **Guardar como…** crea una copia de trabajo sin sobrescribir el Atrium original; después usa **Guardar** y **Reabrir** para comprobar el archivo. La vista de edición permite cámara libre con WASD, botón derecho para mirar y Espacio/Ctrl para subir/bajar; también ofrece órbita, ortográfica y **Encuadrar selección**.
 
@@ -92,8 +91,8 @@ Las aberturas de esta receta son vacíos en el muro: una abertura de tipo puerta
 Los scripts de apertura ya compilan sólo lo necesario. Para compilar todos los targets y correr las pruebas del preset:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Engine Vestigio -Preset debug -Test
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Engine Vestigio -Preset release -Test
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Preset debug -Test
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Preset release -Test
 ```
 
 `tools/check.ps1` ejecuta formato y análisis; `-Full` añade Debug y Release. Las pruebas automatizadas no sustituyen inspeccionar la imagen ni escuchar el ambiente. `tools/run-studio-3d.ps1 -NoLaunch` sólo compila Studio. La documentación y los resultados por oleada están en `docs/implementation/evidence/`.

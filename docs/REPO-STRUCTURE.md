@@ -1,36 +1,23 @@
-# Dos motores, dos árboles de trabajo
+# Estructura de VESTIGIO
 
-| Carpeta | Propietario | Contenido |
-|---|---|---|
-| `engines/retroforge/` | RetroForge 2.5D | C nativo, Studio WPF, pruebas y recursos de RetroForge |
-| `engines/vestigio/` | VESTIGIO 3D | C nativo, Studio WPF, pruebas, demo, integración GPU, `cgltf` y paquete SDK |
-| `common/` | Ambos | Sólo configuración y mapeo de entrada; no contiene escena, renderer, juego ni editor |
-| `tools/` | Workspace | Preparación, compilación, comprobación y lanzadores que eligen motor explícitamente |
-| `docs/` | Workspace | Guías y el backlog de desarrollo de VESTIGIO |
+Este repositorio contiene el motor **VESTIGIO 3D**:
 
-Cada motor tiene su propio `CMakeLists.txt`, presets, `src/`, `include/`,
-`tests/`, `assets/`, `studio/` y `studio.tests/`. El CMake de la raíz sólo
-selecciona **uno** con `-DENGINE=retroforge` o `-DENGINE=vestigio`; no enlaza
-los motores. `tools/build.ps1` compila directamente el CMake de la carpeta
-elegida. Los productos se escriben en `build/retroforge/<preset>/bin/` y
-`build/vestigio/<preset>/bin/`, respectivamente.
+| Carpeta | Contenido |
+|---|---|
+| `engines/vestigio/` | Código nativo, SDK, Studio WPF, pruebas, recursos y `cgltf` |
+| `common/` | Configuración y mapeo de entrada usados por VESTIGIO |
+| `tools/` | Preparación, compilación, verificación y lanzadores del motor 3D |
+| `docs/implementation/` | Tickets y evidencia de VESTIGIO |
+| `docs/research/` | Investigación y referencias históricas |
 
-Desde la raíz, tras `./tools/bootstrap.ps1`:
+Desde la raíz, `./tools/build.ps1 -Preset debug -Test` construye sólo VESTIGIO
+en `build/vestigio/debug/bin/`. `./tools/run-studio-3d.ps1` abre el editor y
+`./tools/run-3d-demo.ps1` abre Player. El código 2.5D está en el repositorio
+Git local `C:\Users\alvar\Documents\dev\RetroForge`; su remoto privado es
+[Alvarum/RetroForge](https://github.com/Alvarum/RetroForge). No se compila ni
+se enlaza desde este repositorio.
 
-```powershell
-./tools/build.ps1 -Engine RetroForge -Preset debug -Test
-./tools/build.ps1 -Engine Vestigio -Preset debug -Test
-./build/retroforge/debug/bin/retro_studio.exe
-./build/vestigio/debug/bin/vestigio_studio.exe
-```
-
-Para abrir el Atrium 3D con sus recursos usa `./tools/run-3d-demo.ps1` o
-`./tools/run-studio-3d.ps1`. [La guía de VESTIGIO](../VESTIGIO-COMO-USAR.md)
-explica controles y autoría; [la guía de RetroForge](09-retroforge-studio.md)
-explica el proyecto 2.5D. Cambiar el árbol de un motor no exige compilar el
-otro. No hay migración ni compatibilidad entre formatos de juego.
-
-El código de `common/` conserva el prefijo público `Vg` de las funciones de
-configuración existentes para no alterar su contrato durante este traslado.
-Esta pequeña biblioteca se compila una vez dentro de **cada** build; no crea
-una dependencia binaria de RetroForge hacia VESTIGIO ni viceversa.
+El historial anterior al traslado conserva el desarrollo de ambos motores;
+se mantiene sin reescritura para no alterar commits publicados. Las menciones
+a RetroForge en investigaciones antiguas son referencias históricas, no código
+activo ni un formato compatible que VESTIGIO deba admitir.

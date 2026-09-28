@@ -43,16 +43,14 @@ try {
     & '.\.tools\msys64\usr\bin\pacman.exe' -Q | Set-Content '.tools/toolchain-packages.txt' -Encoding utf8
     Get-VerifiedArchive 'https://github.com/raysan5/raylib/archive/dbc56a87da87d973a9c5baa4e7438a9d20121d28.tar.gz' '.deps/raylib-6.0.tar.gz' '81B06CE7C19CF3B634B0271C23C361BA6AD8BF45FB8B036ABBFEB4260EC1E126'
     if (!(Get-Command dotnet -ErrorAction SilentlyContinue)) {
-        throw 'RetroForge Studio requiere el SDK de .NET 10 para Windows.'
+        throw 'VESTIGIO Studio requiere el SDK de .NET 10 para Windows.'
     }
     foreach ($project in @(
-        'engines/retroforge/studio/RetroForge.Studio.csproj',
-        'engines/retroforge/studio.tests/RetroForge.Studio.Tests.csproj',
         'engines/vestigio/studio/Vestigio.Studio.csproj',
         'engines/vestigio/studio.tests/Vestigio.Studio.Tests.csproj'
     )) {
         & dotnet restore $project --packages '.nuget/packages'
         if ($LASTEXITCODE) { throw "No se pudieron restaurar dependencias de $project" }
     }
-    Write-Output 'Herramientas listas. Compila con ./tools/build.ps1 -Engine RetroForge o -Engine Vestigio.'
+    Write-Output 'Herramientas listas. Compila con ./tools/build.ps1 -Preset debug -Test.'
 } finally { Pop-Location }

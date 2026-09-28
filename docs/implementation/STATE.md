@@ -4,7 +4,8 @@
 su usabilidad y por la confusión entre los dos motores. Las cifras históricas
 de tickets `INTEGRATED` reflejan código y pruebas técnicas; **no significan
 que VESTIGIO Studio esté aceptado como editor utilizable**. La separación
-física de RetroForge y VESTIGIO es el encargo actual. La corrección de UX 3D
+física de RetroForge y VESTIGIO se completó en repositorios Git independientes
+(véase [la evidencia de separación](evidence/REPO-SPLIT-2026-09-27.md)). La corrección de UX 3D
 queda pendiente; no avanzar tickets funcionales nuevos hasta abordarla en un
 entregable revisable.
 

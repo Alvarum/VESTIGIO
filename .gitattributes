@@ -2,11 +2,6 @@
 *.c text eol=lf
 *.h text eol=lf
 *.md text eol=lf
-*.map text eol=lf
-*.retro text eol=lf
-*.actor text eol=lf
-*.rules text eol=lf
-*.dialogue text eol=lf
 *.ps1 text eol=crlf
 *.png binary
 *.wav binary

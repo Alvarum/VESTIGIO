@@ -22,7 +22,7 @@ Push-Location $projectRoot
 try {
 $engineRoot = Join-Path $projectRoot 'engines/vestigio'
 $bin = Join-Path $projectRoot 'build/vestigio/debug/bin'
-& "$PSScriptRoot/build.ps1" -Engine Vestigio -Preset debug
+& "$PSScriptRoot/build.ps1" -Preset debug
 if (!$?) { throw 'Fallo compilando la demo 3D' }
 $demo = Join-Path $bin 'assets/demo'
 New-Item -ItemType Directory -Force -Path $demo | Out-Null

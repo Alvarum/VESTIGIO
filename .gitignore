@@ -15,15 +15,10 @@ compile_commands.json
 *.zip
 *.ppm
 
-# Estado local de RetroForge Studio y archivos temporales.
-.retroforge/
+# Estado local y archivos temporales.
 *.tmp
 *.autosave
 *.sav
-*.rf-new
-*.rf-old
-*.rf-recover
-*.rf-journal
 
 # Archivos personales del editor y del sistema operativo.
 .vs/

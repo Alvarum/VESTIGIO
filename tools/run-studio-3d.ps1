@@ -4,7 +4,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 Push-Location $projectRoot
 try {
 $bin = Join-Path $projectRoot 'build/vestigio/debug/bin'
-& "$PSScriptRoot/build.ps1" -Engine Vestigio -Preset debug
+& "$PSScriptRoot/build.ps1" -Preset debug
 if (!$?) { throw 'Fallo compilando VESTIGIO Studio' }
 if (!$NoLaunch) {
     $arguments = @()

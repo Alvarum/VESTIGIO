@@ -4,28 +4,22 @@
 
 Fecha: 2026-09-20. Base observada: `28dafa949ff68ed3dc52bf93d287863037bf8578`, checkout limpio al comenzar esta planificación. El diff de código entre `ae48d31` y esta base es vacío; el nuevo commit incorpora la investigación. F00 debe comprobar el HEAD real cuando otro agente empiece, porque esta observación no congela el repositorio.
 
-## Separación de motores y build actual
+## Repositorio y build actual
 
 El plan implementa **VESTIGIO solamente**. Su fuente y contenido residen en
-`engines/vestigio/`; RetroForge está aislado en `engines/retroforge/` y no es
-una capa compartida ni una obligación de compatibilidad para este plan. Cada
-carpeta de motor tiene su propio `CMakeLists.txt`, `src/`, `include/`, `tests/`,
-`studio/`, `studio.tests/` y `assets/`. La raíz conserva el dispatcher CMake,
-presets por motor y herramientas/cachés comunes.
+`engines/vestigio/`; RetroForge vive en otro repositorio y no es una capa
+compartida ni una obligación de compatibilidad. La raíz contiene CMake,
+presets y herramientas exclusivamente para VESTIGIO.
 
-Desde la raíz, use los wrappers estables y elija el motor de forma explícita:
+Desde la raíz, use los wrappers estables:
 
 ```powershell
 ./tools/bootstrap.ps1
-./tools/build.ps1 -Engine Vestigio -Preset debug -Test
-./tools/build.ps1 -Engine RetroForge -Preset debug -Test
+./tools/build.ps1 -Preset debug -Test
 ```
 
-Los binarios quedan en `build/vestigio/debug/bin/` o
-`build/retroforge/debug/bin/`. El build de un motor no incluye el otro. La
-alternativa CMake directa usa los presets `vestigio-debug` y
-`retroforge-debug`; esas salidas van a `build/workspace/` y también configuran
-un solo motor por árbol. No reutilice el mismo directorio CMake para ambos.
+Los binarios quedan en `build/vestigio/debug/bin/`. La alternativa CMake directa
+usa los presets `debug`, `release`, `analyze` y `ubsan`.
 
 ## Resultado que se implementará
 
@@ -88,10 +82,10 @@ El coordinador reclama ticket y locks antes de delegar, indica base commit, ruta
 ## Aislamiento y archivos compartidos
 
 - Preferir worktrees/checkouts aislados por worker, desde un commit integrado que contenga sus dependencias. No usar reset/clean/restore global ni mover trabajo ajeno para preparar una rama.
-- Cada checkout usa sus propios `build/retroforge/` y `build/vestigio/`, además de sus `bin/obj/` y artefactos. `tools/build.ps1` acepta `-Engine RetroForge` o `-Engine Vestigio`; sus árboles de build son distintos. Los presets CMake `retroforge-*` y `vestigio-*` también tienen binaryDir separados bajo `build/workspace/`. Un worktree nuevo no trae `.tools`, `.deps` ni `.nuget` ignorados. Compruébelo antes de lanzar builds; no suponga que bootstrap ya ocurrió.
+- Cada checkout usa su propio `build/vestigio/`, además de sus `bin/obj/` y artefactos. Un worktree nuevo no trae `.tools`, `.deps` ni `.nuget` ignorados. Compruébelo antes de lanzar builds; no suponga que bootstrap ya ocurrió.
 - Reutilizar herramientas/cachés sólo si el coordinador establece rutas y acceso seguro; nunca compartir salidas de compilación. Si no es posible preparar entornos aislados, usar un único escritor y serializar implementación en el checkout disponible.
 - `tools/bootstrap.ps1` actualiza paquetes locales además de restaurarlos. No ejecutarlo concurrentemente sobre una caché compartida ni sólo por rutina; F00 decide si hace falta y registra versiones.
-- Cambios en el dispatcher raíz `CMakeLists.txt`, presets, `engines/vestigio/CMakeLists.txt`, `engines/vestigio/include/vestigio/`, esquema común y bridges de sesión se reclaman con locks. Un worker puede preparar un cambio en su rama, pero el coordinador revisa e integra de uno en uno. No hay export masivo de símbolos nuevos para evitar diseñar la API.
+- Cambios en `CMakeLists.txt`, presets, `engines/vestigio/CMakeLists.txt`, `engines/vestigio/include/vestigio/` y esquema común se reclaman con locks. Un worker puede preparar un cambio en su rama, pero el coordinador revisa e integra de uno en uno. No hay export masivo de símbolos nuevos para evitar diseñar la API.
 - Las pruebas que escriben en proyectos existentes trabajan sobre copias aisladas del corpus. No sobrescribir Haunted original, partidas del usuario ni evidencia de otro ticket.
 
 ## Estados y entrega por ticket
