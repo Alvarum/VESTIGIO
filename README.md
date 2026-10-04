@@ -20,8 +20,9 @@ sólo configuración y mapeo de entrada. [La guía de uso](VESTIGIO-COMO-USAR.md
 detalla los controles, la compilación y el flujo actual de edición.
 
 **Estado del editor:** Player y Studio compilan y tienen pruebas automatizadas,
-pero el usuario rechazó la usabilidad de la interfaz 3D mostrada. La próxima
-etapa será planificar y revisar esa interfaz antes de ampliar funciones.
+pero el usuario rechazó la usabilidad de la interfaz 3D mostrada. El
+[plan de recuperación de Studio](docs/implementation/STUDIO-UX-RECOVERY.md)
+propone UX01 como siguiente ticket revisable antes de ampliar funciones.
 
 La [investigación](docs/research/README.md) y el [backlog](docs/implementation/README.md)
 conservan referencias históricas de proyectos estudiados. Esas referencias no

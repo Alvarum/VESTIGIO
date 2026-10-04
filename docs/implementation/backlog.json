@@ -1020,6 +1020,49 @@
       "unlocks": "Personajes/modelos animados reales."
     },
     {
+      "id": "UX01",
+      "phase": "P5-UX",
+      "title": "Studio utilizable para crear el primer nivel 3D propio",
+      "role": "editor",
+      "dependencies": [
+        "E04"
+      ],
+      "locks": [
+        "wpf-viewport",
+        "wpf-inspector",
+        "document-commands"
+      ],
+      "status": "PLANNED",
+      "origin": [
+        "Revisión del usuario de VESTIGIO Studio tras E04",
+        "docs/implementation/STUDIO-UX-RECOVERY.md"
+      ],
+      "paths": [
+        "engines/vestigio/studio/",
+        "engines/vestigio/studio.tests/",
+        "engines/vestigio/src/editor/",
+        "docs/implementation/evidence/UX01.md"
+      ],
+      "steps": [
+        "Ofrecer Nuevo nivel, Abrir, Guardar y Guardar como con estado sin guardar y Atrium como ejemplo optativo; un nivel nuevo no debe ser una copia del Atrium.",
+        "Reorganizar Studio en jerarquía, viewport GPU, inspector contextual y recursos/problemas; mostrar Construir habitación como herramienta y no como formulario permanente del inspector.",
+        "Cerrar un recorrido propio: crear habitación y abertura, importar/colocar un GLB, editar transformación, guardar, cerrar, abrir, Probar y Detener, usando las operaciones nativas existentes."
+      ],
+      "acceptance": [
+        "Una persona puede completar el recorrido en un nivel nuevo sin editar JSON ni usar comandos de terminal después de abrir Studio; el archivo reabierto conserva habitación, abertura, asset y transformación y se juega en el mismo runtime.",
+        "Nuevo/Abrir/Cerrar respetan Cancelar ante cambios sin guardar; Probar/Detener no modifica el documento y vuelve a una selección y foco útiles.",
+        "La composición real es legible y operable a 1366x768 y 1920x1080 con DPI 100% y 150%, sin controles esenciales recortados; captura y revisión interactiva del usuario son obligatorias antes de marcar UX01 INTEGRATED.",
+        "Pruebas dirigidas cubren creación, apertura, guardado, cancelación, ida y vuelta, foco y Play/Stop; no se amplía a exportación, animación, diálogo, puertas complejas ni compatibilidad de proyectos anteriores."
+      ],
+      "validation": [
+        "V-WPF",
+        "V-DATA",
+        "V-APP",
+        "V-GPU"
+      ],
+      "unlocks": "Primer nivel 3D propio y editor aceptado visualmente antes de ampliar E05."
+    },
+    {
       "id": "E05",
       "phase": "P5-P7",
       "title": "Cerrar el recorrido editorial completo",
@@ -3491,6 +3534,7 @@
       "role": "integrator",
       "dependencies": [
         "Z01",
+        "UX01",
         "X01",
         "X02"
       ],

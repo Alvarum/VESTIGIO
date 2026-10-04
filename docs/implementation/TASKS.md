@@ -712,6 +712,35 @@ Verificación: V-CORE, V-ASSET, V-GPU, V-DATA.
 
 Desbloquea: Personajes/modelos animados reales.
 
+## UX01 — Studio utilizable para crear el primer nivel 3D propio
+
+Fase: **P5-UX** · Rol: **editor** · Estado: **PLANNED**.
+
+Dependencias: E04.
+
+Locks: `wpf-viewport`, `wpf-inspector`, `document-commands`.
+
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/studio.tests/`, `engines/vestigio/src/editor/`, `docs/implementation/evidence/UX01.md`.
+
+**Trabajo:**
+
+1. Ofrecer Nuevo nivel, Abrir, Guardar y Guardar como con estado sin guardar y Atrium como ejemplo optativo; un nivel nuevo no debe ser una copia del Atrium.
+2. Reorganizar Studio en jerarquía, viewport GPU, inspector contextual y recursos/problemas; mostrar Construir habitación como herramienta y no como formulario permanente del inspector.
+3. Cerrar un recorrido propio: crear habitación y abertura, importar/colocar un GLB, editar transformación, guardar, cerrar, abrir, Probar y Detener, usando las operaciones nativas existentes.
+
+**Aceptación:**
+
+- Una persona puede completar el recorrido en un nivel nuevo sin editar JSON ni usar comandos de terminal después de abrir Studio; el archivo reabierto conserva habitación, abertura, asset y transformación y se juega en el mismo runtime.
+- Nuevo/Abrir/Cerrar respetan Cancelar ante cambios sin guardar; Probar/Detener no modifica el documento y vuelve a una selección y foco útiles.
+- La composición real es legible y operable a 1366x768 y 1920x1080 con DPI 100% y 150%, sin controles esenciales recortados; captura y revisión interactiva del usuario son obligatorias antes de marcar UX01 INTEGRATED.
+- Pruebas dirigidas cubren creación, apertura, guardado, cancelación, ida y vuelta, foco y Play/Stop; no se amplía a exportación, animación, diálogo, puertas complejas ni compatibilidad de proyectos anteriores.
+
+Verificación: V-WPF, V-DATA, V-APP, V-GPU.
+
+Desbloquea: Primer nivel 3D propio y editor aceptado visualmente antes de ampliar E05.
+
+Origen: `Revisión del usuario de VESTIGIO Studio tras E04`, `docs/implementation/STUDIO-UX-RECOVERY.md`.
+
 ## E05 — Cerrar el recorrido editorial completo
 
 Fase: **P5-P7** · Rol: **editor** · Estado: **PLANNED**.
@@ -2458,7 +2487,7 @@ Origen: `game/sandbox/main.js`, `game/sandbox/SandboxLevel.js`, `.planning/phase
 
 Fase: **P12** · Rol: **integrator** · Estado: **PLANNED**.
 
-Dependencias: Z01, X01, X02.
+Dependencias: Z01, UX01, X01, X02.
 
 Locks: `integration`, `build`, `packaging`.
 

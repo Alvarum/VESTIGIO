@@ -16,7 +16,7 @@ Z01 es el hito original; ZA1 integra la ampliación. El coordinador puede usar m
 | W07 | E02, S02, V02, V03, V04, V06, V07, V11, V14, V15, V16, A03 | V02/V03: gpu-backend; V02/V04: gpu-backend; V02/V06: gpu-backend; V02/V07: gpu-backend; V02/V11: gpu-backend; V02/V14: gpu-backend; V02/V15: gpu-backend; V02/V16: gpu-backend; V03/V04: gpu-backend; V03/V06: gpu-backend; V03/V07: gpu-backend; V03/V11: gpu-backend; V03/V14: gpu-backend; V03/V15: gpu-backend; V03/V16: gpu-backend; V04/V06: gpu-backend; V04/V07: gpu-backend; V04/V11: gpu-backend; V04/V14: gpu-backend; V04/V15: gpu-backend; V04/V16: gpu-backend; V06/V07: gpu-backend; V06/V11: gpu-backend; V06/V14: gpu-backend; V06/V15: gpu-backend; V06/V16: gpu-backend; V07/V11: gpu-backend; V07/V14: gpu-backend; V07/V15: gpu-backend; V07/V16: gpu-backend; V11/V14: gpu-backend; V11/V15: gpu-backend; V11/V16: gpu-backend; V14/V15: gpu-backend; V14/V16: gpu-backend; V15/V16: gpu-backend |
 | W08 | E03, S03, V05, V08, V10, V12, V13, V17, K08, A04, A05 | V05/V08: gpu-backend; V05/V10: gpu-backend; V05/V12: gpu-backend; V05/V13: gpu-backend; V05/V17: gpu-backend; V08/V10: gpu-backend; V08/V12: gpu-backend; V08/V13: gpu-backend; V08/V17: gpu-backend; V10/V12: gpu-backend; V10/V13: gpu-backend; V10/V17: gpu-backend; V12/V13: gpu-backend; V12/V17: gpu-backend; V13/V17: gpu-backend; A04/A05: audio-core |
 | W09 | E04, P01, H01, H02, H03, H04, V09, K01, K09, U06 | E04/H01: wpf-viewport; E04/H02: wpf-viewport; E04/H03: wpf-viewport; E04/H04: wpf-viewport; P01/H01: document-core; P01/H02: document-core; P01/H03: document-core; P01/H04: document-core; H01/H02: document-core, wpf-viewport; H01/H03: document-core, wpf-viewport; H01/H04: document-core, wpf-viewport; H02/H03: document-core, wpf-viewport; H02/H04: document-core, wpf-viewport; H03/H04: document-core, wpf-viewport; K01/K09: runtime-core |
-| W10 | E05, H05, H06, H07, H09, K02, X02 | E05/H05: wpf-viewport; E05/H06: wpf-viewport; E05/H07: wpf-viewport; E05/H09: wpf-viewport; H05/H06: document-core, wpf-viewport; H05/H07: document-core, wpf-viewport; H05/H09: document-core, wpf-viewport; H06/H07: document-core, wpf-viewport; H06/H09: document-core, wpf-viewport; H07/H09: document-core, wpf-viewport |
+| W10 | UX01, E05, H05, H06, H07, H09, K02, X02 | UX01/E05: wpf-inspector, wpf-viewport; UX01/H05: wpf-viewport; UX01/H06: wpf-viewport; UX01/H07: wpf-viewport; UX01/H09: wpf-viewport; E05/H05: wpf-viewport; E05/H06: wpf-viewport; E05/H07: wpf-viewport; E05/H09: wpf-viewport; H05/H06: document-core, wpf-viewport; H05/H07: document-core, wpf-viewport; H05/H09: document-core, wpf-viewport; H06/H07: document-core, wpf-viewport; H06/H09: document-core, wpf-viewport; H07/H09: document-core, wpf-viewport |
 | W11 | Q01, H08, H10, K03, K05, K07, A06, H12 | H08/H10: document-core, wpf-viewport; H08/H12: document-core; H10/H12: document-core; K03/K05: runtime-core; K03/K07: runtime-core; K05/K07: runtime-core |
 | W12 | P02, K04, K06, K10, U01, U02, U03, U07, H11, K12 | K04/K06: runtime-core; K04/K10: runtime-core; K04/K12: runtime-core; K06/K10: runtime-core; K06/K12: runtime-core; K10/K12: runtime-core; U01/U02: ui-core; U01/U03: ui-core; U01/U07: ui-core; U02/U03: ui-core; U02/U07: ui-core; U03/U07: ui-core |
 | W13 | T01, K11, U04, U05, U08, K13, U10, U11, X03 | K11/K13: runtime-core; U04/U05: ui-core; U04/U08: ui-core; U05/U08: ui-core; U10/U11: document-core |
@@ -53,6 +53,7 @@ flowchart TD
   V02[V02]
   A01[A01]
   A02[A02]
+  UX01[UX01]
   E05[E05]
   Q01[Q01]
   P01[P01]
@@ -161,6 +162,7 @@ flowchart TD
   D02 --> A01
   G03 --> A02
   D02 --> A02
+  E04 --> UX01
   E04 --> E05
   S03 --> E05
   V02 --> E05
@@ -329,12 +331,13 @@ flowchart TD
   X03 --> X01
   I02 --> X01
   Z01 --> ZA1
+  UX01 --> ZA1
   X01 --> ZA1
   X02 --> ZA1
 ```
 
 ## Elegibilidad actual
 
-Por estado de dependencias: H01, H02, H03, H06, H09, K08.
+Por estado de dependencias: UX01, H01, H02, H03, H06, H09, K08.
 
 Filtrar después por alcance encargado y locks. BLOCKED requiere resolver su motivo y actualizar estado; no se relanza automáticamente.

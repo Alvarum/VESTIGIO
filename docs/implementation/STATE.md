@@ -9,6 +9,15 @@ física de RetroForge y VESTIGIO se completó en repositorios Git independientes
 queda pendiente; no avanzar tickets funcionales nuevos hasta abordarla en un
 entregable revisable.
 
+## Prioridad de producto de 2026-10-04
+
+El siguiente ticket propuesto es [UX01](STUDIO-UX-RECOVERY.md): crear un nivel
+3D propio desde Studio y completar Nuevo → habitación/asset → Guardar → Abrir →
+Probar con una interfaz revisable. Está `PLANNED`; no se ha implementado ni
+aceptado visualmente. El backlog suma **91 tickets: 19 INTEGRATED, 4
+IN_PROGRESS, 68 PLANNED**. UX01 es requisito del gate ampliado ZA1 y tiene
+prioridad de entrega sobre E05; el alcance original de Z01 no se altera.
+
 ## Ampliación documental de 2026-09-27
 
 La auditoría [integral de `js-game`](../research/13-js-game-full-audit.md) y el [inventario trazable](../research/14-js-game-inventory.md) incorporan 60 tickets nuevos al backlog: **90 total, 19 INTEGRATED, 4 IN_PROGRESS, 67 PLANNED** tras cerrar E04. Los 30 tickets originales y sus estados se preservan; 19 de ellos están integrados. `Z01` cierra el alcance original; `ZA1` depende de `Z01`, de la demo guiada `X01` y de la procedencia de assets `X02`. El inventario de la demo antigua es estático; su ejecución y aprobación visual siguen `NOT_RUN`. Cada ticket adicional requiere encargo propio.
@@ -16,7 +25,7 @@ La auditoría [integral de `js-game`](../research/13-js-game-full-audit.md) y el
 
 Fecha de preparación del plan: 2026-09-20.
 
-- Estado global: **19/90 INTEGRATED; E02, E03 y E04 completos; S03/V01/A01/A02 en curso y V02 planificado**. La oleada 0 se publicó en `033f650`; J01 está integrado en `7efc54c` y S01/S02 en `22e937a`, ambos revisados y aceptados por el usuario. E01 se implementó en `73fe637`; las oleadas 4–9 aportaron cortes funcionales parciales que no se cuentan como tickets completos. Los cierres formales constan en [E02.md](evidence/E02.md), [E03.md](evidence/E03.md) y [E04.md](evidence/E04.md). G04 y D03 se retiraron por requerir compatibilidad/migración que este motor nuevo no necesita.
+- Estado global al 2026-10-04: **19/91 INTEGRATED; E02, E03 y E04 completos; UX01 planificado; S03/V01/A01/A02 en curso y V02 planificado**. La oleada 0 se publicó en `033f650`; J01 está integrado en `7efc54c` y S01/S02 en `22e937a`, ambos revisados y aceptados por el usuario. E01 se implementó en `73fe637`; las oleadas 4–9 aportaron cortes funcionales parciales que no se cuentan como tickets completos. Los cierres formales constan en [E02.md](evidence/E02.md), [E03.md](evidence/E03.md) y [E04.md](evidence/E04.md). G04 y D03 se retiraron por requerir compatibilidad/migración que este motor nuevo no necesita.
 - Snapshot histórico de preparación: HEAD `28dafa949ff68ed3dc52bf93d287863037bf8578`, checkout limpio antes de crear `docs/implementation/`; no describe el estado actual.
 - F00 está INTEGRATED en `fe43b83`; F01 en `2052e5b`; G01 en `a13fb8b`; G02 en `9811b03`. R01 fue auditado, corregido y revalidado junto con R02 en `9ed4d5e`.
 - Oleada 4: **edición hobby sobre E02/E03**, añadir/transformar un pilar y guardar/reabrir/probar desde Studio. Pruebas dirigidas y GPU real verificadas; la revisión manual del usuario queda pendiente. El usuario encargó continuar consecutivamente hasta la oleada 7, cada una con pruebas, evidencia, commit y push separados; después autorizó las oleadas 8 y 9 mediante nuevos encargos.
@@ -34,7 +43,7 @@ Fecha de preparación del plan: 2026-09-20.
 - Matriz I01 aislada: UBSan 14/14; Analyze build y casos 1–13 PASS, con `retro_contracts` PASS tras limpiar un artefacto de ejecución concurrente; Debug/Release nativos 17/17; builds WPF Debug/Release sin warnings ni errores; `retro_studio_authoring` exacto PASS en 466,63 s (CTest dirigido 466,74 s). El timeout inicial de 180 s era insuficiente para recrear 50 contextos; la evidencia oficial es la corrida posterior sin trazas.
 - Candidato G03 aislado desde el índice: build Debug 119/119 y CTest dirigido 7/7 PASS; GPU real en NVIDIA GeForce RTX 5060 Ti/OpenGL 3.3, escena World→assets→GPU, aislamiento renderer/context, detach/reattach con un solo reupload y consumidor C11 instalado desde prefijo temporal.
 
-Verificación del paquete ampliado: **PASS**, 90 tickets, 212 dependencias y 18 oleadas teóricas; sin ciclos y todos los tickets alcanzan el gate ZA1. Los ocho tickets de ARRANQUE incluyen sus dependencias. TASKS/WAVES coinciden con el JSON. Esto valida el plan, **no** ejecuta tickets ni pruebas del motor.
+Verificación histórica del paquete ampliado (2026-09-27): **PASS**, 90 tickets, 212 dependencias y 18 oleadas teóricas; sin ciclos y todos los tickets alcanzan el gate ZA1. La revisión del 2026-10-04 con UX01 da **PASS, 91 tickets, 214 dependencias y 18 oleadas técnicas**; Z01 mantiene sus 30 tickets originales y todos alcanzan ZA1. Esto valida el plan, **no** ejecuta tickets ni pruebas del motor.
 
 ## Registro del coordinador
 
