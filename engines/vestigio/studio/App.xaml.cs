@@ -10,7 +10,9 @@ public partial class App : Application
         StudioLog.Write("Inicio de VESTIGIO Studio");
         try
         {
-            MainWindow = CreateLevelWindow(e.Args);
+            MainWindow = e.Args.Contains("--level", StringComparer.OrdinalIgnoreCase) ||
+                         e.Args.Contains("--example", StringComparer.OrdinalIgnoreCase)
+                ? CreateLevelWindow(e.Args) : new StudioStartWindow(e.Args);
             MainWindow.Show();
         }
         catch (Exception exception)

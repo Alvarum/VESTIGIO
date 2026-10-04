@@ -6,17 +6,20 @@ de tickets `INTEGRATED` reflejan código y pruebas técnicas; **no significan
 que VESTIGIO Studio esté aceptado como editor utilizable**. La separación
 física de RetroForge y VESTIGIO se completó en repositorios Git independientes
 (véase [la evidencia de separación](evidence/REPO-SPLIT-2026-09-27.md)). La corrección de UX 3D
-queda pendiente; no avanzar tickets funcionales nuevos hasta abordarla en un
-entregable revisable.
+se entrega en UX01 para revisión del usuario; no avanzar otro ticket hasta
+recibir esa revisión y un nuevo encargo.
 
 ## Prioridad de producto de 2026-10-04
 
-El siguiente ticket propuesto es [UX01](STUDIO-UX-RECOVERY.md): crear un nivel
-3D propio desde Studio y completar Nuevo → habitación/asset → Guardar → Abrir →
-Probar con una interfaz revisable. Está `PLANNED`; no se ha implementado ni
-aceptado visualmente. El backlog suma **91 tickets: 19 INTEGRATED, 4
-IN_PROGRESS, 68 PLANNED**. UX01 es requisito del gate ampliado ZA1 y tiene
-prioridad de entrega sobre E05; el alcance original de Z01 no se altera.
+[UX01](evidence/UX01.md) está **VERIFIED técnicamente y pendiente de revisión
+visual/interactiva del usuario**. Inicio Nuevo/Abrir/Ejemplo, jerarquía/viewport/
+inspector/recursos y constructor separado implementados. El recorrido de un
+nivel nuevo (habitación/abertura/GLB/transformar/guardar/cerrar/abrir/Play/Stop)
+pasó; Debug 46/46 y Release 46/46. Las capturas WPF+GPU y escala 100/150 no
+certifican DPI físico ni aceptación humana; se detuvo el control de Windows al
+interrumpirse con Escape. Ver evidencia y guía raíz VESTIGIO-COMO-USAR.md.
+Backlog: **91 tickets: 19 INTEGRATED, 1 VERIFIED, 4 IN_PROGRESS, 67 PLANNED**.
+No marcar UX01 INTEGRATED ni iniciar E05/H01 automáticamente.
 
 ## Ampliación documental de 2026-09-27
 
@@ -25,7 +28,7 @@ La auditoría [integral de `js-game`](../research/13-js-game-full-audit.md) y el
 
 Fecha de preparación del plan: 2026-09-20.
 
-- Estado global al 2026-10-04: **19/91 INTEGRATED; E02, E03 y E04 completos; UX01 planificado; S03/V01/A01/A02 en curso y V02 planificado**. La oleada 0 se publicó en `033f650`; J01 está integrado en `7efc54c` y S01/S02 en `22e937a`, ambos revisados y aceptados por el usuario. E01 se implementó en `73fe637`; las oleadas 4–9 aportaron cortes funcionales parciales que no se cuentan como tickets completos. Los cierres formales constan en [E02.md](evidence/E02.md), [E03.md](evidence/E03.md) y [E04.md](evidence/E04.md). G04 y D03 se retiraron por requerir compatibilidad/migración que este motor nuevo no necesita.
+- Estado global al 2026-10-04: **19/91 INTEGRATED; E02, E03 y E04 completos; UX01 verificado técnicamente, revisión humana pendiente; S03/V01/A01/A02 en curso y V02 planificado**. La oleada 0 se publicó en `033f650`; J01 está integrado en `7efc54c` y S01/S02 en `22e937a`, ambos revisados y aceptados por el usuario. E01 se implementó en `73fe637`; las oleadas 4–9 aportaron cortes funcionales parciales que no se cuentan como tickets completos. Los cierres formales constan en [E02.md](evidence/E02.md), [E03.md](evidence/E03.md) y [E04.md](evidence/E04.md). G04 y D03 se retiraron por requerir compatibilidad/migración que este motor nuevo no necesita.
 - Snapshot histórico de preparación: HEAD `28dafa949ff68ed3dc52bf93d287863037bf8578`, checkout limpio antes de crear `docs/implementation/`; no describe el estado actual.
 - F00 está INTEGRATED en `fe43b83`; F01 en `2052e5b`; G01 en `a13fb8b`; G02 en `9811b03`. R01 fue auditado, corregido y revalidado junto con R02 en `9ed4d5e`.
 - Oleada 4: **edición hobby sobre E02/E03**, añadir/transformar un pilar y guardar/reabrir/probar desde Studio. Pruebas dirigidas y GPU real verificadas; la revisión manual del usuario queda pendiente. El usuario encargó continuar consecutivamente hasta la oleada 7, cada una con pruebas, evidencia, commit y push separados; después autorizó las oleadas 8 y 9 mediante nuevos encargos.
@@ -76,6 +79,8 @@ F00/F01/G01/G02/G03/R01/R02/R03/I01/D01/M01/D02/J01/S01/S02/E01/**E02**/**E03**/
 | E02 completo (oleada 10) | agentes `e02_core`, `e02_ui`, auditoría `e02_audit` + integrador | base `8889819` / `c3f4752` | liberado | [evidence/E02.md](evidence/E02.md); 14/14 Debug y Release, gizmos GPU y criterios formales completos |
 | E03 completo (oleada 11) | agentes `e03_core`, `e03_ui`, auditoría `e03_audit` + integrador | base `3ea5f90` / `69f9e81` | liberado | [evidence/E03.md](evidence/E03.md); 45/45 Debug y Release, importación y Player GPU |
 | E04 completo (oleada 12) | agentes `e04_core`, `e04_ui`, auditoría `ticket_audit` + integrador | base `7e3c01e` / `7048a59` | liberado | [evidence/E04.md](evidence/E04.md); 49/49 Debug y Release, receta GPU/colisión, Studio/Player |
+
+| UX01 | integrador / checkout principal | base `bffa78b`; Debug/Release 46/46 | liberado para revisión | [evidence/UX01.md](evidence/UX01.md); aceptación visual/interactiva pendiente |
 
 ## Bloqueos y decisiones pendientes
 

@@ -29,6 +29,7 @@ VgResult vg_demo_scene_door_pose(const VgDemoScene *scene, size_t index, VgTrans
 /* Hidden smoke harness: moves only its runtime player near the authored panel. */
 VgResult vg_demo_scene_prepare_door_smoke(VgDemoScene *scene);
 size_t vg_demo_scene_animation_count(const VgDemoScene *scene);
+bool vg_demo_scene_is_example(const VgDemoScene *scene);
 VgResult vg_demo_scene_animation_pose(const VgDemoScene *scene, size_t index,
                                       VgTransform *out_pose);
 

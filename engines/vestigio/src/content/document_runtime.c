@@ -348,11 +348,10 @@ static VgResult vg_document_apply_colliders(VgDocumentInstance *instance,
             instance->entities[index].room_mesh.vertices != NULL)
             ++count;
     }
-    if (count == 0u)
-        return VG_OK;
     VgSpatialSceneConfig config = {0};
-    config.max_colliders = count;
-    config.max_meshes = count;
+    /* A camera-only level still needs an empty scene for the player controller. */
+    config.max_colliders = count > 0u ? count : 1u;
+    config.max_meshes = count > 0u ? count : 1u;
     config.max_triangles_per_mesh = VG_ROOM_MAX_TRIANGLES;
     VgResult result = vg_spatial_scene_create(&config, &instance->spatial);
     if (result != VG_OK)

@@ -13,7 +13,7 @@ namespace Vestigio.Studio;
 /// mantiene un inspector, sin poseer una copia mutable de la escena.</summary>
 public partial class Vestigio3DWindow : Window
 {
-    private readonly string _sourceLevelPath;
+    private string _sourceLevelPath;
     private bool _savedWorkingCopy;
     private bool _refreshingHierarchy;
     private bool _refreshingAudio;
@@ -34,10 +34,12 @@ public partial class Vestigio3DWindow : Window
         InitializeComponent();
         _sourceLevelPath = Path.GetFullPath(levelPath);
         LoadEntityLabels(_sourceLevelPath);
+        _savedWorkingCopy = !LevelFiles.IsExample(_sourceLevelPath);
         Viewport.LevelPath = _sourceLevelPath;
         Viewport.ModelPath = modelPath;
         Viewport.VisualSettingsPath = visualSettingsPath;
         Viewport.EnableAudio = enableAudio;
+        Viewport.ShortcutPressed += (key, modifiers) => _ = HandleShortcut(key, modifiers);
         Viewport.SelectionChanged += (_, _) => RefreshSelection();
         Viewport.GestureFinished += (_, _) =>
         {
@@ -57,6 +59,8 @@ public partial class Vestigio3DWindow : Window
         };
         Closed += (_, _) => Viewport.Dispose();
         Closing += ConfirmClose;
+        var editorRoot = (FrameworkElement)Content;
+        editorRoot.SizeChanged += (_, _) => ApplyCompactLayout(editorRoot);
     }
 
     internal GpuViewportHost GpuViewport => Viewport;
@@ -92,8 +96,10 @@ public partial class Vestigio3DWindow : Window
                 if (!entity.TryGetProperty("components", out JsonElement components))
                     continue;
                 if (components.TryGetProperty("engine.camera", out _))
-                    _entityLabels[id] = "Cámara";
-                else if (components.TryGetProperty("engine.mesh", out JsonElement mesh) &&
+                    _entityLabels[id] = "Inicio del jugador";
+                else if (components.TryGetProperty("engine.light", out _)) _entityLabels[id] = "Luz";
+                else if (components.TryGetProperty("vestigio.room", out _)) _entityLabels[id] = "Habitación";
+                else if (LevelFiles.IsExample(levelPath) && components.TryGetProperty("engine.mesh", out JsonElement mesh) &&
                          mesh.TryGetProperty("node_index", out JsonElement node))
                     _entityLabels[id] = node.GetInt32() switch
                     {
@@ -143,22 +149,23 @@ public partial class Vestigio3DWindow : Window
             Dictionary<string, string> assetNames = Viewport.AssetLibrary()
                 .ToDictionary(asset => asset.Id, asset => asset.Name,
                     StringComparer.OrdinalIgnoreCase);
+            int roomNumber = 0;
             foreach (string id in HierarchyOrder(ids))
             {
                 _entityEditor.TryGetValue(id, out var editor);
-                string label = Viewport.RoomPieceLabel(id) ??
+                string label = Viewport.TryGetRoomRecipe(id, out _) ? $"Habitación {++roomNumber}" : Viewport.RoomPieceLabel(id) ??
                     (_entityLabels.TryGetValue(id, out string? known) ? known :
                     !string.IsNullOrEmpty(editor.Asset) &&
                     assetNames.TryGetValue(editor.Asset, out string? assetName)
                         ? assetName : "Objeto");
-                string organization = !string.IsNullOrEmpty(editor.Layer) ||
+                string organization = (!string.IsNullOrEmpty(editor.Layer) && editor.Layer != "Default") ||
                     !string.IsNullOrEmpty(editor.Group)
                     ? $"[{editor.Layer}/{editor.Group}] " : "";
                 string depth = new string(' ', 2 * HierarchyDepth(id)) +
                     (!string.IsNullOrEmpty(editor.Parent) ? "↳ " : "");
                 var row = new ListBoxItem
                 {
-                    Content = $"{depth}{organization}{label} · {id[^8..]}" +
+                    Content = $"{depth}{organization}{label}" +
                         (editor.Hidden ? " · oculto" : ""),
                     Tag = id,
                     ToolTip = id
@@ -177,6 +184,7 @@ public partial class Vestigio3DWindow : Window
         {
             _refreshingHierarchy = false;
         }
+        EntityCountText.Text = $"{EntityList.Items.Count} elementos · nivel 3D";
         RefreshSelectionFields();
         RefreshAssetLibrary();
         RefreshSchemaInspector();
@@ -244,18 +252,23 @@ public partial class Vestigio3DWindow : Window
         string? roomPiece = selected == "Ninguno" ? null : Viewport.RoomPieceLabel(selected);
         bool editable = selection.Count > 0 && selection.All(id =>
             Viewport.RoomPieceLabel(id) is null);
-        SelectedLabel.Text = selection.Count > 1
-            ? $"{selection.Count} objetos seleccionados" : selected == "Ninguno"
-            ? "Ningún objeto seleccionado" : roomPiece is null
-                ? $"UUID {selected}" : $"{roomPiece} · plantilla fija";
-        SelectedLabel.ToolTip = roomPiece is null ? null : selected;
+        EmptyInspector.Visibility = selection.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        SelectionInspector.Visibility = selection.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        EditRoomShortcut.Visibility = selection.Count == 1 && Viewport.TryGetRoomRecipe(selected, out _)
+            ? Visibility.Visible : Visibility.Collapsed;
+        SelectedLabel.Text = selection.Count > 1 ? $"{selection.Count} objetos seleccionados" :
+            EntityList.Items.OfType<ListBoxItem>().FirstOrDefault(row => (string?)row.Tag == selected)?.Content?.ToString()
+            ?? "Ningún objeto seleccionado";
+        SelectedLabel.ToolTip = selected;
+        if (roomPiece is not null) SelectedLabel.Text = $"{roomPiece} · plantilla fija";
         float[] position = [], rotation = [], scale = [];
         bool hasTransform = selection.Count == 1 && selected != "Ninguno" &&
             Viewport.TryGetSelectedTransform(out position, out rotation, out scale);
         TransformPanel.IsEnabled = hasTransform && editable && !Viewport.IsPlaying;
-        DuplicateButton.IsEnabled = editable && !Viewport.IsPlaying;
-        DeleteButton.IsEnabled = editable && !Viewport.IsPlaying;
-        ReparentButton.IsEnabled = editable && !Viewport.IsPlaying;
+        bool structural = editable && selection.All(id => !_entityLabels.TryGetValue(id, out string? label) || label != "Inicio del jugador");
+        DuplicateButton.IsEnabled = structural && !Viewport.IsPlaying;
+        DeleteButton.IsEnabled = structural && !Viewport.IsPlaying;
+        ReparentButton.IsEnabled = structural && !Viewport.IsPlaying;
         if (!hasTransform)
         {
             PositionX.Text = PositionY.Text = PositionZ.Text = string.Empty;
@@ -283,10 +296,11 @@ public partial class Vestigio3DWindow : Window
 
     private void RefreshDirty()
     {
-        bool dirty = Viewport.IsDocumentDirty;
+        bool dirty = _unsaved || Viewport.IsDocumentDirty;
         DirtyMark.Visibility = dirty ? Visibility.Visible : Visibility.Collapsed;
         Title = $"VESTIGIO Studio — {LevelTitle.Text}{(dirty ? " *" : "")}";
-        LevelPathText.Text = ActiveLevelPath;
+        SaveStateText.Text = dirty ? "Cambios sin guardar" : "Guardado";
+        LevelPathText.Text = _unsaved ? "Nivel nuevo · elige una ubicación al guardar" : ActiveLevelPath;
         LevelPathText.ToolTip = ActiveLevelPath;
     }
 
@@ -298,6 +312,9 @@ public partial class Vestigio3DWindow : Window
         IReadOnlyList<string> selection = Viewport.SelectedUuids();
         bool editableSelection = selection.Count > 0 && selection.All(id =>
             Viewport.RoomPieceLabel(id) is null);
+        FileMenu.IsEnabled = enabled;
+        ImportShortcut.IsEnabled = enabled;
+        ModeLabel.Text = enabled ? "EDITAR" : "PROBANDO";
         PlayButton.IsEnabled = enabled;
         StopButton.IsEnabled = !enabled;
         CameraMode.IsEnabled = enabled;
@@ -373,6 +390,7 @@ public partial class Vestigio3DWindow : Window
             return;
         }
         SetEditingEnabled(false);
+        _ = Viewport.FocusNativeForTest();
         StatusText.Text = Viewport.EnableAudio && Viewport.AudioDeviceState != 1
             ? "Probar · audio no disponible; puedes seguir jugando"
             : "Probar · instancia aislada del documento";
@@ -386,6 +404,7 @@ public partial class Vestigio3DWindow : Window
             return;
         }
         SetEditingEnabled(true);
+        PlayButton.Focus();
         RefreshDocument();
         StatusText.Text = "Editar · documento sin cambios por la prueba";
     }
@@ -470,39 +489,19 @@ public partial class Vestigio3DWindow : Window
         StatusText.Text = "Cambio rehecho";
     }
 
-    private void Save_Click(object sender, RoutedEventArgs e)
-    {
-        string path;
-        if (_savedWorkingCopy)
-            path = ActiveLevelPath;
-        else
-        {
-            var dialog = new SaveFileDialog
-            {
-                Title = "Guardar copia de trabajo VESTIGIO",
-                Filter = "Nivel VESTIGIO (*.level.json)|*.level.json|JSON (*.json)|*.json",
-                FileName = Path.GetFileNameWithoutExtension(_sourceLevelPath) +
-                           "-editado.level.json",
-                InitialDirectory = Path.GetDirectoryName(_sourceLevelPath)
-            };
-            if (dialog.ShowDialog(this) != true) return;
-            path = dialog.FileName;
-            if (Path.GetFullPath(path).Equals(_sourceLevelPath,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                FieldError.Text = "Elige otra ruta para conservar intacto el Atrium de ejemplo.";
-                return;
-            }
-        }
-        if (TrySaveToPath(path))
-            StatusText.Text = $"Guardado · {Path.GetFileName(path)}";
-        else
-            ShowNativeError("No se pudo guardar el nivel");
-    }
+    private void Save_Click(object sender, RoutedEventArgs e) => _ = SaveDocument(false);
 
     internal bool TrySaveToPath(string path)
     {
+        if (LevelFiles.IsExample(path))
+        {
+            FieldError.Text = "El ejemplo está protegido. Elige otra ubicación con Guardar como.";
+            StatusText.Text = FieldError.Text;
+            RecordProblem(FieldError.Text);
+            return false;
+        }
         if (!Viewport.TrySaveLevel(path)) return false;
+        _unsaved = false;
         _savedWorkingCopy = true;
         SaveButton.Content = "Guardar";
         FieldError.Text = string.Empty;
@@ -512,11 +511,7 @@ public partial class Vestigio3DWindow : Window
 
     private void Reopen_Click(object sender, RoutedEventArgs e)
     {
-        if (Viewport.IsDocumentDirty &&
-            MessageBox.Show(this, "Hay cambios sin guardar. ¿Descartarlos y reabrir el archivo?",
-                "Reabrir nivel", MessageBoxButton.YesNo, MessageBoxImage.Warning) !=
-            MessageBoxResult.Yes)
-            return;
+        if (!CanLeaveDocument()) return;
         if (!TryReopen())
             ShowNativeError("No se pudo reabrir el nivel");
         else
@@ -586,6 +581,7 @@ public partial class Vestigio3DWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (HandleShortcut(e.Key, Keyboard.Modifiers)) { e.Handled = true; return; }
         if (e.Key == Key.Escape && _roomPreviewActive)
         {
             _ = Viewport.TryCancelRoomPreview();
@@ -696,18 +692,8 @@ public partial class Vestigio3DWindow : Window
 
     private void ConfirmClose(object? sender, CancelEventArgs e)
     {
-        if (!Viewport.IsDocumentDirty) return;
-        MessageBoxResult choice = MessageBox.Show(this,
-            "Hay cambios sin guardar. ¿Guardar una copia antes de cerrar?",
-            "Cambios de VESTIGIO", MessageBoxButton.YesNoCancel,
-            MessageBoxImage.Warning);
-        if (choice == MessageBoxResult.Cancel)
-            e.Cancel = true;
-        else if (choice == MessageBoxResult.Yes)
-        {
-            Save_Click(this, new RoutedEventArgs());
-            e.Cancel = Viewport.IsDocumentDirty;
-        }
+        if (Viewport.IsPlaying) Stop_Click(this, new RoutedEventArgs());
+        e.Cancel = !CanLeaveDocument();
     }
 
     private void CameraMode_SelectionChanged(object sender, SelectionChangedEventArgs e)

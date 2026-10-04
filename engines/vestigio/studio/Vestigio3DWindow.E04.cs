@@ -74,10 +74,9 @@ public partial class Vestigio3DWindow
 
     private void OpenRoomEditor_Click(object sender, RoutedEventArgs e)
     {
-        Point position = RoomSectionHeading.TransformToAncestor(InspectorScroll)
-            .Transform(new Point(0, 0));
-        InspectorScroll.ScrollToVerticalOffset(
-            InspectorScroll.VerticalOffset + position.Y - 8);
+        InspectorTabs.SelectedItem = BuildTab;
+        BuildScroll.ScrollToTop();
+        RoomRectWidth.Focus();
         StatusText.Text = "Constructor de salas · traza el contorno y comprueba la vista previa";
     }
 

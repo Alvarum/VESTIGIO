@@ -40,6 +40,7 @@ public partial class Vestigio3DWindow
     {
         string? selectedId = (AssetList.SelectedItem as ListBoxItem)?.Tag as string;
         IReadOnlyList<GpuAssetInfo> assets = Viewport.AssetLibrary();
+        AssetEmptyHint.Visibility = assets.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         _refreshingAssets = true;
         try
         {
@@ -48,7 +49,7 @@ public partial class Vestigio3DWindow
             {
                 var row = new ListBoxItem
                 {
-                    Content = $"{asset.Name} · {asset.Status}",
+                    Content = $"{asset.Name} · {AssetStatusLabel(asset.Status)}",
                     Tag = asset.Id,
                     ToolTip = $"{asset.Path}\nID {asset.Id}\nFingerprint {asset.Fingerprint}" +
                         (asset.Diagnostic.Length > 0 ? $"\n{asset.Diagnostic}" : "")
@@ -76,11 +77,12 @@ public partial class Vestigio3DWindow
         ReimportAssetButton.IsEnabled = selected && !Viewport.IsPlaying;
         RenameAssetButton.IsEnabled = selected && !Viewport.IsPlaying;
         AssetName.Text = asset?.Name ?? "";
+        PreviewAssetButton.IsEnabled = selected && !Viewport.IsPlaying;
         bool preview = false;
         string previewId = asset is not null &&
             string.Equals(asset.Status, "ready", StringComparison.OrdinalIgnoreCase)
             ? id ?? "" : "";
-        if (!Viewport.IsPlaying && previewId != _previewedAssetId)
+        if (!Viewport.IsPlaying && _previewedAssetId.Length > 0 && previewId != _previewedAssetId)
         {
             preview = Viewport.TryPreviewAsset(previewId);
             if (preview) _previewedAssetId = previewId;
@@ -88,10 +90,8 @@ public partial class Vestigio3DWindow
         }
         else preview = selected && _previewedAssetId == previewId && previewId.Length > 0;
         AssetDetails.Text = asset is null
-            ? "Selecciona un modelo. Miniatura no generada."
-            : $"{asset.Status} · {(preview ? "vista previa GPU temporal" : "miniatura no disponible")}\n" +
-              $"{Path.GetFileName(asset.Path)}\n" +
-              $"Huella: {(asset.Fingerprint.Length > 16 ? asset.Fingerprint[..16] : asset.Fingerprint)}" +
+            ? "Modelos del nivel · selecciona un recurso y pulsa Colocar."
+            : $"{asset.Name}\n{AssetStatusLabel(asset.Status)} · {(preview ? "vista previa GPU temporal" : "selecciona Colocar o Vista previa")}" +
               (asset.Diagnostic.Length > 0 ? $"\n{asset.Diagnostic}" : "");
     }
 
@@ -130,6 +130,10 @@ public partial class Vestigio3DWindow
     private void PlaceAsset_Click(object sender, RoutedEventArgs e)
     {
         if ((AssetList.SelectedItem as ListBoxItem)?.Tag is not string id) return;
+        if (_previewedAssetId.Length > 0)
+        {
+            _ = Viewport.TryPreviewAsset(""); _previewedAssetId = "";
+        }
         if (!Viewport.TryPlaceAsset(id, out string entityId))
         {
             ShowNativeError("No se pudo colocar el modelo");
@@ -188,6 +192,7 @@ public partial class Vestigio3DWindow
             IReadOnlyList<GpuInspectorField> fields = Viewport.SelectionFields();
             foreach (GpuInspectorField field in fields)
             {
+                if (Viewport.SelectedUuids().Count == 1 && field.Path.StartsWith("transform.", StringComparison.Ordinal)) continue;
                 var row = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
                 string label = field.Path switch
                 {
@@ -470,5 +475,26 @@ public partial class Vestigio3DWindow
             ProblemsList.Items.Insert(0, message);
         while (ProblemsList.Items.Count > 12)
             ProblemsList.Items.RemoveAt(ProblemsList.Items.Count - 1);
+        ProblemsHint.Text = $"{ProblemsList.Items.Count} mensajes · revisa el detalle debajo";
+        ProblemsTab.Header = $"Problemas ({ProblemsList.Items.Count})";
     }
+
+    private void PreviewAsset_Click(object sender, RoutedEventArgs e)
+    {
+        if (_previewedAssetId.Length > 0)
+        {
+            _ = Viewport.TryPreviewAsset(""); _previewedAssetId = "";
+            PreviewAssetButton.Content = "Vista previa";
+        }
+        else if ((AssetList.SelectedItem as ListBoxItem)?.Tag is string id && Viewport.TryPreviewAsset(id))
+        {
+            _previewedAssetId = id; PreviewAssetButton.Content = "Volver al nivel";
+        }
+        ShowSelectedAsset();
+    }
+
+    private static string AssetStatusLabel(string status) => status switch
+    {
+        "ready" => "Listo", "missing" => "Archivo no encontrado", "modified" => "Necesita reimportar", _ => status
+    };
 }

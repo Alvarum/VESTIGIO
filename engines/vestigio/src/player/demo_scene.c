@@ -40,6 +40,10 @@ const VgDocumentInstance *vg_demo_scene_document_instance(const VgDemoScene *sce
     return scene != NULL ? scene->instance : NULL;
 }
 
+bool vg_demo_scene_is_example(const VgDemoScene *scene) {
+    return scene != NULL && vg_document_is_atrium(scene->document);
+}
+
 static const VgAssetId kAtriumAsset = {{0x4a, 0x30, 0x31, 0x2d, 0x61, 0x74, 0x72, 0x69, 0x75, 0x6d,
                                         0x2d, 0x6d, 0x6f, 0x64, 0x65, 0x6c}};
 
@@ -243,7 +247,7 @@ static void demo_fixed_update(VgContext *context, VgWorld world, float dt_second
             return;
         }
     }
-    result = vg_atrium_animation_step(scene->animation, dt_seconds);
+    result = scene->animation != NULL ? vg_atrium_animation_step(scene->animation, dt_seconds) : VG_OK;
     if (result != VG_OK) {
         scene->update_error = result;
         return;
@@ -363,9 +367,11 @@ VgResult vg_demo_scene_create(VgContext *context, const char *level_path, const 
         result = VG_ERROR_NOT_FOUND;
         goto fail;
     }
-    result = vg_atrium_animation_create(context, scene->instance, &scene->animation);
-    if (result != VG_OK)
-        goto fail;
+    if (vg_document_is_atrium(scene->document)) {
+        result = vg_atrium_animation_create(context, scene->instance, &scene->animation);
+        if (result != VG_OK)
+            goto fail;
+    }
     VgTransform camera = {0};
     result = demo_find_camera(scene, &camera);
     if (result != VG_OK)

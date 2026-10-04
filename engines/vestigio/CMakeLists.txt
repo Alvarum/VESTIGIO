@@ -325,6 +325,12 @@ if(VG_BUILD_APPS)
                 "${PROJECT_SOURCE_DIR}/assets/demo/atrium.level.json")
             set_tests_properties(vestigio_studio_e04_room PROPERTIES
                 LABELS "window;gpu;studio;document;spatial;app")
+            add_test(NAME vestigio_studio_ux01 COMMAND dotnet
+                "${CMAKE_BINARY_DIR}/bin/Vestigio.Studio.Tests.dll"
+                --ux01 "${CMAKE_BINARY_DIR}/studio-ux01-evidence"
+                "${PROJECT_SOURCE_DIR}/tests/assets/fixtures/static_triangle.glb")
+            set_tests_properties(vestigio_studio_ux01 PROPERTIES
+                LABELS "window;gpu;studio;document;asset;app;ux")
         endif()
         add_executable(vestigio_gpu_test tests/gpu/gpu_renderer_test.c)
         vestigio_target(vestigio_gpu_test)

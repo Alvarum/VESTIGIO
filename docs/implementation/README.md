@@ -7,9 +7,9 @@
 `studio.tests/` y `assets/`). RetroForge vive en otro repositorio. `tools/`,
 `.tools/`, `.deps/` y `.nuget/` en esta raíz pertenecen sólo a VESTIGIO.
 
-**Actualización 2026-10-04:** hay **19 de 91 tickets integrados técnicamente**. La entrega avanza por [oleadas o tickets revisables](ENTREGABLES-HOBBY.md), uno a la vez salvo encargo explícito de varios. El usuario revisó J01 y S01/S02. E01 abrió el Atrium en Studio; las oleadas 4–9 añadieron funciones jugables parciales. Después se implementaron [E02](evidence/E02.md), [E03](evidence/E03.md) y [E04](evidence/E04.md) con pruebas técnicas. **El usuario rechazó la usabilidad del Studio 3D mostrado; [UX01](STUDIO-UX-RECOVERY.md) es el siguiente ticket propuesto.** Se retiraron los tickets de compatibilidad y migración de proyectos anteriores.
+**Actualización 2026-10-04:** hay **19 de 91 tickets integrados técnicamente**. La entrega avanza por [oleadas o tickets revisables](ENTREGABLES-HOBBY.md), uno a la vez salvo encargo explícito de varios. El usuario revisó J01 y S01/S02. E01 abrió el Atrium en Studio; las oleadas 4–9 añadieron funciones jugables parciales. Después se implementaron [E02](evidence/E02.md), [E03](evidence/E03.md) y [E04](evidence/E04.md) con pruebas técnicas. **UX01 se implementó y verificó técnicamente; [su evidencia](evidence/UX01.md) mantiene la aceptación visual/interactiva del usuario pendiente.** Se retiraron los tickets de compatibilidad y migración de proyectos anteriores.
 
-**Ampliación de investigación 2026-09-27:** la [auditoría integral de `js-game`](../research/13-js-game-full-audit.md) y su [inventario por archivo](../research/14-js-game-inventory.md) añadieron 60 tickets `PLANNED`, sin ejecutar esas funciones. UX01 se añade por separado para corregir el acceso al editor. El backlog tiene ahora **91 tickets: 19 INTEGRATED, 4 IN_PROGRESS y 68 PLANNED**. `Z01` conserva el cierre original; `ZA1` cierra la ampliación. La demo antigua sigue `NOT_RUN` en navegador. Cada ticket añadido requiere una entrega propia.
+**Ampliación de investigación 2026-09-27:** la [auditoría integral de `js-game`](../research/13-js-game-full-audit.md) y su [inventario por archivo](../research/14-js-game-inventory.md) añadieron 60 tickets `PLANNED`, sin ejecutar esas funciones. UX01 se añade por separado para corregir el acceso al editor. El backlog tiene ahora **91 tickets: 19 INTEGRATED, 1 VERIFIED, 4 IN_PROGRESS y 67 PLANNED**. `Z01` conserva el cierre original; `ZA1` cierra la ampliación. La demo antigua sigue `NOT_RUN` en navegador. Cada ticket añadido requiere una entrega propia.
 
 La prioridad confirmada es **render de geometría, materiales y efectos en GPU**. SDK C y Studio deben usar el mismo runtime. El renderer CPU previo no es requisito de compatibilidad para los entregables nuevos.
 
@@ -17,7 +17,7 @@ La prioridad confirmada es **render de geometría, materiales y efectos en GPU**
 
 1. Elegir una oleada o ticket de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). Sólo ejecutar lo encargado; no confundirlo con las filas técnicas de `WAVES.md`.
 2. El agente lee [PLAN.md](PLAN.md), [CONTRACTS.md](CONTRACTS.md) y [VALIDATION.md](VALIDATION.md), y verifica el estado real del repositorio.
-3. Completar todos los criterios del ticket si el encargo pide cerrarlo; verificar, hacer commit y push a `origin/main`, entregar SHA e instrucciones para probar. Tras E02 se espera un nuevo encargo. No hay límite fijo de tiempo.
+3. Completar todos los criterios del ticket si el encargo pide cerrarlo; verificar, hacer commit y push a `origin/main`, entregar SHA e instrucciones para probar. UX01 requiere la revisión del usuario antes de otro encargo. No hay límite fijo de tiempo.
 
 No es necesario copiar toda la investigación en un prompt. Entregar acceso al repositorio y este archivo con el prompt elegido basta; cada ticket indica sus lecturas y verificaciones a través del plan.
 

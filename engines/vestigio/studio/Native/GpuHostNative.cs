@@ -265,6 +265,12 @@ internal static class GpuHostNative
         [Out] byte[] error, nuint errorCapacity);
 
     [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int vg_gpu_host_load_level(nint host,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string levelPath,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string modelPath,
+        [Out] byte[] error, nuint errorCapacity);
+
+    [DllImport("vestigio_gpu_host", CallingConvention = CallingConvention.Cdecl)]
     internal static extern int vg_gpu_host_reopen_level(nint host,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string levelPath,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string modelPath,

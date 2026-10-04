@@ -1032,7 +1032,7 @@
         "wpf-inspector",
         "document-commands"
       ],
-      "status": "PLANNED",
+      "status": "VERIFIED",
       "origin": [
         "Revisión del usuario de VESTIGIO Studio tras E04",
         "docs/implementation/STUDIO-UX-RECOVERY.md"
@@ -1040,7 +1040,9 @@
       "paths": [
         "engines/vestigio/studio/",
         "engines/vestigio/studio.tests/",
-        "engines/vestigio/src/editor/",
+        "engines/vestigio/src/platform/",
+        "engines/vestigio/src/content/",
+        "engines/vestigio/src/player/",
         "docs/implementation/evidence/UX01.md"
       ],
       "steps": [
@@ -1060,7 +1062,11 @@
         "V-APP",
         "V-GPU"
       ],
-      "unlocks": "Primer nivel 3D propio y editor aceptado visualmente antes de ampliar E05."
+      "unlocks": "Primer nivel 3D propio y editor aceptado visualmente antes de ampliar E05.",
+      "evidence": [
+        "docs/implementation/evidence/UX01.md"
+      ],
+      "review_pending": "Aceptación visual/interactiva del usuario, incluyendo DPI físico 100/150. No iniciar otro ticket."
     },
     {
       "id": "E05",

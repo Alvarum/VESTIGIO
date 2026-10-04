@@ -338,6 +338,6 @@ flowchart TD
 
 ## Elegibilidad actual
 
-Por estado de dependencias: UX01, H01, H02, H03, H06, H09, K08.
+Por estado de dependencias: H01, H02, H03, H06, H09, K08.
 
 Filtrar después por alcance encargado y locks. BLOCKED requiere resolver su motivo y actualizar estado; no se relanza automáticamente.

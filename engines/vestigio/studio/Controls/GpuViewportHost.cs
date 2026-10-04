@@ -64,6 +64,9 @@ public sealed class GpuViewportHost : HwndHost
 
     internal event EventHandler? SelectionChanged;
     internal event EventHandler? GestureFinished;
+    internal event Action<Key, ModifierKeys>? ShortcutPressed;
+    private readonly HashSet<Key> _shortcutKeysDown = [];
+    private static readonly Key[] ShortcutKeys = [Key.F5, Key.Escape, Key.F, Key.Delete, Key.N, Key.O, Key.S, Key.Z, Key.Y, Key.D];
     internal int GizmoTool { get; set; }
     internal int GizmoAxis { get; set; }
     internal int GizmoSpace { get; set; }
@@ -812,6 +815,23 @@ public sealed class GpuViewportHost : HwndHost
         return true;
     }
 
+    internal bool TryLoadLevel(string path)
+    {
+        if (!_levelOpen || IsPlaying || _nativeHost == 0) return false;
+        _ = TryCancelRoomPreview();
+        if (IsGestureActive) _ = TryEndGesture(false);
+        byte[] error = new byte[512];
+        if (GpuHostNative.vg_gpu_host_load_level(_nativeHost, path,
+                ModelPath ?? ResolveDemoAsset("atrium.gltf"), error, (nuint)error.Length) == 0)
+        {
+            LastError = GpuHostNative.Error(error);
+            return false;
+        }
+        LevelPath = path;
+        SetSelection("Ninguno");
+        return true;
+    }
+
     internal bool TryUndo() => TryHistory(false);
     internal bool TryRedo() => TryHistory(true);
 
@@ -937,6 +957,17 @@ public sealed class GpuViewportHost : HwndHost
         if (activeWindow && inside && ((left && !_leftDown) || (right && _lastCursor is null)))
             _ = GpuHostNative.vg_gpu_host_focus(_nativeHost);
         bool focused = activeWindow && NativeHasFocus;
+        // HwndHost owns native focus: WPF PreviewKeyDown cannot see these keys.
+        ModifierKeys modifiers = (Down(VkLeftControl) || Down(VkRightControl) ? ModifierKeys.Control : ModifierKeys.None) |
+            (Down(VkLeftShift) || Down(VkRightShift) ? ModifierKeys.Shift : ModifierKeys.None);
+        foreach (Key key in ShortcutKeys)
+        {
+            bool down = Down(KeyInterop.VirtualKeyFromKey(key));
+            if (down && _shortcutKeysDown.Add(key) && focused && !_gestureActive &&
+                (key is Key.F5 or Key.Escape or Key.Delete || key == Key.F && !right || modifiers.HasFlag(ModifierKeys.Control)))
+                ShortcutPressed?.Invoke(key, modifiers);
+            if (!down) _shortcutKeysDown.Remove(key);
+        }
         if (!focused)
         {
             _lastCursor = null;
@@ -1019,6 +1050,9 @@ public sealed class GpuViewportHost : HwndHost
         _spaceDown = Down(VkSpace);
         _eDown = Down(VkE);
         _escapeDown = Down(VkEscape);
+        _shortcutKeysDown.Clear();
+        foreach (Key key in ShortcutKeys)
+            if (Down(KeyInterop.VirtualKeyFromKey(key))) _shortcutKeysDown.Add(key);
     }
 
     private HandleRef BuildFallback(HandleRef hwndParent)

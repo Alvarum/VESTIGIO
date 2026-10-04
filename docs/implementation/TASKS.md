@@ -714,13 +714,13 @@ Desbloquea: Personajes/modelos animados reales.
 
 ## UX01 — Studio utilizable para crear el primer nivel 3D propio
 
-Fase: **P5-UX** · Rol: **editor** · Estado: **PLANNED**.
+Fase: **P5-UX** · Rol: **editor** · Estado: **VERIFIED**.
 
 Dependencias: E04.
 
 Locks: `wpf-viewport`, `wpf-inspector`, `document-commands`.
 
-Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/studio.tests/`, `engines/vestigio/src/editor/`, `docs/implementation/evidence/UX01.md`.
+Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/studio.tests/`, `engines/vestigio/src/platform/`, `engines/vestigio/src/content/`, `engines/vestigio/src/player/`, `docs/implementation/evidence/UX01.md`.
 
 **Trabajo:**
 
@@ -738,6 +738,8 @@ Puntos de entrada: `engines/vestigio/studio/`, `engines/vestigio/studio.tests/`,
 Verificación: V-WPF, V-DATA, V-APP, V-GPU.
 
 Desbloquea: Primer nivel 3D propio y editor aceptado visualmente antes de ampliar E05.
+
+Evidencia: docs/implementation/evidence/UX01.md.
 
 Origen: `Revisión del usuario de VESTIGIO Studio tras E04`, `docs/implementation/STUDIO-UX-RECOVERY.md`.
 

@@ -1214,7 +1214,8 @@ int32_t vg_gpu_host_set_mode(VgGpuHost *host, int32_t play) {
         host_release_play(host);
         return false;
     }
-    if (vg_atrium_animation_create(host->context, host->play, &host->animation) != VG_OK) {
+    if (vg_document_is_atrium(host->document) &&
+        vg_atrium_animation_create(host->context, host->play, &host->animation) != VG_OK) {
         host_release_play(host);
         return false;
     }
@@ -1263,13 +1264,16 @@ int32_t vg_gpu_host_set_mode(VgGpuHost *host, int32_t play) {
     host->player.feet.z -= host->controller.eye_height;
     host->player.last_ground_height = host->player.feet.z;
     host->player.grounded = 1u;
-    host->play_yaw = 0.0f;
-    host->play_pitch = -0.12f;
+    VgQuat rotation = camera.rotation;
+    host->play_yaw = atan2f(2.0f * (rotation.w * rotation.z + rotation.x * rotation.y),
+                            1.0f - 2.0f * (rotation.y * rotation.y + rotation.z * rotation.z));
+    host->play_pitch = asinf(fmaxf(-1.0f, fminf(1.0f,
+                              2.0f * (rotation.w * rotation.x - rotation.y * rotation.z))));
     host->accumulator = 0.0;
     host->jump_pending = false;
     host->interact_pending = false;
     host->audio_focus_paused = true;
-    if (host->audio_enabled) {
+    if (host->audio_enabled && vg_document_is_atrium(host->document)) {
         char audio_error[192] = {0};
         host->audio =
             vg_atrium_audio_create(host->audio_directory, audio_error, sizeof(audio_error));
@@ -1408,7 +1412,7 @@ static bool host_step_play(VgGpuHost *host, double elapsed, float x, float y, bo
             if (vg_door_step(host->doors[i], 1.0f / 60.0f, &host->controller, &host->player) !=
                 VG_OK)
                 return false;
-        if (vg_atrium_animation_step(host->animation, 1.0 / 60.0) != VG_OK)
+        if (host->animation != NULL && vg_atrium_animation_step(host->animation, 1.0 / 60.0) != VG_OK)
             return false;
         if (vg_controller_step(spatial, &host->controller, host->play_camera, &input, 1.0f / 60.0f,
                                &host->player) != VG_OK)
@@ -1602,44 +1606,23 @@ int32_t vg_gpu_host_gizmo_drag_direction(VgGpuHost *host, float u, float v, int3
                                                 y / draw_height, axis, out_x, out_y);
 }
 
-static bool host_entity_has_mesh(const VgGpuHost *host, size_t index) {
-    const VgJsonNode *entities = vg_json_object_get(vg_document_root(host->document), "entities");
-    if (entities == NULL || entities->type != VG_JSON_ARRAY || index >= entities->as.array.count)
-        return false;
-    const VgJsonNode *components =
-        vg_json_object_get(entities->as.array.items[index], "components");
-    return vg_json_object_get(components, "engine.mesh") != NULL ||
-           vg_json_object_get(components, "vestigio.room") != NULL;
-}
-
 size_t vg_gpu_host_entity_count(const VgGpuHost *host) {
     if (!host_is_current(host) || host->edit == NULL)
         return 0u;
-    size_t count = 0u;
-    for (size_t i = 0u; i < vg_document_instance_entity_count(host->edit); ++i)
-        if (host_entity_has_mesh(host, i))
-            ++count;
-    return count;
+    const VgJsonNode *entities = vg_json_object_get(vg_document_root(host->document), "entities");
+    return entities != NULL && entities->type == VG_JSON_ARRAY ? entities->as.array.count : 0u;
 }
 
 int32_t vg_gpu_host_entity_at(const VgGpuHost *host, size_t index, char *uuid,
                               size_t uuid_capacity) {
     if (!host_is_current(host) || host->edit == NULL || uuid == NULL || uuid_capacity < 37u)
         return false;
-    size_t mesh_index = 0u;
-    for (size_t i = 0u; i < vg_document_instance_entity_count(host->edit); ++i) {
-        if (!host_entity_has_mesh(host, i))
-            continue;
-        if (mesh_index++ != index)
-            continue;
-        VgUuid id;
-        VgEntity entity;
-        if (!vg_document_instance_entity_at(host->edit, i, &id, &entity))
-            return false;
-        host_format_uuid(id, uuid);
-        return true;
-    }
-    return false;
+    const VgJsonNode *entities = vg_json_object_get(vg_document_root(host->document), "entities");
+    if (entities == NULL || entities->type != VG_JSON_ARRAY || index >= entities->as.array.count) return false;
+    const VgJsonNode *id = vg_json_object_get(entities->as.array.items[index], "id");
+    if (id == NULL || id->type != VG_JSON_STRING) return false;
+    (void)snprintf(uuid, uuid_capacity, "%s", id->as.string.data);
+    return true;
 }
 
 int32_t vg_gpu_host_select(VgGpuHost *host, const char *uuid) {
@@ -1657,8 +1640,7 @@ int32_t vg_gpu_host_select(VgGpuHost *host, const char *uuid) {
     for (size_t index = 0u; index < count; ++index) {
         VgUuid id;
         VgEntity entity;
-        if (!vg_document_instance_entity_at(host->edit, index, &id, &entity) ||
-            entity.value == host->edit_camera.value)
+        if (!vg_document_instance_entity_at(host->edit, index, &id, &entity))
             continue;
         host_format_uuid(id, current);
         if (strcmp(current, uuid) != 0)
@@ -2414,6 +2396,10 @@ static bool host_selection_editable(const VgGpuHost *host, bool structural, char
         }
         if (!structural)
             continue;
+        if (vg_json_object_get(vg_json_object_get(entity, "components"), "engine.camera") != NULL) {
+            host_error(error, error_capacity, "El inicio del jugador no se puede borrar, duplicar ni cambiar de padre");
+            return false;
+        }
         VgEntity selected;
         if (!host_find_instance_uuid(host, uuid, &selected))
             return false;
@@ -3689,8 +3675,8 @@ int32_t vg_gpu_host_is_dirty(const VgGpuHost *host) {
     return dirty;
 }
 
-int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path, const char *model_path,
-                                 char *error, size_t error_capacity) {
+static int32_t host_load_level(VgGpuHost *host, const char *level_path, const char *model_path,
+                              char *error, size_t error_capacity, bool preserve_camera) {
     if (!host_is_current(host) || host->edit == NULL || host->play != NULL ||
         host->gesture.active || host->room_preview_active || level_path == NULL ||
         level_path[0] == '\0' || model_path == NULL || model_path[0] == '\0') {
@@ -3735,7 +3721,7 @@ int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path, const 
     }
     VgDocumentInstance *candidate = NULL;
     VgEntity camera;
-    if (!host_prepare_instance(host, document, &candidate, &camera, &diagnostic, true)) {
+    if (!host_prepare_instance(host, document, &candidate, &camera, &diagnostic, preserve_camera)) {
         (void)snprintf(host->level_directory, sizeof(host->level_directory), "%s",
                        previous_directory);
         host_error(error, error_capacity, diagnostic.message);
@@ -3750,8 +3736,26 @@ int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path, const 
     host->saved_json = canonical;
     host->saved_length = length;
     host->saved_revision = vg_document_revision(document);
+    if (!preserve_camera) {
+        (void)vg_gpu_host_select(host, "");
+        host->edit_yaw = 0.0f;
+        host->edit_pitch = -0.12f;
+        host->edit_camera_mode = 0;
+        host->orbit_target = (VgVec3){0.0f, 1.5f, 0.0f};
+        host->orbit_distance = 8.0f;
+    }
     host_error(error, error_capacity, "");
     return true;
+}
+
+int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path, const char *model_path,
+                                char *error, size_t error_capacity) {
+    return host_load_level(host, level_path, model_path, error, error_capacity, true);
+}
+
+int32_t vg_gpu_host_load_level(VgGpuHost *host, const char *level_path, const char *model_path,
+                              char *error, size_t error_capacity) {
+    return host_load_level(host, level_path, model_path, error, error_capacity, false);
 }
 
 static int32_t host_history(VgGpuHost *host, bool undo, char *error, size_t error_capacity) {

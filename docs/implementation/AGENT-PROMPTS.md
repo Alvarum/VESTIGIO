@@ -1,6 +1,6 @@
 # Prompts para entregar el plan
 
-Copiar un prompt sólo cuando el usuario encargue una oleada o ticket de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). ARRANQUE ya está integrado. La instrucción anterior `ALCANCE: COMPLETO` no autoriza continuar automáticamente. El usuario encargó las oleadas 4–9 y después pidió **un ticket completo**; se cerró E02 con todos sus criterios. El siguiente ticket requiere un encargo nuevo. El motor es nuevo y no requiere compatibilidad ni migraciones de proyectos previos. Cada entrega cierra con commit, pruebas y push a `origin/main`.
+Copiar un prompt sólo cuando el usuario encargue una oleada o ticket de [ENTREGABLES-HOBBY.md](ENTREGABLES-HOBBY.md). ARRANQUE ya está integrado. La instrucción anterior `ALCANCE: COMPLETO` no autoriza continuar automáticamente. El usuario encargó las oleadas 4–9 y después pidió **un ticket completo**; se cerraron E02, E03 y E04. UX01 se entrega verificado técnicamente con revisión del usuario pendiente. El siguiente ticket requiere un encargo nuevo. El motor es nuevo y no requiere compatibilidad ni migraciones de proyectos previos. Cada entrega cierra con commit, pruebas y push a `origin/main`.
 
 ## Un solo agente
 
@@ -16,7 +16,7 @@ CONTRACTS.md, VALIDATION.md, STATE.md y los tickets de backlog.json/TASKS.md.
 La investigación de docs/research explica las decisiones; no repitas toda su auditoría.
 
 Comprueba HEAD, trabajo concurrente y dependencias integradas de los tickets elegidos.
-J01, S01/S02, E01 y E02 ya están integrados; no los repitas. El último encargo autorizó sólo E02 completo. E03 y los demás tickets pendientes no se inician hasta un encargo nuevo.
+J01, S01/S02, E01, E02, E03 y E04 ya están integrados; no los repitas. UX01 se entrega para revisión del usuario (evidence/UX01.md); no darlo por aceptado por sus pruebas técnicas. No iniciar E05 ni H01 ni otros tickets sin un encargo nuevo.
 Implementa únicamente los tickets encargados usando el SDK C y GPU real cuando aplique.
 No migres Haunted ni agregues adaptadores o compatibilidad con prototipos anteriores.
 

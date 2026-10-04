@@ -12,7 +12,7 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using Vestigio.Studio;
 
-internal static class Program
+internal static partial class Program
 {
     private static void Check(bool condition, string message)
     {
@@ -890,6 +890,7 @@ internal static class Program
             var assetList = (ListBox)window.FindName("AssetList")!;
             assetList.SelectedItem = assetList.Items.OfType<ListBoxItem>()
                 .Single(row => (string?)row.Tag == imported.Id);
+            ((Button)window.FindName("PreviewAssetButton")!).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
             string previewDetails = ((TextBlock)window.FindName("AssetDetails")!).Text;
             bool previewReady = previewDetails.Contains("GPU temporal");
             Check(GpuHostNative.vg_gpu_host_document_revision(
@@ -1658,6 +1659,11 @@ internal static class Program
     {
         try
         {
+            if (args.Length == 3 && args[0] == "--ux01")
+            {
+                VerifyUX01(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
+                return 0;
+            }
             if (args.Length == 4 && args[0] == "--e01")
             {
                 VerifyAtrium3D(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]),

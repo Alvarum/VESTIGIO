@@ -1,0 +1,145 @@
+-- Testing if -Werror=pointer-arith can be used -- compiles
+-- Testing if -Werror=implicit-function-declaration can be used -- compiles
+-- Testing if -fno-strict-aliasing can be used -- compiles
+-- Using raylib's GLFW
+-- Including Win32 support
+-- Audio Backend: miniaudio
+-- Building raylib static library
+-- Generated build type: Debug
+-- Compiling with the flags:
+--   PLATFORM=PLATFORM_DESKTOP
+--   GRAPHICS=GRAPHICS_API_OPENGL_33
+-- Configuring done (0.9s)
+-- Generating done (0.2s)
+-- Build files have been written to: C:/Users/alvar/Documents/dev/doom like/1/build/vestigio/debug
+[1/1] C:\WINDOWS\system32\cmd.exe /C "cd /D "C:\Users\alvar\Documents\dev\doom like\1\build\vestigio\debug" && "C:\Users\alvar\Documents\dev\doom like\1\.tools\msys64\ucrt64\bin\cmake.exe" -E copy_directory "C:/Users/alvar/Documents/dev/doom like/1/engines/vestigio/assets" "C:/Users/alvar/Documents/dev/doom like/1/build/vestigio/debug/bin/assets""
+  Vestigio.Studio -> C:\Users\alvar\Documents\dev\doom like\1\build\vestigio\debug\bin\vestigio_studio.dll
+
+Compilación correcta.
+    0 Advertencia(s)
+    0 Errores
+
+Tiempo transcurrido 00:00:00.79
+  Vestigio.Studio -> C:\Users\alvar\Documents\dev\doom like\1\build\vestigio\debug\bin\vestigio_studio.dll
+  Vestigio.Studio.Tests -> C:\Users\alvar\Documents\dev\doom like\1\build\vestigio\debug\bin\Vestigio.Studio.Tests.dll
+
+Compilación correcta.
+    0 Advertencia(s)
+    0 Errores
+
+Tiempo transcurrido 00:00:01.00
+Test project C:/Users/alvar/Documents/dev/doom like/1/build/vestigio/debug
+      Start  1: vestigio_audio_device
+ 1/46 Test  #1: vestigio_audio_device ..............   Passed    1.03 sec
+      Start  2: vestigio_gpu_host_room
+ 2/46 Test  #2: vestigio_gpu_host_room .............   Passed    1.02 sec
+      Start  3: vestigio_gpu_host_e02
+ 3/46 Test  #3: vestigio_gpu_host_e02 ..............   Passed    1.14 sec
+      Start  4: vestigio_gpu_host_e03
+ 4/46 Test  #4: vestigio_gpu_host_e03 ..............   Passed    0.97 sec
+      Start  5: vestigio_gpu_host_e04
+ 5/46 Test  #5: vestigio_gpu_host_e04 ..............   Passed    4.04 sec
+      Start  6: vestigio_studio_3d
+ 6/46 Test  #6: vestigio_studio_3d .................   Passed    3.39 sec
+      Start  7: vestigio_studio_editing
+ 7/46 Test  #7: vestigio_studio_editing ............   Passed    2.75 sec
+      Start  8: vestigio_studio_door
+ 8/46 Test  #8: vestigio_studio_door ...............   Passed    2.84 sec
+      Start  9: vestigio_studio_visual
+ 9/46 Test  #9: vestigio_studio_visual .............   Passed    3.07 sec
+      Start 10: vestigio_studio_audio
+10/46 Test #10: vestigio_studio_audio ..............   Passed    3.07 sec
+      Start 11: vestigio_studio_room
+11/46 Test #11: vestigio_studio_room ...............   Passed    2.53 sec
+      Start 12: vestigio_studio_e02
+12/46 Test #12: vestigio_studio_e02 ................   Passed    4.08 sec
+      Start 13: vestigio_studio_e03
+13/46 Test #13: vestigio_studio_e03 ................   Passed    3.01 sec
+      Start 14: vestigio_studio_e04_room
+14/46 Test #14: vestigio_studio_e04_room ...........   Passed    4.44 sec
+      Start 15: vestigio_studio_ux01
+15/46 Test #15: vestigio_studio_ux01 ...............   Passed    5.93 sec
+      Start 16: vestigio_gpu_render
+16/46 Test #16: vestigio_gpu_render ................   Passed    1.02 sec
+      Start 17: vestigio_gpu_scene
+17/46 Test #17: vestigio_gpu_scene .................   Passed    0.69 sec
+      Start 18: vestigio_player_e03_import
+18/46 Test #18: vestigio_player_e03_import .........   Passed    1.89 sec
+      Start 19: vestigio_player_e04_room
+19/46 Test #19: vestigio_player_e04_room ...........   Passed    1.34 sec
+      Start 20: vestigio_player_demo
+20/46 Test #20: vestigio_player_demo ...............   Passed    0.56 sec
+      Start 21: vestigio_player_collision
+21/46 Test #21: vestigio_player_collision ..........   Passed    1.54 sec
+      Start 22: vestigio_player_door
+22/46 Test #22: vestigio_player_door ...............   Passed    1.55 sec
+      Start 23: vestigio_player_visual
+23/46 Test #23: vestigio_player_visual .............   Passed    0.61 sec
+      Start 24: vestigio_player_visual_persisted
+24/46 Test #24: vestigio_player_visual_persisted ...   Passed    0.58 sec
+      Start 25: vestigio_player_audio
+25/46 Test #25: vestigio_player_audio ..............   Passed    1.34 sec
+      Start 26: vestigio_player_audio_save
+26/46 Test #26: vestigio_player_audio_save .........   Passed    0.63 sec
+      Start 27: vestigio_player_audio_load
+27/46 Test #27: vestigio_player_audio_load .........   Passed    0.61 sec
+      Start 28: vestigio_audio_core
+28/46 Test #28: vestigio_audio_core ................   Passed    0.01 sec
+      Start 29: vestigio_spatial
+29/46 Test #29: vestigio_spatial ...................   Passed    0.01 sec
+      Start 30: vestigio_content
+30/46 Test #30: vestigio_content ...................   Passed    0.09 sec
+      Start 31: vestigio_room_recipe
+31/46 Test #31: vestigio_room_recipe ...............   Passed    0.02 sec
+      Start 32: vestigio_document
+32/46 Test #32: vestigio_document ..................   Passed    0.06 sec
+      Start 33: vestigio_document_runtime
+33/46 Test #33: vestigio_document_runtime ..........   Passed    0.02 sec
+      Start 34: vestigio_runtime
+34/46 Test #34: vestigio_runtime ...................   Passed    0.01 sec
+      Start 35: vestigio_controller
+35/46 Test #35: vestigio_controller ................   Passed    0.19 sec
+      Start 36: vestigio_door
+36/46 Test #36: vestigio_door ......................   Passed    0.02 sec
+      Start 37: vestigio_animation
+37/46 Test #37: vestigio_animation .................   Passed    0.01 sec
+      Start 38: vestigio_runtime_cpp11
+38/46 Test #38: vestigio_runtime_cpp11 .............   Passed    0.01 sec
+      Start 39: vestigio_assets
+39/46 Test #39: vestigio_assets ....................   Passed    0.01 sec
+      Start 40: vestigio_gltf_import
+40/46 Test #40: vestigio_gltf_import ...............   Passed    0.05 sec
+      Start 41: vestigio_game_lifecycle
+41/46 Test #41: vestigio_game_lifecycle ............   Passed    0.03 sec
+      Start 42: vestigio_runtime_c11
+42/46 Test #42: vestigio_runtime_c11 ...............   Passed    0.01 sec
+      Start 43: vestigio_header_c11
+43/46 Test #43: vestigio_header_c11 ................   Passed    0.01 sec
+      Start 44: vestigio_header_cpp11
+44/46 Test #44: vestigio_header_cpp11 ..............   Passed    0.01 sec
+      Start 45: vestigio_render_contract
+45/46 Test #45: vestigio_render_contract ...........   Passed    0.02 sec
+      Start 46: vestigio_sdk_install
+46/46 Test #46: vestigio_sdk_install ...............   Passed    2.02 sec
+
+100% tests passed out of 46
+
+Label Time Summary:
+animation    =   0.01 sec*proc (1 test)
+app          =  53.96 sec*proc (25 tests)
+asset        =  12.50 sec*proc (5 tests)
+audio        =   6.69 sec*proc (6 tests)
+core         =   0.01 sec*proc (1 test)
+device       =   1.03 sec*proc (1 test)
+document     =  45.18 sec*proc (18 tests)
+gamekit      =   7.49 sec*proc (7 tests)
+gpu          =  54.65 sec*proc (26 tests)
+sdk          =   1.44 sec*proc (3 tests)
+settings     =   4.88 sec*proc (4 tests)
+spatial      =  16.67 sec*proc (9 tests)
+studio       =  42.28 sec*proc (14 tests)
+ux           =   5.93 sec*proc (1 test)
+visual       =   4.25 sec*proc (3 tests)
+window       =  54.65 sec*proc (26 tests)
+
+Total Test time (real) =  58.43 sec

@@ -160,6 +160,9 @@ VG_GPU_HOST_API int32_t vg_gpu_host_set_selected_transform(VgGpuHost *host, cons
                                                            size_t error_capacity);
 VG_GPU_HOST_API int32_t vg_gpu_host_save_level(VgGpuHost *host, const char *path, char *error,
                                                size_t error_capacity);
+VG_GPU_HOST_API int32_t vg_gpu_host_load_level(VgGpuHost *host, const char *level_path,
+                                              const char *model_path, char *error,
+                                              size_t error_capacity);
 VG_GPU_HOST_API int32_t vg_gpu_host_reopen_level(VgGpuHost *host, const char *level_path,
                                                  const char *model_path, char *error,
                                                  size_t error_capacity);

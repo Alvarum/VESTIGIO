@@ -346,7 +346,7 @@ int vg_demo_3d_run(int smoke_frames, const char *capture_path, bool show_collide
                  settings.visual_profile == VG_VISUAL_PROFILE_RETRO ? "retro" : "clean",
                  vg_document_instance_light_count(vg_demo_scene_document_instance(scene)),
                  visual_environment.fog_enabled ? "linear" : "off");
-    if (audio_enabled) {
+    if (audio_enabled && vg_demo_scene_is_example(scene)) {
         char audio_path[2048];
         path_length = snprintf(audio_path, sizeof(audio_path), "%sassets/demo/audio",
                                GetApplicationDirectory());

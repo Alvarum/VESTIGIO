@@ -1,11 +1,11 @@
 # Recuperar VESTIGIO Studio para crear el primer nivel
 
-**Estado: plan para revisión, 2026-10-04.** El usuario rechazó la interfaz 3D
-mostrada tras E04. El siguiente entregable propuesto es **UX01**, un ticket
-propio y acotado. No supone que la interfaz actual sea utilizable por tener
-pruebas técnicas, ni autoriza iniciar después E05 o los tickets H01–H12.
+**Estado: implementación UX01 entregada para revisión, 2026-10-04.**
+El usuario autorizó este plan. El recorrido nuevo y el editor reorganizado
+se documentan en [evidence/UX01.md](evidence/UX01.md). La aceptación visual e
+interactiva permanece pendiente; no se inicia E05 ni H01–H12 automáticamente.
 
-## Diagnóstico comprobable
+## Diagnóstico previo que motivó UX01
 
 - `App.xaml.cs` abre el Atrium por defecto y sólo acepta otro nivel mediante
   `--level`. La ventana exige un archivo existente; no existe una acción visible
@@ -34,7 +34,7 @@ importa y coloca un GLB, ajusta su posición, guarda, cierra, reabre y pulsa
 **Probar**. Al detener, sigue en su documento y puede deshacer una edición.
 Eso permite empezar una escena 3D propia sin editar JSON ni copiar el Atrium.
 
-La composición propuesta para revisar antes de implementar es:
+La composición implementada sigue esta distribución:
 
 ```text
 Archivo  Editar  Ver                         Nivel propio *      [Probar]

@@ -1,131 +1,49 @@
 <Window x:Class="Vestigio.Studio.Vestigio3DWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:local="clr-namespace:Vestigio.Studio"
-        Title="VESTIGIO Studio — Atrium 3D" Width="1320" Height="820"
-        MinWidth="940" MinHeight="560" WindowStartupLocation="CenterScreen"
-        PreviewKeyDown="Window_PreviewKeyDown">
-  <Grid Background="{StaticResource WindowBrush}">
-    <Grid.RowDefinitions>
-      <RowDefinition Height="Auto"/>
-      <RowDefinition Height="Auto"/>
-      <RowDefinition Height="*"/>
-      <RowDefinition Height="Auto"/>
-    </Grid.RowDefinitions>
-
-    <Grid Background="{StaticResource PanelBrush}" Margin="0,0,0,1">
-      <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-      <StackPanel Margin="18,12" Orientation="Vertical">
-        <TextBlock Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold"
-                   Text="VESTIGIO / ESCENA 3D"/>
-        <StackPanel Orientation="Horizontal">
-          <TextBlock x:Name="LevelTitle" FontSize="18" FontWeight="SemiBold" Text="Atrium 3D"/>
-          <TextBlock x:Name="DirtyMark" Margin="9,0,0,0" FontSize="18"
-                     Foreground="{StaticResource AccentBrush}" Text="•" Visibility="Collapsed"/>
-        </StackPanel>
-      </StackPanel>
-      <StackPanel Grid.Column="1" Margin="16" VerticalAlignment="Center">
-        <TextBlock x:Name="LevelPathText" Foreground="{StaticResource MutedBrush}"
-                   TextAlignment="Right" MaxWidth="430"/>
-        <TextBlock Foreground="{StaticResource FaintBrush}" TextAlignment="Right"
-                   Text="Viewport GPU · documento vestigio.level"/>
-      </StackPanel>
-    </Grid>
-
-    <WrapPanel Grid.Row="1" Margin="12,10,12,8">
-      <Button x:Name="PlayButton" Content="▶ Probar" Click="Play_Click"/>
-      <Button x:Name="StopButton" Content="■ Detener" Margin="6,0,0,0"
-              IsEnabled="False" Click="Stop_Click"/>
-      <Border Width="1" Margin="12,3" Background="{StaticResource BorderBrush}"/>
-      <Button x:Name="AddButton" Content="+ Añadir pilar" Click="Add_Click"/>
-      <Button x:Name="AddRoomButton" Content="+ Sala del demo"
-              Margin="6,0,0,0" Click="AddRoom_Click"
-              ToolTip="Añade la sala fija del ejemplo Atrium (una por nivel)."/>
-      <Button x:Name="OpenRoomEditorButton" Content="Construir sala…"
-              Margin="6,0,0,0" Click="OpenRoomEditor_Click"
-              ToolTip="Abre el constructor de habitaciones y aberturas editables."/>
-      <Button x:Name="DuplicateButton" Content="Duplicar" Margin="6,0,0,0"
-              IsEnabled="False" Click="Duplicate_Click"/>
-      <Button x:Name="DeleteButton" Content="Borrar" Margin="6,0,0,0"
-              IsEnabled="False" Click="Delete_Click"/>
-      <Button x:Name="UndoButton" Content="Deshacer" Margin="12,0,0,0" Click="Undo_Click"/>
-      <Button x:Name="RedoButton" Content="Rehacer" Margin="6,0,0,0" Click="Redo_Click"/>
-      <Border Width="1" Margin="12,3" Background="{StaticResource BorderBrush}"/>
-      <Button x:Name="SaveButton" Content="Guardar como…" Click="Save_Click"/>
-      <Button x:Name="ReopenButton" Content="Reabrir" Margin="6,0,0,0" Click="Reopen_Click"/>
-      <Border Width="1" Margin="12,3" Background="{StaticResource BorderBrush}"/>
-      <TextBlock Text="Imagen" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
-      <ComboBox x:Name="VisualProfile" Width="112" Margin="6,0,0,0"
-                SelectedIndex="0" SelectionChanged="VisualProfile_SelectionChanged">
-        <ComboBoxItem Content="Limpio"/>
-        <ComboBoxItem Content="Retro"/>
-      </ComboBox>
-    </WrapPanel>
-
-    <Grid Grid.Row="2" Margin="12,0,12,8">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*"/>
-        <ColumnDefinition Width="370"/>
-      </Grid.ColumnDefinitions>
-      <Grid Grid.Column="0">
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-        <WrapPanel Margin="0,0,0,8">
-          <ComboBox x:Name="CameraMode" Width="132" SelectedIndex="0"
-                    SelectionChanged="CameraMode_SelectionChanged">
-            <ComboBoxItem Content="Cámara libre"/>
-            <ComboBoxItem Content="Órbita"/>
-            <ComboBoxItem Content="Ortográfica"/>
-          </ComboBox>
-          <Button x:Name="FrameButton" Content="Encuadrar selección" Margin="6,0,0,0"
-                  Click="FrameSelection_Click"/>
-          <TextBlock x:Name="VisualSummaryText" Margin="12,0,0,0"
-                     VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
-          <TextBlock Margin="14,0,0,0" Foreground="{StaticResource MutedBrush}"
-                     Text="Clic: seleccionar · Ctrl/Mayús: añadir · WASD: mover · derecho: mirar"/>
-        </WrapPanel>
-        <WrapPanel Grid.Row="1" Margin="0,0,0,8" VerticalAlignment="Center">
-          <TextBlock Text="Herramienta" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
-          <ComboBox x:Name="GizmoTool" Width="106" Margin="5,0,8,0" SelectedIndex="0"
-                    SelectionChanged="GizmoOptions_Changed">
-            <ComboBoxItem Content="Seleccionar"/><ComboBoxItem Content="Mover"/>
-            <ComboBoxItem Content="Rotar"/><ComboBoxItem Content="Escalar"/>
-          </ComboBox>
-          <TextBlock Text="Eje" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
-          <ComboBox x:Name="GizmoAxis" Width="50" Margin="5,0,8,0" SelectedIndex="0"
-                    SelectionChanged="GizmoOptions_Changed">
-            <ComboBoxItem Content="X"/><ComboBoxItem Content="Y"/><ComboBoxItem Content="Z"/>
-          </ComboBox>
-          <ComboBox x:Name="GizmoSpace" Width="72" Margin="0,0,8,0" SelectedIndex="0"
-                    SelectionChanged="GizmoOptions_Changed">
-            <ComboBoxItem Content="Mundo"/><ComboBoxItem Content="Local"/>
-          </ComboBox>
-          <ComboBox x:Name="GizmoPivot" Width="98" Margin="0,0,8,0" SelectedIndex="0"
-                    SelectionChanged="GizmoOptions_Changed">
-            <ComboBoxItem Content="Mediana"/><ComboBoxItem Content="Activo"/>
-            <ComboBoxItem Content="Individual"/>
-          </ComboBox>
-          <TextBlock Text="Paso" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
-          <TextBox x:Name="GizmoSnap" Width="46" Margin="5,0,4,0" Text="0"
-                   LostFocus="GizmoSnap_LostFocus"
-                   ToolTip="0 desactiva ajuste; metros para mover, grados para rotar, factor para escalar."/>
-          <TextBlock Text="0 = libre" VerticalAlignment="Center" Foreground="{StaticResource FaintBrush}"/>
-        </WrapPanel>
-        <Border Grid.Row="2" Background="#FF0A1118"
-                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
-          <local:GpuViewportHost x:Name="Viewport" OpenAtrium="True"/>
-        </Border>
-      </Grid>
-
-      <Border Grid.Column="1" Margin="10,0,0,0" Background="{StaticResource PanelBrush}"
-              BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
-        <ScrollViewer x:Name="InspectorScroll" VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled">
-          <StackPanel Margin="14">
-            <TextBlock Text="JERARQUÍA" Foreground="{StaticResource AccentBrush}"
-                       FontSize="11" FontWeight="SemiBold"/>
-            <TextBlock Text="Selecciona un objeto del documento."
-                       Foreground="{StaticResource MutedBrush}" Margin="0,5,0,8"/>
-            <ListBox x:Name="EntityList" Height="180" SelectionMode="Extended"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:local="clr-namespace:Vestigio.Studio"
+ Style="{StaticResource {x:Type Window}}" Title="VESTIGIO Studio" Width="1366" Height="768" MinWidth="850" MinHeight="500"
+ FontSize="12" WindowStartupLocation="CenterScreen" PreviewKeyDown="Window_PreviewKeyDown">
+ <Grid Background="{StaticResource WindowBrush}">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <DockPanel Background="{StaticResource PanelBrush}" Margin="0,0,0,1">
+   <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="12,0">
+    <TextBlock x:Name="LevelTitle" FontWeight="SemiBold"/>
+    <TextBlock x:Name="DirtyMark" Text=" •" Foreground="{StaticResource AccentBrush}" Visibility="Collapsed"/>
+    <TextBlock Text="  /  VESTIGIO" Foreground="{StaticResource FaintBrush}"/>
+   </StackPanel>
+   <Menu x:Name="FileMenu">
+    <MenuItem Header="_Archivo"><MenuItem Header="_Nuevo nivel…" InputGestureText="Ctrl+N" Click="New_Click"/><MenuItem Header="_Abrir nivel…" InputGestureText="Ctrl+O" Click="Open_Click"/><Separator/><MenuItem Header="_Guardar" InputGestureText="Ctrl+S" Click="Save_Click"/><MenuItem Header="Guardar _como…" InputGestureText="Ctrl+Mayús+S" Click="SaveAs_Click"/><MenuItem Header="Reabrir archivo guardado" Click="Reopen_Click"/><Separator/><MenuItem Header="Ver Atrium de ejemplo" Click="Example_Click"/><MenuItem Header="_Cerrar" Click="Close_Click"/></MenuItem>
+    <MenuItem Header="_Editar"><MenuItem Header="_Deshacer" InputGestureText="Ctrl+Z" Click="Undo_Click"/><MenuItem Header="_Rehacer" InputGestureText="Ctrl+Y" Click="Redo_Click"/><MenuItem Header="_Duplicar selección" InputGestureText="Ctrl+D" Click="Duplicate_Click"/><MenuItem Header="_Borrar selección" InputGestureText="Supr" Click="Delete_Click"/></MenuItem>
+    <MenuItem Header="_Ver"><MenuItem Header="Inspector" Click="Inspector_Click"/><MenuItem Header="Recursos" Click="Resources_Click"/><MenuItem Header="Restablecer paneles" Click="ResetLayout_Click"/></MenuItem>
+    <MenuItem Header="_Ayuda"><MenuItem Header="Controles y recorrido" Click="Help_Click"/></MenuItem>
+   </Menu>
+  </DockPanel>
+  <DockPanel Grid.Row="1" Margin="10,8">
+   <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+    <TextBlock x:Name="ModeLabel" Text="EDITAR" Foreground="{StaticResource AccentBrush}" Margin="8,0"/>
+    <Button x:Name="PlayButton" Content="▶ Probar" Click="Play_Click" Style="{StaticResource PrimaryButton}" ToolTip="F5 · jugar desde el inicio del jugador"/>
+    <Button x:Name="StopButton" Content="■ Detener" Click="Stop_Click" Margin="6,0,0,0" IsEnabled="False" ToolTip="F5 · volver a editar"/>
+   </StackPanel>
+   <WrapPanel>
+    <Button x:Name="OpenRoomEditorButton" Content="＋ Habitación" Click="OpenRoomEditor_Click"/>
+    <Button x:Name="ImportShortcut" Content="Importar modelo…" Click="ImportShortcut_Click" Margin="6,0"/>
+    <Button x:Name="SaveButton" Content="Guardar" Click="Save_Click" Margin="8,0,0,0"/>
+    <Button x:Name="UndoButton" Content="↶" Click="Undo_Click" ToolTip="Deshacer · Ctrl+Z" Margin="8,0,0,0"/>
+    <Button x:Name="RedoButton" Content="↷" Click="Redo_Click" ToolTip="Rehacer · Ctrl+Y" Margin="4,0"/>
+    <Button x:Name="DuplicateButton" Content="Duplicar" Click="Duplicate_Click" IsEnabled="False"/>
+    <Button x:Name="DeleteButton" Content="Borrar" Click="Delete_Click" IsEnabled="False" Margin="4,0"/>
+    <Button x:Name="AddButton" Content="Pilar de ejemplo" Click="Add_Click" Visibility="Collapsed"/>
+    <Button x:Name="AddRoomButton" Content="Sala de ejemplo" Click="AddRoom_Click" Visibility="Collapsed"/>
+    <Button x:Name="ReopenButton" Content="Reabrir" Click="Reopen_Click" Visibility="Collapsed"/>
+   </WrapPanel>
+  </DockPanel>
+  <Grid Grid.Row="2" Margin="8,0,8,6">
+   <Grid.ColumnDefinitions><ColumnDefinition x:Name="HierarchyWidth" Width="210" MinWidth="140"/><ColumnDefinition Width="6"/><ColumnDefinition Width="*" MinWidth="280"/><ColumnDefinition Width="6"/><ColumnDefinition x:Name="InspectorWidth" Width="330" MinWidth="280"/></Grid.ColumnDefinitions>
+   <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+    <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+     <StackPanel Margin="12"><TextBlock Text="ESCENA" FontWeight="SemiBold"/><TextBlock x:Name="EntityCountText" Foreground="{StaticResource FaintBrush}" Margin="0,4,0,0"/></StackPanel>
+                 <ListBox x:Name="EntityList" Grid.Row="1" SelectionMode="Extended"
                      Background="{StaticResource SurfaceBrush}"
                      Foreground="{StaticResource TextBrush}"
                      BorderBrush="{StaticResource BorderBrush}"
@@ -157,24 +75,140 @@
                 </Style>
               </ListBox.Resources>
             </ListBox>
-            <TextBlock Text="Ctrl o Mayús: selección múltiple" Margin="0,5,0,8"
-                       Foreground="{StaticResource FaintBrush}"/>
-            <StackPanel Orientation="Horizontal">
-              <ComboBox x:Name="ParentTarget" Width="183" SelectedIndex="0"
+
+
+     <TextBlock Grid.Row="2" Text="Ctrl / Mayús · multiselección" Margin="10" Foreground="{StaticResource FaintBrush}"/>
+    </Grid>
+   </Border>
+   <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" Background="Transparent"/>
+   <Grid Grid.Column="2"><Grid.RowDefinitions><RowDefinition Height="*" MinHeight="140"/><RowDefinition Height="6"/><RowDefinition x:Name="ResourcesHeight" Height="180" MinHeight="110"/></Grid.RowDefinitions>
+    <Grid Background="{StaticResource PanelBrush}"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+             <WrapPanel Margin="8,4">
+          <ComboBox x:Name="CameraMode" Width="132" SelectedIndex="0"
+                    SelectionChanged="CameraMode_SelectionChanged">
+            <ComboBoxItem Content="Cámara libre"/>
+            <ComboBoxItem Content="Órbita"/>
+            <ComboBoxItem Content="Ortográfica"/>
+          </ComboBox>
+          <Button x:Name="FrameButton" Content="Encuadrar selección" Margin="6,0,0,0"
+                  Click="FrameSelection_Click"/>
+          <TextBlock x:Name="VisualSummaryText" Margin="12,0,0,0"
+                     VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
+          <TextBlock Margin="14,0,0,0" Foreground="{StaticResource MutedBrush}"
+                     Visibility="Collapsed" Text="Clic: seleccionar"/>
+        </WrapPanel>
+        <WrapPanel Grid.Row="1" Margin="8,4" VerticalAlignment="Center">
+          <TextBlock Text="Herramienta" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
+          <ComboBox x:Name="GizmoTool" Width="106" Margin="5,0,8,0" SelectedIndex="0"
+                    SelectionChanged="GizmoOptions_Changed">
+            <ComboBoxItem Content="Seleccionar"/><ComboBoxItem Content="Mover"/>
+            <ComboBoxItem Content="Rotar"/><ComboBoxItem Content="Escalar"/>
+          </ComboBox>
+          <TextBlock Text="Eje" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
+          <ComboBox x:Name="GizmoAxis" Width="50" Margin="5,0,8,0" SelectedIndex="0"
+                    SelectionChanged="GizmoOptions_Changed">
+            <ComboBoxItem Content="X"/><ComboBoxItem Content="Y"/><ComboBoxItem Content="Z"/>
+          </ComboBox>
+<Expander Header="Ajustes" ToolTip="Espacio, pivote y paso de transformación"><WrapPanel>          <ComboBox x:Name="GizmoSpace" Width="96" Margin="0,0,8,0" SelectedIndex="0"
+                    SelectionChanged="GizmoOptions_Changed">
+            <ComboBoxItem Content="Mundo"/><ComboBoxItem Content="Local"/>
+          </ComboBox>
+          <ComboBox x:Name="GizmoPivot" Width="116" Margin="0,0,8,0" SelectedIndex="0"
+                    SelectionChanged="GizmoOptions_Changed">
+            <ComboBoxItem Content="Mediana"/><ComboBoxItem Content="Activo"/>
+            <ComboBoxItem Content="Individual"/>
+          </ComboBox>
+          <TextBlock Text="Paso" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"/>
+          <TextBox x:Name="GizmoSnap" Width="46" Margin="5,0,4,0" Text="0"
+                   LostFocus="GizmoSnap_LostFocus"
+                   ToolTip="0 desactiva ajuste; metros para mover, grados para rotar, factor para escalar."/>
+          <TextBlock Text="0 = libre" VerticalAlignment="Center" Foreground="{StaticResource FaintBrush}"/>
+</WrapPanel></Expander>        </WrapPanel>
+
+     <Border Grid.Row="2" Background="#0A1118" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"><local:GpuViewportHost x:Name="Viewport" OpenAtrium="True"/></Border>
+     <TextBlock Grid.Row="3" Text="Clic: seleccionar · derecho + WASD: navegar · F: encuadrar · F5: probar" Foreground="{StaticResource FaintBrush}" Margin="8,5"/>
+    </Grid>
+    <GridSplitter Grid.Row="1" Height="6" HorizontalAlignment="Stretch" Background="Transparent" ResizeDirection="Rows"/>
+    <TabControl Grid.Row="2" x:Name="ResourcesTabs">
+     <TabItem Header="Recursos"><Grid Margin="10"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+<WrapPanel Margin="0,0,0,6"><Button x:Name="ImportAssetButton" Content="Importar GLB/glTF…" Click="ImportAsset_Click"/><Button x:Name="PlaceAssetButton" Content="Colocar" Click="PlaceAsset_Click" IsEnabled="False" Margin="4,0"/><Button x:Name="PreviewAssetButton" Content="Vista previa" Click="PreviewAsset_Click" IsEnabled="False"/><Button x:Name="ReimportAssetButton" Content="Reimportar" Click="ReimportAsset_Click" IsEnabled="False" Margin="4,0"/></WrapPanel>
+<Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+<Grid><ListBox x:Name="AssetList" SelectionChanged="AssetList_SelectionChanged"/><TextBlock x:Name="AssetEmptyHint" Text="Tu biblioteca está vacía. Importa un modelo GLB o glTF para colocarlo en el nivel." TextWrapping="Wrap" Margin="12" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" IsHitTestVisible="False"/></Grid>
+<ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto"><StackPanel Margin="10,0,0,0"><TextBlock x:Name="AssetDetails" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"/><Expander Header="Nombre del recurso" Margin="0,6"><StackPanel><TextBox x:Name="AssetName" ToolTip="Nombre visible del modelo"/><Button x:Name="RenameAssetButton" Content="Renombrar" Click="RenameAsset_Click" IsEnabled="False" Margin="0,4"/></StackPanel></Expander></StackPanel></ScrollViewer>
+</Grid></Grid></TabItem>
+     <TabItem x:Name="ProblemsTab" Header="Problemas"><Grid Margin="10"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><TextBlock x:Name="ProblemsHint" Text="Sin problemas detectados." Margin="0,0,0,8" Foreground="{StaticResource MutedBrush}"/><ListBox Grid.Row="1" x:Name="ProblemsList" Foreground="{StaticResource DangerBrush}"/></Grid></TabItem>
+    </TabControl>
+   </Grid>
+   <GridSplitter Grid.Column="3" Width="6" HorizontalAlignment="Stretch" Background="Transparent"/>
+   <TabControl Grid.Column="4" x:Name="InspectorTabs">
+    <TabItem Header="Inspector"><ScrollViewer x:Name="InspectorScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="12">
+     <Border x:Name="EmptyInspector" Padding="14" Background="{StaticResource SurfaceBrush}" CornerRadius="5"><StackPanel><TextBlock Text="Empieza por el espacio" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="Construye una habitación, coloca modelos y prueba tu nivel. Selecciona un objeto para ver sus propiedades." TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" Margin="0,10"/><Button Content="Construir habitación" Click="OpenRoomEditor_Click"/><Button Content="Seleccionar inicio del jugador" Click="SelectSpawn_Click" Margin="0,8,0,0"/></StackPanel></Border>
+     <StackPanel x:Name="SelectionInspector">            <TextBlock Text="TRANSFORMACIÓN" Foreground="{StaticResource AccentBrush}"
+                       FontSize="11" FontWeight="SemiBold" Margin="0,20,0,5"/>
+            <TextBlock x:Name="SelectedLabel" Text="Ningún objeto seleccionado"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,0,0,12"/>
+            <StackPanel x:Name="TransformPanel" IsEnabled="False">
+              <TextBlock Text="Posición · metros" Foreground="{StaticResource MutedBrush}"/>
+              <UniformGrid Columns="3" Margin="0,5,0,0">
+                <TextBlock Text="X" Foreground="{StaticResource FaintBrush}"/>
+                <TextBlock Text="Y" Foreground="{StaticResource FaintBrush}"/>
+                <TextBlock Text="Z" Foreground="{StaticResource FaintBrush}"/>
+              </UniformGrid>
+              <UniformGrid Columns="3" Margin="0,5,0,12">
+                <TextBox x:Name="PositionX" ToolTip="X" Margin="0,0,4,0"/>
+                <TextBox x:Name="PositionY" ToolTip="Y" Margin="2,0,2,0"/>
+                <TextBox x:Name="PositionZ" ToolTip="Z" Margin="4,0,0,0"/>
+              </UniformGrid>
+<Expander x:Name="RotationScaleExpander" Header="Rotación y escala" IsExpanded="True"><StackPanel>              <TextBlock Text="Rotación · grados XYZ" Foreground="{StaticResource MutedBrush}"/>
+              <UniformGrid Columns="3" Margin="0,5,0,0">
+                <TextBlock Text="X" Foreground="{StaticResource FaintBrush}"/>
+                <TextBlock Text="Y" Foreground="{StaticResource FaintBrush}"/>
+                <TextBlock Text="Z" Foreground="{StaticResource FaintBrush}"/>
+              </UniformGrid>
+              <UniformGrid Columns="3" Margin="0,5,0,12">
+                <TextBox x:Name="RotationX" ToolTip="X" Margin="0,0,4,0"/>
+                <TextBox x:Name="RotationY" ToolTip="Y" Margin="2,0,2,0"/>
+                <TextBox x:Name="RotationZ" ToolTip="Z" Margin="4,0,0,0"/>
+              </UniformGrid>
+              <TextBlock Text="Escala" Foreground="{StaticResource MutedBrush}"/>
+              <UniformGrid Columns="3" Margin="0,5,0,0">
+                <TextBlock Text="X" Foreground="{StaticResource FaintBrush}"/>
+                <TextBlock Text="Y" Foreground="{StaticResource FaintBrush}"/>
+                <TextBlock Text="Z" Foreground="{StaticResource FaintBrush}"/>
+              </UniformGrid>
+              <UniformGrid Columns="3" Margin="0,5,0,12">
+                <TextBox x:Name="ScaleX" ToolTip="X" Margin="0,0,4,0"/>
+                <TextBox x:Name="ScaleY" ToolTip="Y" Margin="2,0,2,0"/>
+                <TextBox x:Name="ScaleZ" ToolTip="Z" Margin="4,0,0,0"/>
+              </UniformGrid>
+</StackPanel></Expander>              <Button x:Name="ApplyButton" Content="Aplicar transformación"
+                      Click="ApplyTransform_Click" Style="{StaticResource PrimaryButton}"/>
+            </StackPanel>
+            <TextBlock x:Name="FieldError" Foreground="{StaticResource DangerBrush}"
+                       TextWrapping="Wrap" Margin="0,9,0,0"/>
+<Expander Header="Componentes" Margin="0,12"><StackPanel>            <TextBlock Text="COMPONENTES" Foreground="{StaticResource AccentBrush}"
+                       FontSize="11" FontWeight="SemiBold" Margin="0,20,0,5"/>
+            <TextBlock Text="Sólo se aplican los campos modificados de la selección."
+                       Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"/>
+            <StackPanel x:Name="SchemaFieldsPanel" Margin="0,8,0,0"/>
+            <Button x:Name="ApplyFieldsButton" Content="Aplicar campos"
+                    Click="ApplyFields_Click" IsEnabled="False"/>
+</StackPanel></Expander><Expander Header="Organizar selección" Margin="0,14"> <StackPanel>            <WrapPanel>
+              <ComboBox x:Name="ParentTarget" Width="150" SelectedIndex="0"
                         ToolTip="Nuevo padre de la selección; Raíz quita el padre."/>
               <Button x:Name="ReparentButton" Content="Cambiar padre" Margin="6,0,0,0"
                       IsEnabled="False" Click="Reparent_Click"/>
-            </StackPanel>
+            </WrapPanel>
             <TextBlock Text="ORGANIZACIÓN DEL EDITOR" Foreground="{StaticResource AccentBrush}"
                        FontSize="11" FontWeight="SemiBold" Margin="0,18,0,6"/>
             <TextBlock Text="Grupo y capa no cambian el padre ni la visibilidad del juego."
                        Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"/>
-            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-              <TextBox x:Name="EditorGroup" Width="137" ToolTip="Grupo de la selección"/>
-              <TextBox x:Name="EditorLayer" Width="137" Margin="6,0,0,0"
+            <WrapPanel Margin="0,8,0,0">
+              <TextBox x:Name="EditorGroup" Width="125" ToolTip="Grupo de la selección"/>
+              <TextBox x:Name="EditorLayer" Width="125" Margin="6,0,0,0"
                        ToolTip="Capa de la selección"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+            </WrapPanel>
+            <WrapPanel Margin="0,6,0,0">
               <Button x:Name="ApplyOrganizationButton" Content="Aplicar grupo/capa"
                       Click="ApplyOrganization_Click"/>
               <CheckBox x:Name="HideLayer"
@@ -182,30 +216,28 @@
                         Checked="HideLayer_Changed" Unchecked="HideLayer_Changed"/>
               <TextBlock Text="Ocultar capa" Foreground="{StaticResource MutedBrush}"
                          VerticalAlignment="Center" Margin="5,0,0,0"/>
-            </StackPanel>
+            </WrapPanel>
             <TextBlock x:Name="OrganizationError" Foreground="{StaticResource DangerBrush}"
                        TextWrapping="Wrap" Margin="0,4,0,0"/>
-            <TextBlock x:Name="RoomSectionHeading" Text="CONSTRUCCIÓN · HABITACIONES"
+</StackPanel></Expander><Button x:Name="EditRoomShortcut" Content="Editar habitación seleccionada" Click="OpenRoomEditor_Click" Visibility="Collapsed"/></StackPanel>
+     <TextBlock x:Name="LevelPathText" TextWrapping="Wrap" Foreground="{StaticResource FaintBrush}" Margin="0,18,0,0"/>
+    </StackPanel></ScrollViewer></TabItem>
+    <TabItem x:Name="BuildTab" Header="Construir"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Button Content="＋ Nueva habitación" Click="NewRoom_Click" Margin="10"/><ScrollViewer Grid.Row="1" x:Name="BuildScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="12">            <TextBlock x:Name="RoomSectionHeading" Text="CONSTRUCCIÓN · HABITACIONES"
                        Foreground="{StaticResource AccentBrush}"
                        FontSize="11" FontWeight="SemiBold" Margin="0,20,0,6"/>
-            <TextBlock Text="Crea un rectángulo rápido o escribe el contorno x,y, un vértice por línea en orden antihorario."
+            <TextBlock Text="1. Traza el rectángulo. 2. Añade aberturas. 3. Previsualiza y crea."
                        Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"/>
-            <WrapPanel Margin="0,7,0,0">
-              <TextBlock Text="X" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
-              <TextBox x:Name="RoomRectX" Text="-2" Width="35" Margin="4,0,8,0"/>
-              <TextBlock Text="Y" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
-              <TextBox x:Name="RoomRectY" Text="-3" Width="35" Margin="4,0,8,0"/>
-              <TextBlock Text="Ancho" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
-              <TextBox x:Name="RoomRectWidth" Text="4" Width="35" Margin="4,0,8,0"/>
-              <TextBlock Text="Largo" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
-              <TextBox x:Name="RoomRectDepth" Text="4" Width="35" Margin="4,0,6,0"/>
-              <Button x:Name="RoomRectButton" Content="Trazar" Click="RoomRect_Click"/>
-            </WrapPanel>
-            <TextBox x:Name="RoomVertices" Height="82" Margin="0,6,0,8"
+<Grid Margin="0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+<StackPanel Margin="0,0,6,6"><TextBlock Text="Origen X · m" Foreground="{StaticResource MutedBrush}"/><TextBox x:Name="RoomRectX" Text="-2"/></StackPanel>
+<StackPanel Grid.Column="1" Margin="0,0,0,6"><TextBlock Text="Origen Y · m" Foreground="{StaticResource MutedBrush}"/><TextBox x:Name="RoomRectY" Text="-3"/></StackPanel>
+<StackPanel Grid.Row="1" Margin="0,0,6,6"><TextBlock Text="Ancho · m" Foreground="{StaticResource MutedBrush}"/><TextBox x:Name="RoomRectWidth" Text="4"/></StackPanel>
+<StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,6"><TextBlock Text="Largo · m" Foreground="{StaticResource MutedBrush}"/><TextBox x:Name="RoomRectDepth" Text="4"/></StackPanel>
+<Button Grid.Row="2" Grid.ColumnSpan="2" x:Name="RoomRectButton" Content="Trazar rectángulo" Click="RoomRect_Click"/>
+</Grid><Expander Header="Contorno avanzado · vértices x,y" Margin="0,8">            <TextBox x:Name="RoomVertices" Height="82" Margin="0,6,0,8"
                      AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
                      Text="-2,-3&#10;2,-3&#10;2,1&#10;-2,1"
                      TextChanged="RoomVertices_Changed"/>
-            <TextBlock x:Name="RoomDimensions" Foreground="{StaticResource FaintBrush}"
+</Expander>            <TextBlock x:Name="RoomDimensions" Foreground="{StaticResource FaintBrush}"
                        TextWrapping="Wrap" Margin="0,0,0,7"/>
             <WrapPanel>
               <StackPanel Width="75" Margin="0,0,6,0">
@@ -233,7 +265,7 @@
                 <TextBlock Text="Arista" Foreground="{StaticResource MutedBrush}"/>
                 <TextBox x:Name="OpeningEdge" Text="0"/>
               </StackPanel>
-              <StackPanel Width="83" Margin="0,0,5,0">
+              <StackPanel Width="104" Margin="0,0,5,0">
                 <TextBlock Text="Tipo" Foreground="{StaticResource MutedBrush}"/>
                 <ComboBox x:Name="OpeningKind" SelectedIndex="0">
                   <ComboBoxItem Content="Puerta" Tag="door"/>
@@ -266,16 +298,6 @@
               <Button x:Name="RemoveOpeningButton" Content="Quitar" Margin="6,0,0,0"
                       Click="RemoveOpening_Click"/>
             </WrapPanel>
-            <WrapPanel Margin="0,10,0,0">
-              <Button x:Name="PreviewRoomButton" Content="Vista previa"
-                      Click="PreviewRoom_Click"/>
-              <Button x:Name="CancelRoomPreviewButton" Content="Cancelar"
-                      Margin="6,0,0,0" Click="CancelRoomPreview_Click"/>
-              <Button x:Name="CommitRoomButton" Content="Crear habitación"
-                      Margin="6,0,0,0" Click="CommitRoom_Click"/>
-            </WrapPanel>
-            <TextBlock x:Name="RoomEditorError" Foreground="{StaticResource DangerBrush}"
-                       TextWrapping="Wrap" Margin="0,5,0,0"/>
             <TextBlock Text="VISTA EDITORIAL" Foreground="{StaticResource AccentBrush}"
                        FontSize="11" FontWeight="SemiBold" Margin="0,16,0,6"/>
             <WrapPanel Margin="0,0,0,6">
@@ -294,99 +316,23 @@
             </WrapPanel>
             <Border Margin="0,7,0,0" BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="1">
-              <local:RoomPlanView x:Name="RoomPlan" Height="180"/>
+              <local:RoomPlanView x:Name="RoomPlan" Height="150"/>
             </Border>
             <TextBlock Text="El plano de autoría destaca la planta activa; Probar muestra todas."
                        Foreground="{StaticResource FaintBrush}" TextWrapping="Wrap"
                        Margin="0,5,0,0"/>
-            <TextBlock Text="BIBLIOTECA DE ASSETS" Foreground="{StaticResource AccentBrush}"
-                       FontSize="11" FontWeight="SemiBold" Margin="0,20,0,6"/>
-            <WrapPanel>
-              <Button x:Name="ImportAssetButton" Content="Importar GLB/glTF…"
-                      Click="ImportAsset_Click"/>
-              <Button x:Name="PlaceAssetButton" Content="Colocar" Margin="6,0,0,0"
-                      Click="PlaceAsset_Click" IsEnabled="False"/>
-              <Button x:Name="ReimportAssetButton" Content="Reimportar" Margin="6,0,0,0"
-                      Click="ReimportAsset_Click" IsEnabled="False"/>
+</StackPanel></ScrollViewer><StackPanel Grid.Row="2" Margin="10">            <WrapPanel Margin="0">
+              <Button x:Name="PreviewRoomButton" Content="Vista previa"
+                      Click="PreviewRoom_Click"/>
+              <Button x:Name="CancelRoomPreviewButton" Content="Cancelar"
+                      Margin="4,0,0,0" Click="CancelRoomPreview_Click"/>
+              <Button x:Name="CommitRoomButton" Content="Crear habitación" Style="{StaticResource PrimaryButton}"
+                      Margin="4,0,0,0" Click="CommitRoom_Click"/>
             </WrapPanel>
-            <ListBox x:Name="AssetList" Height="112" Margin="0,7,0,0"
-                     Background="{StaticResource SurfaceBrush}"
-                     Foreground="{StaticResource TextBrush}"
-                     SelectionChanged="AssetList_SelectionChanged"/>
-            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-              <TextBox x:Name="AssetName" Width="214" ToolTip="Nombre visible del asset"/>
-              <Button x:Name="RenameAssetButton" Content="Renombrar"
-                      Margin="6,0,0,0" Click="RenameAsset_Click" IsEnabled="False"/>
-            </StackPanel>
-            <Border Background="{StaticResource SurfaceBrush}" CornerRadius="3"
-                    Margin="0,8,0,0" Padding="9">
-              <StackPanel Orientation="Horizontal">
-                <Border Width="48" Height="48" Background="{StaticResource AccentSoftBrush}"
-                        CornerRadius="3">
-                  <TextBlock Text="3D" Foreground="{StaticResource AccentBrush}"
-                             FontWeight="Bold" FontSize="16" HorizontalAlignment="Center"
-                             VerticalAlignment="Center"/>
-                </Border>
-                <TextBlock x:Name="AssetDetails" Margin="9,0,0,0" Width="255"
-                           Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"
-                           Text="Selecciona un modelo. Vista previa no generada."/>
-              </StackPanel>
-            </Border>
-            <TextBlock Text="TRANSFORMACIÓN" Foreground="{StaticResource AccentBrush}"
-                       FontSize="11" FontWeight="SemiBold" Margin="0,20,0,5"/>
-            <TextBlock x:Name="SelectedLabel" Text="Ningún objeto seleccionado"
-                       Foreground="{StaticResource MutedBrush}" Margin="0,0,0,12"/>
-            <StackPanel x:Name="TransformPanel" IsEnabled="False">
-              <TextBlock Text="Posición · metros" Foreground="{StaticResource MutedBrush}"/>
-              <UniformGrid Columns="3" Margin="0,5,0,0">
-                <TextBlock Text="X" Foreground="{StaticResource FaintBrush}"/>
-                <TextBlock Text="Y" Foreground="{StaticResource FaintBrush}"/>
-                <TextBlock Text="Z" Foreground="{StaticResource FaintBrush}"/>
-              </UniformGrid>
-              <UniformGrid Columns="3" Margin="0,5,0,12">
-                <TextBox x:Name="PositionX" ToolTip="X" Margin="0,0,4,0"/>
-                <TextBox x:Name="PositionY" ToolTip="Y" Margin="2,0,2,0"/>
-                <TextBox x:Name="PositionZ" ToolTip="Z" Margin="4,0,0,0"/>
-              </UniformGrid>
-              <TextBlock Text="Rotación · grados XYZ" Foreground="{StaticResource MutedBrush}"/>
-              <UniformGrid Columns="3" Margin="0,5,0,0">
-                <TextBlock Text="X" Foreground="{StaticResource FaintBrush}"/>
-                <TextBlock Text="Y" Foreground="{StaticResource FaintBrush}"/>
-                <TextBlock Text="Z" Foreground="{StaticResource FaintBrush}"/>
-              </UniformGrid>
-              <UniformGrid Columns="3" Margin="0,5,0,12">
-                <TextBox x:Name="RotationX" ToolTip="X" Margin="0,0,4,0"/>
-                <TextBox x:Name="RotationY" ToolTip="Y" Margin="2,0,2,0"/>
-                <TextBox x:Name="RotationZ" ToolTip="Z" Margin="4,0,0,0"/>
-              </UniformGrid>
-              <TextBlock Text="Escala" Foreground="{StaticResource MutedBrush}"/>
-              <UniformGrid Columns="3" Margin="0,5,0,0">
-                <TextBlock Text="X" Foreground="{StaticResource FaintBrush}"/>
-                <TextBlock Text="Y" Foreground="{StaticResource FaintBrush}"/>
-                <TextBlock Text="Z" Foreground="{StaticResource FaintBrush}"/>
-              </UniformGrid>
-              <UniformGrid Columns="3" Margin="0,5,0,12">
-                <TextBox x:Name="ScaleX" ToolTip="X" Margin="0,0,4,0"/>
-                <TextBox x:Name="ScaleY" ToolTip="Y" Margin="2,0,2,0"/>
-                <TextBox x:Name="ScaleZ" ToolTip="Z" Margin="4,0,0,0"/>
-              </UniformGrid>
-              <Button x:Name="ApplyButton" Content="Aplicar transformación"
-                      Click="ApplyTransform_Click" Style="{StaticResource PrimaryButton}"/>
-            </StackPanel>
-            <TextBlock x:Name="FieldError" Foreground="{StaticResource DangerBrush}"
-                       TextWrapping="Wrap" Margin="0,9,0,0"/>
-            <TextBlock Text="INSPECTOR DE COMPONENTES" Foreground="{StaticResource AccentBrush}"
-                       FontSize="11" FontWeight="SemiBold" Margin="0,20,0,5"/>
-            <TextBlock Text="Sólo se aplican los campos modificados de la selección."
-                       Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap"/>
-            <StackPanel x:Name="SchemaFieldsPanel" Margin="0,8,0,0"/>
-            <Button x:Name="ApplyFieldsButton" Content="Aplicar campos"
-                    Click="ApplyFields_Click" IsEnabled="False"/>
-            <TextBlock Text="PROBLEMAS" Foreground="{StaticResource AccentBrush}"
-                       FontSize="11" FontWeight="SemiBold" Margin="0,20,0,5"/>
-            <ListBox x:Name="ProblemsList" Height="72" Background="{StaticResource SurfaceBrush}"
-                     Foreground="{StaticResource DangerBrush}"/>
-            <TextBlock Text="AUDIO" Foreground="{StaticResource AccentBrush}"
+            <TextBlock x:Name="RoomEditorError" Foreground="{StaticResource DangerBrush}"
+                       TextWrapping="Wrap" Margin="0,5,0,0"/>
+</StackPanel></Grid></TabItem>
+    <TabItem Header="Nivel"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12"><TextBlock Text="IMAGEN" FontWeight="SemiBold"/><ComboBox x:Name="VisualProfile" SelectedIndex="0" SelectionChanged="VisualProfile_SelectionChanged" Margin="0,8"><ComboBoxItem Content="Limpio"/><ComboBoxItem Content="Retro"/></ComboBox>            <TextBlock Text="AUDIO" Foreground="{StaticResource AccentBrush}"
                        FontSize="11" FontWeight="SemiBold" Margin="0,20,0,7"/>
             <TextBlock Text="General" Foreground="{StaticResource MutedBrush}"/>
             <Slider x:Name="MasterVolume" Tag="0" Minimum="0" Maximum="100" Value="100"
@@ -400,19 +346,9 @@
             <TextBlock Text="Música (sin pista en Atrium)" Foreground="{StaticResource MutedBrush}"/>
             <Slider x:Name="MusicVolume" Tag="1" Minimum="0" Maximum="100" Value="100"
                     ValueChanged="AudioVolume_ValueChanged" Margin="0,2,0,7"/>
-            <TextBlock Text="Cada aplicación se puede deshacer. Los cambios de Probar no se guardan."
-                       Foreground="{StaticResource FaintBrush}" TextWrapping="Wrap"
-                       Margin="0,18,0,0"/>
-          </StackPanel>
-        </ScrollViewer>
-      </Border>
-    </Grid>
-
-    <DockPanel Grid.Row="3" Background="{StaticResource PanelBrush}" LastChildFill="True">
-      <TextBlock DockPanel.Dock="Right" Margin="12,6" Foreground="{StaticResource MutedBrush}"
-                 Text="{Binding SelectedUuid, ElementName=Viewport, StringFormat=Selección: {0}}"/>
-      <TextBlock x:Name="StatusText" Margin="14,6" Foreground="{StaticResource AccentBrush}"
-                 Text="Editar · cámara libre"/>
-    </DockPanel>
+<TextBlock Text="El inicio del jugador es la cámara de la jerarquía. Selecciónala para cambiar la posición de aparición." TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" Margin="0,16"/><Button Content="Seleccionar inicio del jugador" Click="SelectSpawn_Click"/></StackPanel></ScrollViewer></TabItem>
+   </TabControl>
   </Grid>
+  <DockPanel Grid.Row="3" Background="{StaticResource PanelBrush}"><TextBlock x:Name="SaveStateText" DockPanel.Dock="Right" Margin="12,6" Foreground="{StaticResource MutedBrush}"/><TextBlock x:Name="StatusText" Margin="12,6" Foreground="{StaticResource AccentBrush}" Text="Editar"/></DockPanel>
+ </Grid>
 </Window>

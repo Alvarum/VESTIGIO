@@ -19,10 +19,11 @@ binarios se generan en `build/vestigio/debug/bin/`. El módulo `common/` contien
 sólo configuración y mapeo de entrada. [La guía de uso](VESTIGIO-COMO-USAR.md)
 detalla los controles, la compilación y el flujo actual de edición.
 
-**Estado del editor:** Player y Studio compilan y tienen pruebas automatizadas,
-pero el usuario rechazó la usabilidad de la interfaz 3D mostrada. El
-[plan de recuperación de Studio](docs/implementation/STUDIO-UX-RECOVERY.md)
-propone UX01 como siguiente ticket revisable antes de ampliar funciones.
+**Estado del editor:** UX01 incorpora inicio Nuevo/Abrir/Ejemplo, jerarquía,
+viewport GPU, inspector contextual, constructor de habitaciones y recursos/problemas.
+El recorrido de un nivel propio tiene pruebas automatizadas y
+[evidencia de UX01](docs/implementation/evidence/UX01.md).
+Su aceptación visual e interactiva por el usuario sigue pendiente.
 
 La [investigación](docs/research/README.md) y el [backlog](docs/implementation/README.md)
 conservan referencias históricas de proyectos estudiados. Esas referencias no
