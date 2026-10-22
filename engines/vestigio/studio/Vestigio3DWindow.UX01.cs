@@ -97,7 +97,7 @@ public partial class Vestigio3DWindow
     {
         // Confirm the current document before any filesystem side effect.
         if (Viewport.IsPlaying || !CanLeaveDocument()) return false;
-        string path = (createFile ?? LevelFiles.CreateNew)(name);
+        string path = createFile is null ? LevelFiles.CreateNew(name) : createFile(name);
         return SwitchLevel(path, true, leaveApproved: true);
     }
 
