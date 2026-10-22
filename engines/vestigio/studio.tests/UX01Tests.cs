@@ -71,6 +71,10 @@ internal static partial class Program
             string active = window.ActiveLevelPath;
             Check(!window.SwitchLevel(GpuViewportHost.ResolveDemoAsset("atrium.level.json")) && window.ActiveLevelPath == active && viewport.IsDocumentDirty,
                 "Cancelar abrir debe conservar documento y cambios.");
+            bool newLevelFileCreated = false;
+            Check(!window.TryCreateNewLevel("Cancelado", _ => { newLevelFileCreated = true; return fresh; }) &&
+                  !newLevelFileCreated && window.ActiveLevelPath == active && viewport.IsDocumentDirty,
+                "Cancelar Nuevo no debe crear archivos ni alterar el documento actual.");
             window.LeaveChoiceForTest = () => MessageBoxResult.Yes; window.SavePathForTest = () => null;
             Check(!window.SwitchLevel(fresh) && viewport.IsDocumentDirty, "Cancelar Guardar como debe cancelar el cambio de documento.");
             window.SavePathForTest = () => saved; Click(window, "SaveButton");

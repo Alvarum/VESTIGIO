@@ -73,9 +73,9 @@ public partial class Vestigio3DWindow
         return true;
     }
 
-    internal bool SwitchLevel(string path, bool unsaved = false)
+    internal bool SwitchLevel(string path, bool unsaved = false, bool leaveApproved = false)
     {
-        if (Viewport.IsPlaying || !CanLeaveDocument()) return false;
+        if (Viewport.IsPlaying || (!leaveApproved && !CanLeaveDocument())) return false;
         if (!Viewport.TryLoadLevel(Path.GetFullPath(path))) { ShowNativeError("No se pudo abrir el nivel"); return false; }
         _sourceLevelPath = Path.GetFullPath(path);
         _previewedAssetId = ""; _roomPreviewActive = false;
@@ -93,11 +93,19 @@ public partial class Vestigio3DWindow
         return true;
     }
 
+    internal bool TryCreateNewLevel(string name, Func<string, string>? createFile = null)
+    {
+        // Confirm the current document before any filesystem side effect.
+        if (Viewport.IsPlaying || !CanLeaveDocument()) return false;
+        string path = createFile is null ? LevelFiles.CreateNew(name) : createFile(name);
+        return SwitchLevel(path, true, leaveApproved: true);
+    }
+
     private void New_Click(object sender, RoutedEventArgs e)
     {
         if (Viewport.IsPlaying) return;
         string? name = NewLevelDialog.GetName(this);
-        if (name is not null) _ = SwitchLevel(LevelFiles.CreateNew(name), true);
+        if (name is not null) _ = TryCreateNewLevel(name);
     }
 
     private void Open_Click(object sender, RoutedEventArgs e)
